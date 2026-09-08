@@ -138,9 +138,9 @@ public class FasSeedHarness {
             f.categories().linkWordToCategory("agreement", "legal");
             f.categories().linkWordToCategory("confidentiality", "legal");
 
-            f.keywords().createKeyword("unpaid invoice", "finance");
-            f.keywords().createKeyword("net 30 days", "finance");
-            f.keywords().createKeyword("confidentiality clause", "legal");
+            f.keywords().createKeyword("unpaid invoice notice", "finance");
+            f.keywords().createKeyword("net 30 days terms", "finance");
+            f.keywords().createKeyword("mutual confidentiality clause", "legal");
             f.keywords().createKeyword("statement of work", "legal");
             f.keywords().createKeyword("please find attached", "correspondence");
 

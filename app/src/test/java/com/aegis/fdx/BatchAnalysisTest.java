@@ -51,10 +51,10 @@ class BatchAnalysisTest {
         Path ev = tmp.resolve("evidence");
         Files.createDirectories(ev);
         Files.writeString(ev.resolve("invoice.txt"),
-                "Invoice 2024. Payment due in 30 days. Payment due on receipt. "
+                "Invoice 2024. Payment due in 30 days. Payment due in 30 days again. "
                         + "Consulting services rendered.", StandardCharsets.UTF_8);
         Files.writeString(ev.resolve("memo.txt"),
-                "Memo about the finance review and one payment due reminder.",
+                "Memo about the finance review and one payment due in 30 days reminder.",
                 StandardCharsets.UTF_8);
         Files.writeString(ev.resolve("unrelated.txt"),
                 "Notes about catering arrangements.", StandardCharsets.UTF_8);
@@ -64,7 +64,7 @@ class BatchAnalysisTest {
         int src = f.sources().createSource(new SourceDraft("Acme", "NL", "custodian", 0.8));
         int asp = f.aspects().createAspect("Plaintiff", 0.9);
         f.categories().createCategory("finance");
-        f.keywords().createKeyword("payment due", "finance");
+        f.keywords().createKeyword("payment due in 30 days", "finance");
         f.processing("Acme", "Plaintiff").processFolder(ev.toString());
         f.contents().registerIngestedItems(src, asp);
         return new Fixture(f, dao, src, asp);

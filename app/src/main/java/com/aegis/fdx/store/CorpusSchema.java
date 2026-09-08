@@ -152,6 +152,24 @@ final class CorpusSchema {
                   FOREIGN KEY (keyword_id) REFERENCES keyword(id) ON DELETE CASCADE
                 )""");
 
+            // ---- Where a category word occurs -----------------------------
+            // The reference model relates a file to a category through the
+            // category's *words*: words_paths ⨝ words_categorys. This table is the
+            // Java equivalent of words_paths, restricted to vocabulary the case
+            // actually cares about — the words that belong to a category — rather
+            // than every token of every document. Populated by analysis over the
+            // stored text, so a count here always means "this word really occurs in
+            // this file".
+            st.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS path_word (
+                  path_id INTEGER NOT NULL,
+                  word_id INTEGER NOT NULL,
+                  hits    INTEGER NOT NULL DEFAULT 0,
+                  PRIMARY KEY (path_id, word_id),
+                  FOREIGN KEY (path_id) REFERENCES path(id) ON DELETE CASCADE,
+                  FOREIGN KEY (word_id) REFERENCES word(id) ON DELETE CASCADE
+                )""");
+
             // ---- Notifications & saved searches --------------------------
             st.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS alert (
@@ -239,6 +257,12 @@ final class CorpusSchema {
             st.executeUpdate("CREATE INDEX IF NOT EXISTS ix_alert_read ON alert(is_read)");
             st.executeUpdate("CREATE INDEX IF NOT EXISTS ix_batch_state ON batch_run(state)");
             st.executeUpdate("CREATE INDEX IF NOT EXISTS ix_batch_started ON batch_run(started_at DESC)");
+            st.executeUpdate("CREATE INDEX IF NOT EXISTS ix_path_word_word ON path_word(word_id)");
+            st.executeUpdate("CREATE INDEX IF NOT EXISTS ix_path_word_path ON path_word(path_id)");
+            st.executeUpdate("CREATE INDEX IF NOT EXISTS ix_path_keyword_kw ON path_keyword(keyword_id)");
+            st.executeUpdate("CREATE INDEX IF NOT EXISTS ix_path_category_cat ON path_category(category_id)");
+            st.executeUpdate("CREATE INDEX IF NOT EXISTS ix_word_category_cat ON word_category(category_id)");
+            st.executeUpdate("CREATE INDEX IF NOT EXISTS ix_keyword_category ON keyword(category_id)");
         }
     }
 }

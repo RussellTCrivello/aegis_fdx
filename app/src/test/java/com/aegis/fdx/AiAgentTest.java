@@ -79,7 +79,7 @@ class AiAgentTest {
         int src = f.sources().createSource("Acme", "NL", "custodian", 0.8);
         int asp = f.aspects().createAspect("Plaintiff", 0.9);
         f.categories().createCategory("finance");
-        f.keywords().createKeyword("payment due", "finance");
+        f.keywords().createKeyword("payment due in 30 days", "finance");
         f.processing("Acme", "Plaintiff").processFolder(ev.toString());
         f.contents().registerIngestedItems(src, asp);
         return f;

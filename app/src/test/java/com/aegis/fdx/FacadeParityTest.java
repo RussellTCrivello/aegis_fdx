@@ -171,18 +171,18 @@ class FacadeParityTest {
             assertEquals(1, f.categories().getCategoryWords(cat, 10, 0).results().size());
 
             // keywords hang off a category word
-            assertTrue(f.keywords().createKeyword("unpaid invoice", "finance"));
+            assertTrue(f.keywords().createKeyword("unpaid invoice notice", "finance"));
             Page<KeywordDto> kws = f.keywords().listKeywords();
             assertEquals(1, kws.totalCount());
             assertEquals("finance", kws.results().get(0).categoryWord());
-            assertTrue(f.keywords().keywordExists("unpaid invoice"));
+            assertTrue(f.keywords().keywordExists("unpaid invoice notice"));
 
             Map<Integer, List<Integer>> grouped = f.keywords().keywordIdsByCategory();
             assertEquals(1, grouped.size());
 
             // unknown category -> NOT_FOUND, not a silent success
             FacadeException nf = assertThrows(FacadeException.class,
-                    () -> f.keywords().createKeyword("x", "no-such-category"));
+                    () -> f.keywords().createKeyword("a valid phrase", "no-such-category"));
             assertEquals(FacadeException.Kind.NOT_FOUND, nf.kind());
 
             assertEquals(1, f.words().bulkDeleteWords(List.of(w2)));

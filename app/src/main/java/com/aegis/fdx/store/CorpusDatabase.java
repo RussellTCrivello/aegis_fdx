@@ -953,6 +953,397 @@ public final class CorpusDatabase {
         return out;
     }
 
+    // ============ the relationship graph: file ↔ keyword ↔ category ↔ word ============
+    //
+    // Every relation below is written once and used in both directions. That is the
+    // point: a detail screen and the reverse-lookup screen that disagree is one of the
+    // easiest defects to ship and one of the hardest to notice, so "files for this
+    // category" and "categories for this file" are two readings of the same join, not
+    // two queries that happen to look similar.
+    //
+    // A file belongs to a category when a reviewer or an analysis run attached it
+    // (path_category), or when the file contains one of the category's words
+    // (path_word ⨝ word_category) — which is how the reference model relates the two
+    // (words_paths ⨝ words_categorys). Both are unioned so neither route is invisible.
+
+    /** The words that make up a category: its own word, plus every word linked to it. */
+    private static final String WORDS_OF_CATEGORY = """
+            SELECT c.word_id AS word_id FROM category c WHERE c.id = ?
+            UNION
+            SELECT wc.word_id AS word_id FROM word_category wc WHERE wc.category_id = ?
+            """;
+
+    /** Path ids related to a category, by attribution or by vocabulary. */
+    private static final String PATHS_OF_CATEGORY = """
+            SELECT pc.path_id AS path_id FROM path_category pc WHERE pc.category_id = ?
+            UNION
+            SELECT pw.path_id AS path_id FROM path_word pw
+             WHERE pw.word_id IN (SELECT c.word_id FROM category c WHERE c.id = ?
+                                  UNION
+                                  SELECT wc.word_id FROM word_category wc WHERE wc.category_id = ?)
+            """;
+
+    /** Records that a category word occurs in a file, with how often. */
+    public boolean linkPathToWord(int pathId, int wordId, int hits) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO path_word (path_id, word_id, hits) VALUES (?,?,?)
+                ON CONFLICT(path_id, word_id) DO UPDATE SET hits = excluded.hits""")) {
+            ps.setInt(1, pathId);
+            ps.setInt(2, wordId);
+            ps.setInt(3, hits);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    public boolean unlinkPathFromWord(int pathId, int wordId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "DELETE FROM path_word WHERE path_id=? AND word_id=?")) {
+            ps.setInt(1, pathId);
+            ps.setInt(2, wordId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    // ---- counts -------------------------------------------------------------
+
+    /** How many files carry this keyword, anywhere in the case. */
+    public int countFilesForKeyword(int keywordId) throws SQLException {
+        return scalar("SELECT COUNT(DISTINCT path_id) FROM path_keyword WHERE keyword_id=?", keywordId);
+    }
+
+    /** How many files this category relates to, by attribution or by its words. */
+    public int countFilesForCategory(int categoryId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT COUNT(*) FROM (" + PATHS_OF_CATEGORY + ")")) {
+            ps.setInt(1, categoryId);
+            ps.setInt(2, categoryId);
+            ps.setInt(3, categoryId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
+    /** How many files this word occurs in. */
+    public int countFilesForWord(int wordId) throws SQLException {
+        return scalar("SELECT COUNT(DISTINCT path_id) FROM path_word WHERE word_id=?", wordId);
+    }
+
+    private int scalar(String sql, int arg) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, arg);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
+    // ---- term → files -------------------------------------------------------
+
+    private static final String FILE_COLUMNS = """
+            SELECT p.id AS id, p.file_name AS file_name, p.file_path AS file_path,
+                   p.file_size AS file_size, p.file_type AS file_type,
+                   p.file_status AS file_status, p.file_date AS file_date,
+                   p.element_id AS element_id,
+                   s.name AS source_name, a.name AS aspect_name
+            """;
+
+    /** Files carrying a keyword, most occurrences first. */
+    public List<Row> selectFilesForKeyword(int keywordId, int limit) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(FILE_COLUMNS + """
+                , pk.hits AS hits
+                FROM path_keyword pk
+                JOIN path p ON p.id = pk.path_id
+                LEFT JOIN source s ON s.id = p.source_id
+                LEFT JOIN aspect a ON a.id = p.aspect_id
+                WHERE pk.keyword_id = ?
+                ORDER BY pk.hits DESC, p.file_name LIMIT ?""")) {
+            ps.setInt(1, keywordId);
+            ps.setInt(2, limit);
+            return all(ps);
+        }
+    }
+
+    /** Files related to a category, by attribution or by one of its words. */
+    public List<Row> selectFilesForCategory(int categoryId, int limit) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(FILE_COLUMNS + """
+                , 0 AS hits
+                FROM path p
+                LEFT JOIN source s ON s.id = p.source_id
+                LEFT JOIN aspect a ON a.id = p.aspect_id
+                WHERE p.id IN (""" + PATHS_OF_CATEGORY + """
+                ) ORDER BY p.file_name LIMIT ?""")) {
+            ps.setInt(1, categoryId);
+            ps.setInt(2, categoryId);
+            ps.setInt(3, categoryId);
+            ps.setInt(4, limit);
+            return all(ps);
+        }
+    }
+
+    /** Files a category word occurs in, most occurrences first. */
+    public List<Row> selectFilesForWord(int wordId, int limit) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(FILE_COLUMNS + """
+                , pw.hits AS hits
+                FROM path_word pw
+                JOIN path p ON p.id = pw.path_id
+                LEFT JOIN source s ON s.id = p.source_id
+                LEFT JOIN aspect a ON a.id = p.aspect_id
+                WHERE pw.word_id = ?
+                ORDER BY pw.hits DESC, p.file_name LIMIT ?""")) {
+            ps.setInt(1, wordId);
+            ps.setInt(2, limit);
+            return all(ps);
+        }
+    }
+
+    // ---- file → terms -------------------------------------------------------
+
+    /** Categories this file relates to: attributed, or carrying one of its words. */
+    public List<Row> selectCategoriesForPath(int pathId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT c.id AS id, w.word AS word,
+                       MAX(direct) AS attributed
+                FROM (
+                    SELECT pc.category_id AS category_id, 1 AS direct
+                      FROM path_category pc WHERE pc.path_id = ?
+                    UNION ALL
+                    SELECT wc.category_id AS category_id, 0 AS direct
+                      FROM path_word pw JOIN word_category wc ON wc.word_id = pw.word_id
+                     WHERE pw.path_id = ?
+                    UNION ALL
+                    SELECT c2.id AS category_id, 0 AS direct
+                      FROM path_word pw2 JOIN category c2 ON c2.word_id = pw2.word_id
+                     WHERE pw2.path_id = ?
+                ) rel
+                JOIN category c ON c.id = rel.category_id
+                JOIN word w ON w.id = c.word_id
+                GROUP BY c.id, w.word
+                ORDER BY w.word""")) {
+            ps.setInt(1, pathId);
+            ps.setInt(2, pathId);
+            ps.setInt(3, pathId);
+            return all(ps);
+        }
+    }
+
+    /** Category words occurring in this file, most occurrences first. */
+    public List<Row> selectWordsForPath(int pathId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT w.id AS id, w.word AS word, pw.hits AS hits
+                FROM path_word pw
+                JOIN word w ON w.id = pw.word_id
+                WHERE pw.path_id = ?
+                ORDER BY pw.hits DESC, w.word""")) {
+            ps.setInt(1, pathId);
+            return all(ps);
+        }
+    }
+
+    // ---- term → term --------------------------------------------------------
+
+    /** Keywords belonging to a category. */
+    public List<Row> selectKeywordsOfCategory(int categoryId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT k.id AS id, k.phrase AS keyword, k.category_id AS category_id
+                FROM keyword k WHERE k.category_id = ? ORDER BY k.phrase""")) {
+            ps.setInt(1, categoryId);
+            return all(ps);
+        }
+    }
+
+    /** The category words of a category — its own word first, then the linked ones. */
+    public List<Row> selectWordsOfCategory(int categoryId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT w.id AS id, w.word AS word
+                FROM (""" + WORDS_OF_CATEGORY + """
+                ) ids JOIN word w ON w.id = ids.word_id
+                ORDER BY w.word""")) {
+            ps.setInt(1, categoryId);
+            ps.setInt(2, categoryId);
+            return all(ps);
+        }
+    }
+
+    /**
+     * Keywords whose phrase contains a given word.
+     *
+     * <p>Matched on the normalised phrase with word boundaries, so "account" finds
+     * "annual account statement" but not "accountancy".
+     */
+    public List<Row> selectKeywordsContainingWord(String word) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT k.id AS id, k.phrase AS keyword, k.category_id AS category_id,
+                       w.word AS category_word
+                FROM keyword k
+                JOIN category c ON c.id = k.category_id
+                JOIN word w ON w.id = c.word_id
+                WHERE ' ' || LOWER(k.phrase) || ' ' LIKE '% ' || LOWER(?) || ' %'
+                ORDER BY k.phrase""")) {
+            ps.setString(1, word);
+            return all(ps);
+        }
+    }
+
+    /** Files that share a keyword, category or category word with this one. */
+    public List<Row> selectRelatedFiles(int pathId, int limit) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(FILE_COLUMNS + """
+                , shared.shared AS hits
+                FROM (
+                    SELECT other.path_id AS path_id, COUNT(*) AS shared FROM (
+                        SELECT pk2.path_id FROM path_keyword pk1
+                          JOIN path_keyword pk2 ON pk2.keyword_id = pk1.keyword_id
+                         WHERE pk1.path_id = ? AND pk2.path_id <> ?
+                        UNION ALL
+                        SELECT pc2.path_id FROM path_category pc1
+                          JOIN path_category pc2 ON pc2.category_id = pc1.category_id
+                         WHERE pc1.path_id = ? AND pc2.path_id <> ?
+                        UNION ALL
+                        SELECT pw2.path_id FROM path_word pw1
+                          JOIN path_word pw2 ON pw2.word_id = pw1.word_id
+                         WHERE pw1.path_id = ? AND pw2.path_id <> ?
+                    ) other GROUP BY other.path_id
+                ) shared
+                JOIN path p ON p.id = shared.path_id
+                LEFT JOIN source s ON s.id = p.source_id
+                LEFT JOIN aspect a ON a.id = p.aspect_id
+                ORDER BY shared.shared DESC, p.file_name LIMIT ?""")) {
+            for (int i = 1; i <= 6; i++) {
+                ps.setInt(i, pathId);
+            }
+            ps.setInt(7, limit);
+            return all(ps);
+        }
+    }
+
+    // ---- lists with the counts the tables show -------------------------------
+
+    /** Every keyword with the number of files it appears in. */
+    public List<Row> selectKeywordsWithFileCounts(String search, int limit, int offset)
+            throws SQLException {
+        String like = search == null || search.isBlank() ? null : "%" + search.toLowerCase() + "%";
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT k.id AS id, k.phrase AS keyword, k.category_id AS category_id,
+                       w.word AS category_word,
+                       COUNT(DISTINCT pk.path_id) AS files,
+                       IFNULL(SUM(pk.hits),0) AS hits
+                FROM keyword k
+                JOIN category c ON c.id = k.category_id
+                JOIN word w ON w.id = c.word_id
+                LEFT JOIN path_keyword pk ON pk.keyword_id = k.id
+                WHERE (? IS NULL OR LOWER(k.phrase) LIKE ?)
+                GROUP BY k.id, k.phrase, k.category_id, w.word
+                ORDER BY files DESC, k.phrase
+                LIMIT ? OFFSET ?""")) {
+            ps.setString(1, like);
+            ps.setString(2, like);
+            ps.setInt(3, limit);
+            ps.setInt(4, offset);
+            return all(ps);
+        }
+    }
+
+    /** Every category with its file count and how many words belong to it. */
+    public List<Row> selectCategoriesWithFileCounts(String search, int limit, int offset)
+            throws SQLException {
+        String like = search == null || search.isBlank() ? null : "%" + search.toLowerCase() + "%";
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT c.id AS id, c.word_id AS word_id, w.word AS word,
+                       (SELECT COUNT(*) FROM (
+                            SELECT pc.path_id FROM path_category pc WHERE pc.category_id = c.id
+                            UNION
+                            SELECT pw.path_id FROM path_word pw
+                             WHERE pw.word_id IN (SELECT c2.word_id FROM category c2 WHERE c2.id = c.id
+                                                  UNION
+                                                  SELECT wc.word_id FROM word_category wc
+                                                   WHERE wc.category_id = c.id)
+                       )) AS files,
+                       (SELECT COUNT(*) FROM (
+                            SELECT c3.word_id FROM category c3 WHERE c3.id = c.id
+                            UNION
+                            SELECT wc2.word_id FROM word_category wc2 WHERE wc2.category_id = c.id
+                       )) AS words,
+                       (SELECT COUNT(*) FROM keyword k WHERE k.category_id = c.id) AS keywords
+                FROM category c
+                JOIN word w ON w.id = c.word_id
+                WHERE (? IS NULL OR LOWER(w.word) LIKE ?)
+                ORDER BY files DESC, w.word
+                LIMIT ? OFFSET ?""")) {
+            ps.setString(1, like);
+            ps.setString(2, like);
+            ps.setInt(3, limit);
+            ps.setInt(4, offset);
+            return all(ps);
+        }
+    }
+
+    /** Every category word with the number of files it occurs in. */
+    public List<Row> selectCategoryWordsWithFileCounts(String search, int limit, int offset)
+            throws SQLException {
+        String like = search == null || search.isBlank() ? null : "%" + search.toLowerCase() + "%";
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT w.id AS id, w.word AS word,
+                       COUNT(DISTINCT pw.path_id) AS files,
+                       IFNULL(SUM(pw.hits),0) AS hits,
+                       (SELECT COUNT(DISTINCT wc.category_id) FROM word_category wc
+                         WHERE wc.word_id = w.id) AS categories
+                FROM word w
+                LEFT JOIN path_word pw ON pw.word_id = w.id
+                WHERE (? IS NULL OR LOWER(w.word) LIKE ?)
+                  AND (EXISTS (SELECT 1 FROM word_category wc2 WHERE wc2.word_id = w.id)
+                       OR EXISTS (SELECT 1 FROM category c2 WHERE c2.word_id = w.id))
+                GROUP BY w.id, w.word
+                ORDER BY files DESC, w.word
+                LIMIT ? OFFSET ?""")) {
+            ps.setString(1, like);
+            ps.setString(2, like);
+            ps.setInt(3, limit);
+            ps.setInt(4, offset);
+            return all(ps);
+        }
+    }
+
+    /** Lookup by text, for search: the keyword whose phrase matches, if any. */
+    public List<Row> selectKeywordsMatching(String text) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT k.id AS id, k.phrase AS keyword, k.category_id AS category_id,
+                       w.word AS category_word
+                FROM keyword k
+                JOIN category c ON c.id = k.category_id
+                JOIN word w ON w.id = c.word_id
+                WHERE LOWER(k.phrase) LIKE '%' || LOWER(?) || '%'
+                ORDER BY LENGTH(k.phrase), k.phrase""")) {
+            ps.setString(1, text);
+            return all(ps);
+        }
+    }
+
+    /** Lookup by text: categories whose word matches. */
+    public List<Row> selectCategoriesMatching(String text) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT c.id AS id, w.word AS word
+                FROM category c JOIN word w ON w.id = c.word_id
+                WHERE LOWER(w.word) LIKE '%' || LOWER(?) || '%'
+                ORDER BY w.word""")) {
+            ps.setString(1, text);
+            return all(ps);
+        }
+    }
+
+    /** Lookup by text: category words that match. */
+    public List<Row> selectCategoryWordsMatching(String text) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT w.id AS id, w.word AS word
+                FROM word w
+                WHERE LOWER(w.word) LIKE '%' || LOWER(?) || '%'
+                  AND (EXISTS (SELECT 1 FROM word_category wc WHERE wc.word_id = w.id)
+                       OR EXISTS (SELECT 1 FROM category c WHERE c.word_id = w.id))
+                ORDER BY w.word""")) {
+            ps.setString(1, text);
+            return all(ps);
+        }
+    }
+
     // ============ aggregates for the detail and analytics destinations ============
 
     /** Per-source rollup: file count, total bytes, distinct types, read count. */

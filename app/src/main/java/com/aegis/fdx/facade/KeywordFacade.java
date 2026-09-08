@@ -27,9 +27,16 @@ public final class KeywordFacade {
     /** Attaches a phrase to an existing category.
      *
      * @throws FacadeException NOT_FOUND if the category does not exist */
+    /**
+     * Adds a keyword to a category.
+     *
+     * <p>A keyword is a phrase of three or more words and a category is a single word:
+     * both are checked here, at the boundary, so no path into the case can store a term
+     * that contradicts the vocabulary. See {@link Terms}.
+     */
     public boolean createKeyword(String keywordPhrase, String categoryWord) {
-        String k = Validate.required(keywordPhrase, "phrase");
-        String cw = Validate.required(categoryWord, "categoryWord");
+        String k = Terms.requireKeyword(keywordPhrase, "phrase");
+        String cw = Terms.requireCategory(categoryWord, "categoryWord");
         try {
             CorpusDatabase.Row cat = db.selectCategoryByWord(cw);
             if (cat == null) {
@@ -79,7 +86,7 @@ public final class KeywordFacade {
     /** @return true if the row was updated */
     public boolean updateKeyword(int keywordId, String keywordPhrase) {
         Validate.positiveId(keywordId, "keywordId");
-        String k = Validate.required(keywordPhrase, "phrase");
+        String k = Terms.requireKeyword(keywordPhrase, "phrase");
         try {
             return db.updateKeyword(keywordId, k);
         } catch (SQLException e) {

@@ -76,7 +76,7 @@ class DestinationCoverageTest {
         int asp = f.aspects().createAspect("Plaintiff", 0.9);
         int cat = f.categories().createCategory("finance");
         f.categories().linkWordToCategory("invoice", "finance");
-        f.keywords().createKeyword("payment due", "finance");
+        f.keywords().createKeyword("payment due in 30 days", "finance");
         int kw = f.keywords().listKeywords().results().get(0).id();
 
         f.processing("Acme", "Plaintiff").processFolder(ev.toString());
@@ -157,7 +157,7 @@ class DestinationCoverageTest {
 
             List<KeywordUsage> kws = s.f().analytics().keywordsForSource(s.sourceId());
             assertEquals(1, kws.size());
-            assertEquals("payment due", kws.get(0).phrase());
+            assertEquals("payment due in 30 days", kws.get(0).phrase());
             assertEquals(4, kws.get(0).hits(), "3 + 1 recorded hits");
             assertEquals(2, kws.get(0).files());
             assertEquals("finance", kws.get(0).categoryWord());

@@ -25,8 +25,15 @@ public final class CategoryFacade {
     }
 
     /** Creates a category named by the given word, creating the word if needed. */
+    /**
+     * Creates a category.
+     *
+     * <p>A category is exactly one word — it is a point in the relationship graph, and a
+     * phrase cannot be one. A phrase of three or more words is a keyword; see
+     * {@link Terms}.
+     */
     public int createCategory(String categoryWord) {
-        String w = Validate.required(categoryWord, "categoryWord");
+        String w = Terms.requireCategory(categoryWord, "categoryWord");
         try {
             int wordId = db.insertWord(w);
             return db.insertCategory(wordId);
