@@ -635,6 +635,7 @@ public final class AiBoundaryTest {
     private static void nothingLoadsAtStartup(Path work) throws Exception {
         String savedEnabled = System.getProperty("aegis.ai.enabled");
         String savedEndpoint = System.getProperty("aegis.ai.endpoint");
+        String savedModel = System.getProperty("aegis.ai.model");
         try (LiveCase c = openCase(work.resolve("startup"));
              FakeLocalRuntime rt = new FakeLocalRuntime(freePort()).start()) {
 
@@ -642,6 +643,10 @@ public final class AiBoundaryTest {
             CorpusDatabase dao = new CorpusDatabase(c.db());
             System.setProperty("aegis.ai.enabled", "true");
             System.setProperty("aegis.ai.endpoint", rt.endpoint());
+            // The scripted runtime advertises this model, so a genuine invocation can
+            // succeed; the point of the check is when the provider appears, not whether
+            // a particular model is installed.
+            System.setProperty("aegis.ai.model", "test-model");
 
             // Exactly what the main window does while it is being built.
             AgentService svc = AgentService.fromEnvironment(f, dao);
@@ -669,7 +674,8 @@ public final class AiBoundaryTest {
             AgentActivity a = svc.ask("what is on this case?", AgentContext.empty());
             check("the model loads on the first explicit invocation",
                     !a.failed() && svc.isModelLoaded() && rt.requestCount() > 0,
-                    "the provider appears only once a person asks for it");
+                    "the provider appears only once a person asks for it"
+                            + (a.failed() ? " — ask failed: " + a.failure() : ""));
 
             // Switched off, even asking why must not construct or contact anything.
             System.setProperty("aegis.ai.enabled", "false");
@@ -701,6 +707,7 @@ public final class AiBoundaryTest {
         } finally {
             restore("aegis.ai.enabled", savedEnabled);
             restore("aegis.ai.endpoint", savedEndpoint);
+            restore("aegis.ai.model", savedModel);
         }
     }
 

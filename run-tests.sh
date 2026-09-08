@@ -64,6 +64,29 @@ echo; echo "== drag-and-drop intake (F-01) =="
 echo; echo "== windows compatibility (N-01) =="
 "$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.WindowsCompatibilityTest "$WORK/win"
 
+echo; echo "== JUnit suites (facade, agent, batch, model, scenario) =="
+# These used to run only under Gradle, which needs the network to resolve
+# dependencies; the JUnit Platform launcher in lib/ runs them with the same jars
+# that compiled the project, so the offline battery covers the whole test base.
+"$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.JUnitRunner \
+    com.aegis.fdx.FacadeParityTest \
+    com.aegis.fdx.AiAgentTest \
+    com.aegis.fdx.BatchAnalysisTest \
+    com.aegis.fdx.IntegrationModelTest \
+    com.aegis.fdx.EndToEndScenarioTest \
+    com.aegis.fdx.SettingsPersistenceTest \
+    com.aegis.fdx.HostMetricsTest
+
+echo; echo "== architecture invariants (structural rules the build must not break) =="
+"$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.ArchitectureInvariantsTest "$WORK/arch"
+
+echo; echo "== interface suites (need a JavaFX runtime with native libraries) =="
+# The runner reports checks that cannot run for want of a graphics device as
+# "not runnable on this machine" and still fails the battery for anything else.
+"$JDK/java" -Xmx900m --module-path "$FX" --add-modules javafx.controls,javafx.graphics \
+    -cp "$OUT:$CP" com.aegis.fdx.JUnitRunner \
+    com.aegis.fdx.UiParityTest com.aegis.fdx.DestinationCoverageTest com.aegis.fdx.SuiteBridgeTest
+
 echo; echo "== benchmark (N-02 / F-18 / N-03) =="
 "$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.Benchmark "$WORK/bench" "${1:-4}"
 

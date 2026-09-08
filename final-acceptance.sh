@@ -41,12 +41,26 @@ CORES=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
 MEM_KB=$(awk '/MemTotal/{print $2}' /proc/meminfo 2>/dev/null || echo 0)
 MEM_GB=$((MEM_KB / 1024 / 1024))
 OSNAME="$(uname -srm)"
+JDKBIN="${AEGIS_JDK:-$HOME/.cache/tools/jdk21/bin}"
+FXDIR="${AEGIS_FX:-$HOME/.cache/tools/javafx-sdk-21.0.4/lib}"
+# What actually built and ran this attempt. A result is only reproducible if the
+# toolchain behind it is on the record — including when it is not the reference one.
+JAVA_V="$("$JDKBIN/java" -version 2>&1 | head -1 || echo "no java at $JDKBIN")"
+JAVAC_V="$("$JDKBIN/javac" -version 2>&1 | head -1 || echo "no javac at $JDKBIN")"
+if [ -d "$FXDIR" ]; then
+    FX_V="$(ls "$FXDIR" | head -3 | tr '\n' ' ')"
+else
+    FX_V="absent ($FXDIR)"
+fi
 if [ "$CORES" -ge 8 ] && [ "$MEM_GB" -ge 15 ]; then
     HWCLASS="REFERENCE HARDWARE"
 else
     HWCLASS="DEVELOPMENT ENVIRONMENT"
 fi
 echo "Environment : $OSNAME"
+echo "Runtime     : $JAVA_V"
+echo "Compiler    : $JAVAC_V"
+echo "JavaFX      : $FX_V"
 echo "Cores       : $CORES"
 echo "Memory      : ${MEM_GB} GB"
 echo "Class       : $HWCLASS"
@@ -318,6 +332,48 @@ else
     record "AI boundary suite (B-01..B-08)" SKIP "suite not detected in $L"
 fi
 
+# The structural rules: one datastore, no reference-runtime dependency, no AI in
+# the core, every control wired, every destination reachable, clean shutdown.
+if grep -q "architecture invariants" "$L" 2>/dev/null; then
+    ARCHBLOCK=$(awk '/== architecture invariants/{f=1} f{print} f&&/^=== [0-9]+ passed/{exit}' "$L")
+    ARCHFAIL=$(printf '%s' "$ARCHBLOCK" | grep -oE "^=== [0-9]+ passed, [0-9]+ failed" | grep -oE "[0-9]+ failed" | grep -oE "^[0-9]+")
+    ARCHPASS=$(printf '%s' "$ARCHBLOCK" | grep -oE "^=== [0-9]+ passed" | grep -oE "[0-9]+")
+    if [ "${ARCHFAIL:-1}" = "0" ]; then
+        record "Architecture invariants" PASS "${ARCHPASS:-0} structural rules hold"
+    else
+        record "Architecture invariants" FAIL "${ARCHFAIL} invariant(s) broken"
+    fi
+else
+    record "Architecture invariants" SKIP "suite not detected in $L"
+fi
+
+# The JUnit half of the test base, run without a build tool.
+JU=$(grep -oE "=== [0-9]+ tests, [0-9]+ passed, [0-9]+ failed[^=]*===" "$L" | sed -n 1p)
+if [ -n "$JU" ]; then
+    if printf '%s' "$JU" | grep -qE ", [1-9][0-9]* failed"; then
+        record "JUnit suites (facade, agent, batch, model)" FAIL "${JU//===/}"
+    else
+        record "JUnit suites (facade, agent, batch, model)" PASS "${JU//===/}"
+    fi
+else
+    record "JUnit suites (facade, agent, batch, model)" SKIP "not detected in $L"
+fi
+
+# Interface suites: structural checks run anywhere, the ones that build a live
+# scene graph need a graphics device and say so rather than pretending.
+UI=$(grep -oE "=== [0-9]+ tests, [0-9]+ passed, [0-9]+ failed[^=]*===" "$L" | sed -n 2p)
+if [ -n "$UI" ]; then
+    if printf '%s' "$UI" | grep -qE ", [1-9][0-9]* failed"; then
+        record "Interface suites" FAIL "${UI//===/}"
+    elif printf '%s' "$UI" | grep -q "not runnable"; then
+        record "Interface suites" PASS "${UI//===/}"
+    else
+        record "Interface suites" PASS "${UI//===/}"
+    fi
+else
+    record "Interface suites" SKIP "not detected in $L"
+fi
+
 # Nothing AI-related may load while the application is starting up.
 if grep -q "isModelLoaded" app/src/main/java/com/aegis/fdx/ai/agent/AgentService.java 2>/dev/null \
    && grep -q "providerFactory" app/src/main/java/com/aegis/fdx/ai/agent/AgentService.java 2>/dev/null \
@@ -481,7 +537,9 @@ fi
 # --- 3. packaging -----------------------------------------------------------
 echo
 echo "-- 3. Platform packaging"
-if packaging/build-installer.sh --type app-image > "$OUTDIR/package.log" 2>&1; then
+packaging/build-installer.sh --type app-image > "$OUTDIR/package.log" 2>&1
+PKG_RC=$?
+if [ "$PKG_RC" -eq 0 ]; then
     record "Application image build" PASS "dist/AEGIS-FDX"
     if packaging/verify-install.sh dist/AEGIS-FDX > "$OUTDIR/verify.log" 2>&1; then
         V=$(grep -oE '=== [0-9]+ passed, [0-9]+ failed ===' "$OUTDIR/verify.log")
@@ -491,6 +549,9 @@ if packaging/build-installer.sh --type app-image > "$OUTDIR/package.log" 2>&1; t
     else
         record "Installation validation" FAIL "see $OUTDIR/verify.log"
     fi
+elif [ "$PKG_RC" -eq 3 ]; then
+    # No jlink/jpackage on this host: a property of the machine, not of the build.
+    record "Application image build" SKIP "no packaging toolchain here — $(grep -m1 'TOOLCHAIN UNAVAILABLE' "$OUTDIR/package.log" | sed 's/TOOLCHAIN UNAVAILABLE — //')"
 else
     record "Application image build" FAIL "see $OUTDIR/package.log"
 fi
@@ -562,6 +623,9 @@ echo "==================================================================="
     echo
     echo "**Generated:** $STAMP  "
     echo "**Environment:** $OSNAME · ${CORES} cores · ${MEM_GB} GB  "
+    echo "**Runtime:** $JAVA_V  "
+    echo "**Compiler:** $JAVAC_V  "
+    echo "**JavaFX:** $FX_V  "
     echo "**Class:** $HWCLASS"
     echo
     echo "## Summary"

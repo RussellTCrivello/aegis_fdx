@@ -26,15 +26,20 @@ public record PreviewDto(
         TEXT("text"),
         UNSUPPORTED("unsupported");
 
-        private final String pythonValue;
+        private final String label;
 
-        PreviewType(String pythonValue) {
-            this.pythonValue = pythonValue;
+        PreviewType(String label) {
+            this.label = label;
         }
 
-        /** Lowercase wire form. */
-        public String pythonValue() {
-            return pythonValue;
+        /**
+         * The lowercase name of this preview kind, for logs, exports and interface copy.
+         *
+         * <p>The wording matches the behaviour the reference implementation shows an
+         * examiner; the value is produced and consumed entirely within this application.
+         */
+        public String label() {
+            return label;
         }
     }
 }
