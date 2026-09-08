@@ -49,6 +49,9 @@ echo; echo "== milestone 3 acceptance (OCR / export / reports / integrity) =="
 echo; echo "== query validation (unknown fields / dates / regex) =="
 "$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.QueryValidationTest
 
+echo; echo "== AI boundary (B-01..B-07: agent is optional, manual and read-only) =="
+"$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.AiBoundaryTest "$WORK/aiboundary"
+
 echo; echo "== drag-and-drop intake (F-01) =="
 "$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.DragDropIngestTest "$WORK/dnd"
 

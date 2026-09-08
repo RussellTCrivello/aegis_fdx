@@ -99,7 +99,7 @@ behaviour change.
 | Component | Reason |
 |---|---|
 | Tess4J / Tesseract 5 | OCR requires a native binary; `needsOcr` flags are already set by the PDF and image analyzers so the stage can be inserted without touching the pipeline. Both Apache-2.0. |
-| ONNX Runtime | AI classification deferred to milestone 3. MIT. |
+| ONNX Runtime | **Removed.** It was declared for in-pipeline AI classification and never used. The AI boundary (`docs/AI_BOUNDARY.md`) keeps inference out of the processing engine, and the optional local agent uses a separately installed model runtime over loopback HTTP, so the application ships with no inference dependency. |
 
 ## Reproducing
 

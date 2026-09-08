@@ -112,6 +112,12 @@ The agent is an operator layer, not a second implementation: it reads the same d
 through the same facades a human's clicks would, and has no shell, SQL, filesystem or
 network access.
 
+Processing never calls it. The ingest path — read, extract, metadata, OCR, hash, index,
+store — contains no AI, and the application runs normally with the assistant disabled,
+unavailable or removed. The assistant runs only when you click an AI action, is
+read-only by default, and changes nothing by inspecting it. The rule and its mechanical
+enforcement: **[AI_BOUNDARY.md](docs/AI_BOUNDARY.md)**
+
 Diagrams: **[DIAGRAMS.md](docs/DIAGRAMS.md)**
 
 ---
@@ -122,6 +128,7 @@ Diagrams: **[DIAGRAMS.md](docs/DIAGRAMS.md)**
 |---|---|
 | [UI_GUIDE](docs/UI_GUIDE.md) | Every screen, with rendered figures |
 | [AI_AGENT](docs/AI_AGENT.md) | Local model, agent loop, tools, safety, offline operation |
+| [AI_BOUNDARY](docs/AI_BOUNDARY.md) | The normative rule: AI is optional, manually invoked and read-only |
 | [ARCHITECTURE](docs/ARCHITECTURE.md) | Layering and design decisions |
 | [DIAGRAMS](docs/DIAGRAMS.md) | Architecture, ERD, navigation, data flow, sequences |
 | [INTERFACE_INVENTORY](docs/INTERFACE_INVENTORY.md) | Screen → facade → backend → test |

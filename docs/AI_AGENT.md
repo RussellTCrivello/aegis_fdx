@@ -16,7 +16,11 @@ through the same facades.
 
 **It is not** a replacement for the processing engine. It does not read files, extract
 text, hash, OCR or index anything. Those remain the engine's job; the agent consults
-their results.
+their results. The application must — and does — run normally with the assistant
+disabled, unavailable, unconfigured or removed. The normative statement of that
+separation, and the checks that enforce it, are in
+**[AI_BOUNDARY.md](AI_BOUNDARY.md)**; this document describes how the agent itself
+works.
 
 ---
 
@@ -244,8 +248,15 @@ What the agent **cannot** do, verified by `AiAgentTest.noEscapeHatches`:
 - reach any facade not wrapped by a registered tool
 
 Read-only is the default. Mutating tools are not merely hidden — they are not
-registered at all unless the operator ticks "Allow the assistant to change data", and
-they refuse execution independently even if invoked directly.
+registered at all unless the operator confirms it, and they refuse execution
+independently even if invoked directly. Ticking "Allow the assistant to change data"
+opens a confirmation that names the two review actions it would enable and what remains
+impossible; declining leaves the control off and the session read-only.
+
+The agent is also structurally separate from the processing engine: nothing in the
+reading, extraction, metadata, OCR, hashing, indexing or storage path references it,
+and no ingest run can invoke it. That rule, and the suite that enforces it
+(`AiBoundaryTest`, B-01…B-07), are described in **[AI_BOUNDARY.md](AI_BOUNDARY.md)**.
 
 ---
 
@@ -382,6 +393,24 @@ Run them:
 ```bash
 ./gradlew :app:test --tests '*AiAgentTest'
 ```
+
+### Boundary suite
+
+`AiBoundaryTest` is a separate, architecture-level battery (B-01…B-07) asserting that
+the agent stays optional, manually invoked and read-only: no pipeline package
+references it in source or bytecode, a full ingest/index/analyse/search cycle makes
+zero model calls with a runtime reachable, and a question leaves every record, file and
+index segment untouched — verified with a control that a *confirmed* write does move
+the same fingerprint. It runs inside `./run-tests.sh`, `./gradlew :app:test` and
+`./final-acceptance.sh`:
+
+```bash
+./gradlew :app:test --tests '*SuiteBridgeTest'      # includes the boundary suite
+```
+
+Status note: this suite was authored on a machine without a JDK, so its first execution
+belongs to the next build on a machine that has one. It is wired into all three
+runners, and the release gate fails if it does not report `0 failed`.
 
 ---
 

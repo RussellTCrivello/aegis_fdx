@@ -97,7 +97,26 @@ Embeddings         EmbeddingProvider interface; local, optional, supplements key
 Offline tested     yes — AiAgentTest.offlineOperation, plus degradesWithoutRuntime
 Cloud dependency   none  (gate check greps for provider hosts; zero found)
 Escape hatches     none  (gate check for exec/ProcessBuilder/createStatement; zero found)
+Boundary           pipeline packages contain 0 references to com.aegis.fdx.ai
+Inference deps     none declared in the build (unused ONNX Runtime removed)
 ```
+
+### AI boundary (added this revision)
+
+`docs/AI_BOUNDARY.md` states the normative rule — AI is an optional, manually invoked,
+read-only analysis layer over the finished application, never part of ingestion,
+processing, extraction or storage — and `AiBoundaryTest` (B-01…B-07) enforces it in the
+functional battery, the Gradle suite bridge and the release gate. It asserts the
+separation in source *and* compiled bytecode, that a complete ingest/index/analyse/
+search cycle issues zero model calls with a runtime reachable, that a question leaves
+every record, file and index segment byte-identical, and — as a control — that a
+confirmed write does move the same fingerprint.
+
+**Honest status:** the suite was authored on a machine with no JDK available, so unlike
+everything else in this report its numbers have not been measured here. It is wired
+into `run-tests.sh`, `run-tests.ps1`, `SuiteBridgeTest` and `final-acceptance.sh`; the
+next build on a machine with a JDK executes it, and the gate fails unless it reports
+`0 failed`. The counts below therefore still describe the previous revision.
 
 ---
 
@@ -185,6 +204,7 @@ Stated rather than omitted.
 | **Batch scheduling ("Off-Hours", "Custom Time")** | Not implemented. The reference's schedule control is a mock-up with no backing scheduler; building one would invent a capability rather than reproduce one. |
 | **Host CPU / disk-I/O gauges** | Partial. JVM heap and processor count appear on Performance; per-process CPU and disk I/O are not observable from the JVM without a native agent. |
 | **Model generation unverified on this machine** | 400 MB free RAM cannot hold a usable model. Protocol, agent loop, tools, grounding and UI were verified against a scripted loopback runtime speaking the real format. Generation quality and latency need a machine with ≥6 GB free RAM. |
+| **AI boundary suite not yet executed** | `AiBoundaryTest` (B-01…B-07) was added after the last measured run, on a machine without a JDK, so its result is not included in the counts above. It is wired into all three runners and gates the release. |
 | Semantic retrieval not enabled by default | `EmbeddingProvider` is implemented; keyword, metadata and relationship retrieval are the default path. |
 | Charts are native bar rows | No charting dependency; same series and groupings as a plotted chart. |
 | Contextual "ask" entry points | The Assistant screen carries screen context and per-screen suggestions. Per-row "analyse this" buttons on every table are not yet wired. |

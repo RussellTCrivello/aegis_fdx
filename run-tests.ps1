@@ -163,6 +163,7 @@ Write-Host '== generating test dataset (D-04) ==' -ForegroundColor Cyan
 & $javaExe -Xmx900m -cp $runCp com.aegis.fdx.TestDataset (Join-Path $work 'testdata')
 
 Invoke-Suite 'drag-and-drop intake (F-01)' 'com.aegis.fdx.DragDropIngestTest' @((Join-Path $work 'dnd'))
+Invoke-Suite 'AI boundary (B-01..B-07)' 'com.aegis.fdx.AiBoundaryTest' @((Join-Path $work 'aiboundary'))
 Invoke-Suite 'windows compatibility (N-01)' 'com.aegis.fdx.WindowsCompatibilityTest' @((Join-Path $work 'win'))
 Invoke-Suite 'pipeline acceptance AT-01..AT-10 (M2)' 'com.aegis.fdx.PipelineAcceptanceTest' @((Join-Path $work 'at'))
 Invoke-Suite 'milestone 3 acceptance (OCR / export / reports / integrity)' 'com.aegis.fdx.M3AcceptanceTest' @((Join-Path $work 'm3'))

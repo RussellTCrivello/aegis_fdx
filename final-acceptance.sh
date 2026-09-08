@@ -266,6 +266,65 @@ else
     record "AI write actions gated" FAIL "mutating tools are not gated"
 fi
 
+# --- AI boundary (docs/AI_BOUNDARY.md) --------------------------------------
+# The agent is an optional analysis layer over the finished application. Nothing in
+# the reading, processing, extraction, metadata, OCR, hashing, indexing or storage
+# path may reference it, in source or in compiled bytecode.
+ai_in_pipeline=$(grep -rl "com\.aegis\.fdx\.ai" \
+    app/src/main/java/com/aegis/fdx/engine \
+    app/src/main/java/com/aegis/fdx/analyzers \
+    app/src/main/java/com/aegis/fdx/ocr \
+    app/src/main/java/com/aegis/fdx/index \
+    app/src/main/java/com/aegis/fdx/store \
+    app/src/main/java/com/aegis/fdx/spi \
+    app/src/main/java/com/aegis/fdx/model \
+    app/src/main/java/com/aegis/fdx/export \
+    app/src/main/java/com/aegis/fdx/facade \
+    app/src/main/java/com/aegis/fdx/Launcher.java 2>/dev/null | wc -l)
+if [ "$ai_in_pipeline" -eq 0 ]; then
+    record "AI outside the processing pipeline" PASS "9 pipeline packages reference no AI code"
+else
+    record "AI outside the processing pipeline" FAIL "$ai_in_pipeline pipeline file(s) reference the agent"
+fi
+
+# The agent must not be able to start processing, extraction, OCR or indexing itself.
+if grep -rqE "IngestPipeline|OcrStage|OcrEngine|AnalyzerRegistry|LuceneIndex|processFolder|startIngest" \
+        app/src/main/java/com/aegis/fdx/ai/ 2>/dev/null; then
+    record "AI cannot trigger processing" FAIL "agent code can reach the ingest or OCR path"
+else
+    record "AI cannot trigger processing" PASS "no ingest, extraction, OCR or index API in ai/"
+fi
+
+# Invocation must be an operator action, never something a screen does on its own.
+ai_callers=$(grep -rl "\.ask(" app/src/main/java/com/aegis/fdx/ui 2>/dev/null | wc -l)
+if [ "$ai_callers" -le 2 ] && [ "$ai_callers" -ge 1 ] \
+   && ! grep -rq "AnalyzeAction.run(" app/src/main/java/com/aegis/fdx/ui/screens 2>/dev/null; then
+    record "AI is manually invoked" PASS "Assistant screen and Analyze buttons only"
+else
+    record "AI is manually invoked" FAIL "the agent is reachable outside an explicit user action"
+fi
+
+# The boundary suite itself must have run, and passed, inside the functional battery.
+if grep -q "AI boundary" "$L" 2>/dev/null; then
+    AIBLOCK=$(awk '/== AI boundary/{f=1} f{print} f&&/^=== [0-9]+ passed/{exit}' "$L")
+    AIFAIL=$(printf '%s' "$AIBLOCK" | grep -oE "^=== [0-9]+ passed, [0-9]+ failed" | grep -oE "[0-9]+ failed" | grep -oE "^[0-9]+")
+    AIPASS=$(printf '%s' "$AIBLOCK" | grep -oE "^=== [0-9]+ passed" | grep -oE "[0-9]+")
+    if [ "${AIFAIL:-1}" = "0" ]; then
+        record "AI boundary suite (B-01..B-07)" PASS "${AIPASS:-0} checks passed, 0 failed"
+    else
+        record "AI boundary suite (B-01..B-07)" FAIL "${AIFAIL} boundary check(s) failed"
+    fi
+else
+    record "AI boundary suite (B-01..B-07)" SKIP "suite not detected in $L"
+fi
+
+# The rule has to be written down, not just enforced.
+if [ -f docs/AI_BOUNDARY.md ]; then
+    record "AI boundary documented" PASS "docs/AI_BOUNDARY.md states the rule and its evidence"
+else
+    record "AI boundary documented" FAIL "docs/AI_BOUNDARY.md is missing"
+fi
+
 # Detail destinations must be reachable: a Router with drill-through, not dead ends.
 if grep -q "interface Router" app/src/main/java/com/aegis/fdx/ui/Router.java 2>/dev/null \
    && grep -q "implements Router" app/src/main/java/com/aegis/fdx/ui/FasApp.java 2>/dev/null; then

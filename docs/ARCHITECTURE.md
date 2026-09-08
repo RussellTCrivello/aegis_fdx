@@ -62,6 +62,20 @@ through the same facades a human's clicks would. It has no shell, SQL, filesyste
 network tool, and it is read-only unless the operator explicitly confirms otherwise.
 Full detail in `AI_AGENT.md`.
 
+Note the direction of every arrow above. The ingest path —
+
+```
+Source → Reading → Processing → Extraction → Metadata → OCR → Content
+       → Hashing → Indexing → case.db / Lucene
+```
+
+— contains no AI, and nothing in it can reach the agent: the nine pipeline packages
+carry no reference to `com.aegis.fdx.ai` in source or in compiled bytecode, and the
+agent is invoked only by an operator action. That separation is the normative rule in
+`AI_BOUNDARY.md` and is enforced by the `AiBoundaryTest` suite (B-01…B-07) in the
+functional battery and on the release gate. AI is an optional analysis layer over the
+finished application, never part of its processing engine.
+
 ### Storage
 
 The five added concepts share the case's existing database and JDBC connection.
