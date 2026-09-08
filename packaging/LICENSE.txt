@@ -1,0 +1,72 @@
+AEGIS-FDX — Digital Forensics and E-Discovery Evidence Processing Platform
+Version 1.0.0
+Copyright (c) 2026 AEGIS Forensics
+
+================================================================================
+APPLICATION LICENCE
+================================================================================
+
+This software and its source code are original works. No part of this product
+was produced by decompiling, reverse-engineering, or reproducing the user
+interface or behaviour of any existing commercial or open-source forensic tool.
+
+All rights reserved by the copyright holder. Use of this software is governed by
+the agreement under which it was supplied.
+
+================================================================================
+THIRD-PARTY COMPONENTS
+================================================================================
+
+This product includes software developed by third parties. Every bundled
+component is licensed under Apache-2.0, MIT, BSD, EPL, or a public-domain
+equivalent, in accordance with the project's licensing policy. A complete
+inventory of all 35 bundled components, with versions and licence texts, is
+provided in the documentation:
+
+    docs/DEPENDENCY_REPORT.md    full compliance report
+    docs/LICENSES.md             component licence inventory
+
+Principal components:
+
+  Apache Lucene 9.11.1                      Apache License 2.0
+  Apache Tika 3.0.0                         Apache License 2.0
+  Apache PDFBox 3.0.3                       Apache License 2.0
+  Apache POI 5.3.0                          Apache License 2.0
+  Apache Commons Compress 1.27.1            Apache License 2.0
+  Apache mime4j 0.8.11                      Apache License 2.0
+  java-libpst 0.9.3                         Apache License 2.0
+  Eclipse Angus / Jakarta Mail 2.0.3        EPL-2.0 / GPL-2.0 with CPE
+  Logback                                   EPL-1.0 (elected)
+  SLF4J                                     MIT License
+  XZ for Java 1.10                          Public Domain
+  OpenJDK (Temurin) 21 LTS                  GPL-2.0 with Classpath Exception
+  OpenJFX / JavaFX 21.0.4                   GPL-2.0 with Classpath Exception
+
+The bundled Java runtime and JavaFX components are distributed under the GNU
+General Public License version 2 WITH the Classpath Exception, which expressly
+permits distribution of independent modules linked with these libraries.
+
+================================================================================
+OPTIONAL EXTERNAL COMPONENT
+================================================================================
+
+Optical character recognition requires Tesseract OCR, which is NOT bundled with
+this product and must be installed separately by the end user. Tesseract is
+distributed under the Apache License 2.0 by its own authors. This product
+invokes the Tesseract executable as an external process and does not
+incorporate, link, or redistribute any part of it.
+
+================================================================================
+NO WARRANTY
+================================================================================
+
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Users of this software are responsible for ensuring that their evidence handling
+practices comply with the legal and procedural requirements of their
+jurisdiction.

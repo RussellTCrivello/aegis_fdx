@@ -1,0 +1,17 @@
+// Reference module descriptor for the jlink/jpackage build (N-01).
+// Kept as .txt in the prototype so the classpath build stays simple; rename to
+// module-info.java when wiring the full dependency set.
+module com.aegis.fdx {
+    requires javafx.controls;
+    requires javafx.graphics;
+    requires javafx.base;
+    requires javafx.swing;
+
+    // Analyzer plugins are discovered through the A-02 service interface.
+    uses com.aegis.fdx.spi.Analyzer;
+
+    exports com.aegis.fdx.ui;
+    exports com.aegis.fdx.model;
+    exports com.aegis.fdx.engine;
+    exports com.aegis.fdx.spi;
+}

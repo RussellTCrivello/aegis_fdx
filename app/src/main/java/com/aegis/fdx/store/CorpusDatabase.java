@@ -1,0 +1,1375 @@
+package com.aegis.fdx.store;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Types;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Data access for the five integrated concepts — Sources, Aspects, Categories,
+ * Keywords and Contents — plus their supporting tables.
+ *
+ * <p>This is <strong>not</strong> a second database. It runs on the case's existing
+ * JDBC connection ({@link CaseDatabase#connection()}), so these tables sit in the same
+ * {@code case.db} file as the forensic schema, share its WAL journal and transaction
+ * scope, and can be joined directly against {@code item}. The schema itself is created
+ * by {@link CorpusSchema} during {@code CaseDatabase} migration.
+ *
+ * <p>Lifecycle: this object does not own the connection and therefore does not close
+ * it. {@link CaseDatabase#close()} remains the single owner.
+ */
+public final class CorpusDatabase {
+
+    private final Connection conn;
+
+    /** Binds to a case's existing connection. */
+    public CorpusDatabase(CaseDatabase caseDb) {
+        this.conn = caseDb.connection();
+    }
+
+    /** Binds to a raw connection; used by tests that manage their own. */
+    public CorpusDatabase(Connection conn) {
+        this.conn = conn;
+    }
+
+    // ==================== sources ====================
+
+    /** @return generated id, mirroring Python {@code create_source -> int}. */
+    public int insertSource(String name, String country, String job, double importance,
+                            String city, String description, String accounts, String note,
+                            String attachments, String ownership, String accessStatus,
+                            LocalDate entryDate, Integer categoryId) throws SQLException {
+        String sql = """
+            INSERT INTO source (name, job, importance, country, city, description,
+                                 accounts, note, attachments, ownership, access_status,
+                                 entry_date, category_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""";
+        try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, name);
+            ps.setString(2, job);
+            ps.setDouble(3, importance);
+            ps.setString(4, country);
+            ps.setString(5, city);
+            ps.setString(6, description);
+            ps.setString(7, accounts);
+            ps.setString(8, note);
+            ps.setString(9, attachments);
+            ps.setString(10, ownership);
+            ps.setString(11, accessStatus);
+            ps.setString(12, entryDate == null ? null : entryDate.toString());
+            if (categoryId == null) {
+                ps.setNull(13, Types.INTEGER);
+            } else {
+                ps.setInt(13, categoryId);
+            }
+            ps.executeUpdate();
+            return generatedKey(ps);
+        }
+    }
+
+    /** Python {@code get_all_sources -> List[Tuple[int, str]]} (id, name) pairs. */
+    public Map<Integer, String> selectAllSources() throws SQLException {
+        Map<Integer, String> out = new LinkedHashMap<>();
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("SELECT id, name FROM source ORDER BY id")) {
+            while (rs.next()) {
+                out.put(rs.getInt(1), rs.getString(2));
+            }
+        }
+        return out;
+    }
+
+    public Row selectSourceById(int id) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM source WHERE id=?")) {
+            ps.setInt(1, id);
+            return single(ps);
+        }
+    }
+
+    public boolean deleteSource(int id) throws SQLException {
+        return executeUpdate("DELETE FROM source WHERE id=?", id) > 0;
+    }
+
+    public boolean sourceNameExists(String name) throws SQLException {
+        return exists("SELECT 1 FROM source WHERE name=?", name);
+    }
+
+    /** Updates every mutable field of a source. */
+    public boolean updateSource(int id, String name, String country, String job,
+                                double importance, String city, String description,
+                                String accounts, String note, String attachments,
+                                String ownership, String accessStatus,
+                                LocalDate entryDate, Integer categoryId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                UPDATE source SET name=?, country=?, job=?, importance=?, city=?,
+                       description=?, accounts=?, note=?, attachments=?, ownership=?,
+                       access_status=?, entry_date=?, category_id=?
+                WHERE id=?""")) {
+            ps.setString(1, name);
+            ps.setString(2, country);
+            ps.setString(3, job);
+            ps.setDouble(4, importance);
+            ps.setString(5, city);
+            ps.setString(6, description);
+            ps.setString(7, accounts);
+            ps.setString(8, note);
+            ps.setString(9, attachments);
+            ps.setString(10, ownership);
+            ps.setString(11, accessStatus);
+            ps.setString(12, entryDate == null ? null : entryDate.toString());
+            if (categoryId == null) { ps.setNull(13, Types.INTEGER); } else { ps.setInt(13, categoryId); }
+            ps.setInt(14, id);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /** True when another row already uses this source name. */
+    public boolean sourceNameTaken(String name, int excludingId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT 1 FROM source WHERE name=? AND id<>?")) {
+            ps.setString(1, name);
+            ps.setInt(2, excludingId);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next(); }
+        }
+    }
+
+    /** Updates every mutable field of an aspect. */
+    public boolean updateAspect(int id, String name, double importance,
+                                LocalDate dateCreation) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "UPDATE aspect SET name=?, importance=?, date_creation=? WHERE id=?")) {
+            ps.setString(1, name);
+            ps.setDouble(2, importance);
+            ps.setString(3, dateCreation == null ? null : dateCreation.toString());
+            ps.setInt(4, id);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /** True when another row already uses this aspect name. */
+    public boolean aspectNameTaken(String name, int excludingId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT 1 FROM aspect WHERE name=? AND id<>?")) {
+            ps.setString(1, name);
+            ps.setInt(2, excludingId);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next(); }
+        }
+    }
+
+    // ==================== sides ====================
+
+    public int insertAspect(String name, double importance, LocalDate dateCreation) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO aspect (name, importance, date_creation) VALUES (?,?,?)",
+                Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, name);
+            ps.setDouble(2, importance);
+            ps.setString(3, dateCreation.toString());
+            ps.executeUpdate();
+            return generatedKey(ps);
+        }
+    }
+
+    public Map<Integer, String> selectAllAspects() throws SQLException {
+        Map<Integer, String> out = new LinkedHashMap<>();
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("SELECT id, name FROM aspect ORDER BY id")) {
+            while (rs.next()) {
+                out.put(rs.getInt(1), rs.getString(2));
+            }
+        }
+        return out;
+    }
+
+    public Row selectAspectById(int id) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM aspect WHERE id=?")) {
+            ps.setInt(1, id);
+            return single(ps);
+        }
+    }
+
+    public boolean deleteAspect(int id) throws SQLException {
+        return executeUpdate("DELETE FROM aspect WHERE id=?", id) > 0;
+    }
+
+    public boolean aspectNameExists(String name) throws SQLException {
+        return exists("SELECT 1 FROM aspect WHERE name=?", name);
+    }
+
+    // ==================== words ====================
+
+    /** Idempotent: Python relies on the UNIQUE constraint and returns the existing id. */
+    public int insertWord(String word) throws SQLException {
+        Integer existing = findWordId(word);
+        if (existing != null) {
+            return existing;
+        }
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO word (word) VALUES (?)", Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, word);
+            ps.executeUpdate();
+            return generatedKey(ps);
+        }
+    }
+
+    public Integer findWordId(String word) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT id FROM word WHERE word=?")) {
+            ps.setString(1, word);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : null;
+            }
+        }
+    }
+
+    public Row selectWordById(int id) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM word WHERE id=?")) {
+            ps.setInt(1, id);
+            return single(ps);
+        }
+    }
+
+    public List<Row> searchWords(String term, int limit, int offset) throws SQLException {
+        String sql = (term == null || term.isBlank())
+                ? "SELECT * FROM word ORDER BY id LIMIT ? OFFSET ?"
+                : "SELECT * FROM word WHERE word LIKE ? ORDER BY id LIMIT ? OFFSET ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            int i = 1;
+            if (term != null && !term.isBlank()) {
+                ps.setString(i++, "%" + term + "%");
+            }
+            ps.setInt(i++, limit);
+            ps.setInt(i, offset);
+            return all(ps);
+        }
+    }
+
+    public int countWords(String term) throws SQLException {
+        String sql = (term == null || term.isBlank())
+                ? "SELECT COUNT(*) FROM word"
+                : "SELECT COUNT(*) FROM word WHERE word LIKE ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            if (term != null && !term.isBlank()) {
+                ps.setString(1, "%" + term + "%");
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
+    public boolean updateWord(int id, String word) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("UPDATE word SET word=? WHERE id=?")) {
+            ps.setString(1, word);
+            ps.setInt(2, id);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    public boolean deleteWord(int id) throws SQLException {
+        return executeUpdate("DELETE FROM word WHERE id=?", id) > 0;
+    }
+
+    // ==================== categories ====================
+
+    public int insertCategory(int wordId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT id FROM category WHERE word_id=?")) {
+            ps.setInt(1, wordId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO category (word_id) VALUES (?)", Statement.RETURN_GENERATED_KEYS)) {
+            ps.setInt(1, wordId);
+            ps.executeUpdate();
+            return generatedKey(ps);
+        }
+    }
+
+    /** Joins through {@code words} so the caller gets the naming word too. */
+    public List<Row> selectAllCategories(int limit, int offset) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT c.id AS id, c.word_id AS word_id, w.word AS word
+                FROM category c JOIN word w ON w.id = c.word_id
+                ORDER BY c.id LIMIT ? OFFSET ?""")) {
+            ps.setInt(1, limit);
+            ps.setInt(2, offset);
+            return all(ps);
+        }
+    }
+
+    public Row selectCategoryById(int id) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT c.id AS id, c.word_id AS word_id, w.word AS word
+                FROM category c JOIN word w ON w.id = c.word_id
+                WHERE c.id = ?""")) {
+            ps.setInt(1, id);
+            return single(ps);
+        }
+    }
+
+    public Row selectCategoryByWord(String word) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT c.id AS id, c.word_id AS word_id, w.word AS word
+                FROM category c JOIN word w ON w.id = c.word_id
+                WHERE w.word = ?""")) {
+            ps.setString(1, word);
+            return single(ps);
+        }
+    }
+
+    public int countCategories() throws SQLException {
+        return scalar("SELECT COUNT(*) FROM category");
+    }
+
+    public boolean deleteCategory(int id) throws SQLException {
+        return executeUpdate("DELETE FROM category WHERE id=?", id) > 0;
+    }
+
+    public boolean linkWordToCategory(int wordId, int categoryId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT OR IGNORE INTO word_category (word_id, category_id) VALUES (?,?)")) {
+            ps.setInt(1, wordId);
+            ps.setInt(2, categoryId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    public List<Row> selectCategoryWords(int categoryId, int limit, int offset) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT w.id AS id, w.word AS word
+                FROM word_category wc JOIN word w ON w.id = wc.word_id
+                WHERE wc.category_id = ? ORDER BY w.id LIMIT ? OFFSET ?""")) {
+            ps.setInt(1, categoryId);
+            ps.setInt(2, limit);
+            ps.setInt(3, offset);
+            return all(ps);
+        }
+    }
+
+    public boolean unlinkWordFromCategory(int categoryId, int wordId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "DELETE FROM word_category WHERE category_id=? AND word_id=?")) {
+            ps.setInt(1, categoryId);
+            ps.setInt(2, wordId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    // ==================== keywords ====================
+
+    public int insertKeyword(String keyword, int categoryId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO keyword (phrase, category_id) VALUES (?,?)",
+                Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, keyword);
+            ps.setInt(2, categoryId);
+            ps.executeUpdate();
+            return generatedKey(ps);
+        }
+    }
+
+    public List<Row> selectAllKeywords(int limit, int offset) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT k.id AS id, k.phrase AS keyword, k.category_id AS category_id,
+                       w.word AS category_word
+                FROM keyword k
+                JOIN category c ON c.id = k.category_id
+                JOIN word w ON w.id = c.word_id
+                ORDER BY k.id LIMIT ? OFFSET ?""")) {
+            ps.setInt(1, limit);
+            ps.setInt(2, offset);
+            return all(ps);
+        }
+    }
+
+    public Row selectKeywordById(int id) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT k.id AS id, k.phrase AS keyword, k.category_id AS category_id,
+                       w.word AS category_word
+                FROM keyword k
+                JOIN category c ON c.id = k.category_id
+                JOIN word w ON w.id = c.word_id
+                WHERE k.id = ?""")) {
+            ps.setInt(1, id);
+            return single(ps);
+        }
+    }
+
+    public int countKeywords() throws SQLException {
+        return scalar("SELECT COUNT(*) FROM keyword");
+    }
+
+    public boolean updateKeyword(int id, String keyword) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("UPDATE keyword SET phrase=? WHERE id=?")) {
+            ps.setString(1, keyword);
+            ps.setInt(2, id);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    public boolean deleteKeyword(int id) throws SQLException {
+        return executeUpdate("DELETE FROM keyword WHERE id=?", id) > 0;
+    }
+
+    /** Python {@code find_duplicates} across keyword phrases. */
+    public List<Row> findDuplicateKeywords() throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT phrase AS keyword, COUNT(*) AS occurrences
+                FROM keyword GROUP BY phrase HAVING COUNT(*) > 1""")) {
+            return all(ps);
+        }
+    }
+
+    // ==================== alerts / notifications ====================
+
+    public int insertAlert(String alertType, String priority, String title, String message,
+                           String fileId, Instant createdAt, Instant eventDate) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO alert (alert_type, priority, title, message, element_id,
+                                    is_read, dismissed, created_at, event_date)
+                VALUES (?,?,?,?,?,0,0,?,?)""", Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, alertType);
+            ps.setString(2, priority);
+            ps.setString(3, title);
+            ps.setString(4, message);
+            ps.setString(5, fileId);
+            ps.setLong(6, createdAt.toEpochMilli());
+            if (eventDate == null) {
+                ps.setNull(7, Types.INTEGER);
+            } else {
+                ps.setLong(7, eventDate.toEpochMilli());
+            }
+            ps.executeUpdate();
+            return generatedKey(ps);
+        }
+    }
+
+    /**
+     * @param unreadOnly    Python {@code get_unread_alerts}
+     * @param activeOnly    Python {@code get_active_alerts} (not dismissed)
+     */
+    public List<Row> selectAlerts(boolean unreadOnly, boolean activeOnly, String alertType,
+                                  int limit, int offset) throws SQLException {
+        StringBuilder sql = new StringBuilder("SELECT * FROM alert WHERE 1=1");
+        List<Object> args = new ArrayList<>();
+        if (unreadOnly) {
+            sql.append(" AND is_read = 0");
+        }
+        if (activeOnly) {
+            sql.append(" AND dismissed = 0");
+        }
+        if (alertType != null && !alertType.isBlank()) {
+            sql.append(" AND alert_type = ?");
+            args.add(alertType);
+        }
+        sql.append(" ORDER BY created_at DESC LIMIT ? OFFSET ?");
+        args.add(limit);
+        args.add(offset);
+        try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            bind(ps, args);
+            return all(ps);
+        }
+    }
+
+    public Row selectAlertById(int id) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM alert WHERE id=?")) {
+            ps.setInt(1, id);
+            return single(ps);
+        }
+    }
+
+    public boolean markAlertRead(int id) throws SQLException {
+        return executeUpdate("UPDATE alert SET is_read=1 WHERE id=?", id) > 0;
+    }
+
+    public boolean dismissAlert(int id) throws SQLException {
+        return executeUpdate("UPDATE alert SET dismissed=1 WHERE id=?", id) > 0;
+    }
+
+    public int countUnreadAlerts() throws SQLException {
+        return scalar("SELECT COUNT(*) FROM alert WHERE is_read=0");
+    }
+
+    public int countActiveAlerts() throws SQLException {
+        return scalar("SELECT COUNT(*) FROM alert WHERE dismissed=0");
+    }
+
+    /** Python {@code get_upcoming_events(days_ahead)}. */
+    public List<Row> selectUpcomingAlerts(Instant now, Instant until, int limit) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT * FROM alert
+                WHERE event_date IS NOT NULL AND event_date >= ? AND event_date <= ?
+                  AND dismissed = 0
+                ORDER BY event_date ASC LIMIT ?""")) {
+            ps.setLong(1, now.toEpochMilli());
+            ps.setLong(2, until.toEpochMilli());
+            ps.setInt(3, limit);
+            return all(ps);
+        }
+    }
+
+    // ==================== search history / saved searches ====================
+
+    public int insertHistory(String query, int resultCount, String userId, Instant at)
+            throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO search_history (query, result_count, user_id, searched_at)
+                VALUES (?,?,?,?)""", Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, query);
+            ps.setInt(2, resultCount);
+            ps.setString(3, userId);
+            ps.setLong(4, at.toEpochMilli());
+            ps.executeUpdate();
+            return generatedKey(ps);
+        }
+    }
+
+    public List<Row> selectHistory(int limit, String userId) throws SQLException {
+        String sql = userId == null
+                ? "SELECT * FROM search_history ORDER BY searched_at DESC LIMIT ?"
+                : "SELECT * FROM search_history WHERE user_id=? ORDER BY searched_at DESC LIMIT ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            int i = 1;
+            if (userId != null) {
+                ps.setString(i++, userId);
+            }
+            ps.setInt(i, limit);
+            return all(ps);
+        }
+    }
+
+    public int clearHistory(String userId) throws SQLException {
+        if (userId == null) {
+            try (Statement st = conn.createStatement()) {
+                return st.executeUpdate("DELETE FROM search_history");
+            }
+        }
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM search_history WHERE user_id=?")) {
+            ps.setString(1, userId);
+            return ps.executeUpdate();
+        }
+    }
+
+    public int insertSavedSearch(String name, String query, String filters, String userId,
+                                 Instant createdAt) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO saved_search (name, query, filters, user_id, created_at, use_count)
+                VALUES (?,?,?,?,?,0)""", Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, name);
+            ps.setString(2, query);
+            ps.setString(3, filters);
+            ps.setString(4, userId);
+            ps.setLong(5, createdAt.toEpochMilli());
+            ps.executeUpdate();
+            return generatedKey(ps);
+        }
+    }
+
+    public List<Row> selectSavedSearches(String userId) throws SQLException {
+        String sql = userId == null
+                ? "SELECT * FROM saved_search ORDER BY created_at DESC"
+                : "SELECT * FROM saved_search WHERE user_id=? ORDER BY created_at DESC";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            if (userId != null) {
+                ps.setString(1, userId);
+            }
+            return all(ps);
+        }
+    }
+
+    public Row selectSavedSearchById(int id) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM saved_search WHERE id=?")) {
+            ps.setInt(1, id);
+            return single(ps);
+        }
+    }
+
+    public boolean updateSavedSearch(int id, String name, String query, String filters)
+            throws SQLException {
+        StringBuilder sql = new StringBuilder("UPDATE saved_search SET ");
+        List<Object> args = new ArrayList<>();
+        List<String> sets = new ArrayList<>();
+        if (name != null) {
+            sets.add("name=?");
+            args.add(name);
+        }
+        if (query != null) {
+            sets.add("query=?");
+            args.add(query);
+        }
+        if (filters != null) {
+            sets.add("filters=?");
+            args.add(filters);
+        }
+        if (sets.isEmpty()) {
+            return false;
+        }
+        sql.append(String.join(", ", sets)).append(" WHERE id=?");
+        args.add(id);
+        try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            bind(ps, args);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    public boolean deleteSavedSearch(int id) throws SQLException {
+        return executeUpdate("DELETE FROM saved_search WHERE id=?", id) > 0;
+    }
+
+    public boolean markSavedSearchUsed(int id, Instant when) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "UPDATE saved_search SET last_used=?, use_count=use_count+1 WHERE id=?")) {
+            ps.setLong(1, when.toEpochMilli());
+            ps.setInt(2, id);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+
+    // ==================== hashs / paths / contents ====================
+
+    public int insertHash(String hashValue, Integer sourceId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT id FROM hash WHERE hash_value=? AND IFNULL(source_id,-1)=IFNULL(?,-1)")) {
+            ps.setString(1, hashValue);
+            if (sourceId == null) { ps.setNull(2, Types.INTEGER); } else { ps.setInt(2, sourceId); }
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        }
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO hash (hash_value, source_id) VALUES (?,?)",
+                Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, hashValue);
+            if (sourceId == null) { ps.setNull(2, Types.INTEGER); } else { ps.setInt(2, sourceId); }
+            ps.executeUpdate();
+            return generatedKey(ps);
+        }
+    }
+
+    public boolean hashExists(String hashValue, int sourceId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT 1 FROM hash WHERE hash_value=? AND source_id=?")) {
+            ps.setString(1, hashValue);
+            ps.setInt(2, sourceId);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next(); }
+        }
+    }
+
+    public int insertPath(String fileName, String filePath, long fileSize, String fileType,
+                          String fileStatus, LocalDate fileDate, LocalDate dateCreation,
+                          Integer hashId, String coordinates, Integer sourceId,
+                          Integer sideId, String elementId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO path (file_name, file_path, file_size, file_type, file_status,
+                                   file_date, date_creation, hash_id, coordinates,
+                                   source_id, aspect_id, element_id)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, fileName);
+            ps.setString(2, filePath);
+            ps.setLong(3, fileSize);
+            ps.setString(4, fileType);
+            ps.setString(5, fileStatus);
+            ps.setString(6, fileDate.toString());
+            ps.setString(7, dateCreation.toString());
+            if (hashId == null) { ps.setNull(8, Types.INTEGER); } else { ps.setInt(8, hashId); }
+            ps.setString(9, coordinates);
+            if (sourceId == null) { ps.setNull(10, Types.INTEGER); } else { ps.setInt(10, sourceId); }
+            if (sideId == null) { ps.setNull(11, Types.INTEGER); } else { ps.setInt(11, sideId); }
+            ps.setString(12, elementId);
+            ps.executeUpdate();
+            return generatedKey(ps);
+        }
+    }
+
+    public Row selectPathById(int id) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT p.*, h.hash_value AS hash_value,
+                       s.name AS source_name, d.name AS aspect_name
+                FROM path p
+                LEFT JOIN hash h ON h.id = p.hash_id
+                LEFT JOIN source s ON s.id = p.source_id
+                LEFT JOIN aspect d ON d.id = p.aspect_id
+                WHERE p.id = ?""")) {
+            ps.setInt(1, id);
+            return single(ps);
+        }
+    }
+
+    public List<Row> selectPaths(String fileType, Integer sourceId, Integer sideId,
+                                 String status, int limit, int offset) throws SQLException {
+        StringBuilder sql = new StringBuilder("""
+                SELECT p.*, h.hash_value AS hash_value,
+                       s.name AS source_name, d.name AS aspect_name
+                FROM path p
+                LEFT JOIN hash h ON h.id = p.hash_id
+                LEFT JOIN source s ON s.id = p.source_id
+                LEFT JOIN aspect d ON d.id = p.aspect_id
+                WHERE 1=1""");
+        List<Object> args = new ArrayList<>();
+        if (fileType != null && !fileType.isBlank()) { sql.append(" AND p.file_type = ?"); args.add(fileType); }
+        if (sourceId != null) { sql.append(" AND p.source_id = ?"); args.add(sourceId); }
+        if (sideId != null) { sql.append(" AND p.aspect_id = ?"); args.add(sideId); }
+        if (status != null && !status.isBlank()) { sql.append(" AND p.file_status = ?"); args.add(status); }
+        sql.append(" ORDER BY p.id LIMIT ? OFFSET ?");
+        args.add(limit); args.add(offset);
+        try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            bind(ps, args);
+            return all(ps);
+        }
+    }
+
+    public int countPaths(String fileType, Integer sourceId, Integer sideId, String status)
+            throws SQLException {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM path WHERE 1=1");
+        List<Object> args = new ArrayList<>();
+        if (fileType != null && !fileType.isBlank()) { sql.append(" AND file_type = ?"); args.add(fileType); }
+        if (sourceId != null) { sql.append(" AND source_id = ?"); args.add(sourceId); }
+        if (sideId != null) { sql.append(" AND aspect_id = ?"); args.add(sideId); }
+        if (status != null && !status.isBlank()) { sql.append(" AND file_status = ?"); args.add(status); }
+        try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            bind(ps, args);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next() ? rs.getInt(1) : 0; }
+        }
+    }
+
+    public boolean updatePathStatus(int pathId, String status) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "UPDATE path SET file_status=? WHERE id=?")) {
+            ps.setString(1, status);
+            ps.setInt(2, pathId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    public boolean deletePath(int id) throws SQLException {
+        return executeUpdate("DELETE FROM path WHERE id=?", id) > 0;
+    }
+
+    public Integer findPathIdByElement(String elementId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT id FROM path WHERE element_id=?")) {
+            ps.setString(1, elementId);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next() ? rs.getInt(1) : null; }
+        }
+    }
+
+    public int insertContent(String contentData, LocalDate contentDate, int pathId)
+            throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO content (content_data, content_date, path_id) VALUES (?,?,?)",
+                Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, contentData);
+            ps.setString(2, contentDate == null ? null : contentDate.toString());
+            ps.setInt(3, pathId);
+            ps.executeUpdate();
+            return generatedKey(ps);
+        }
+    }
+
+    public List<Row> selectContentsByPath(int pathId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT * FROM content WHERE path_id=? ORDER BY id")) {
+            ps.setInt(1, pathId);
+            return all(ps);
+        }
+    }
+
+    public Row selectContentById(int id) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM content WHERE id=?")) {
+            ps.setInt(1, id);
+            return single(ps);
+        }
+    }
+
+    public int countContents() throws SQLException {
+        return scalar("SELECT COUNT(*) FROM content");
+    }
+
+    public int countPathsAll() throws SQLException {
+        return scalar("SELECT COUNT(*) FROM path");
+    }
+
+    public long sumPathBytes() throws SQLException {
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("SELECT IFNULL(SUM(file_size),0) FROM path")) {
+            return rs.next() ? rs.getLong(1) : 0L;
+        }
+    }
+
+    public Map<String, Integer> countPathsByType() throws SQLException {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery(
+                     "SELECT file_type, COUNT(*) FROM path GROUP BY file_type ORDER BY 2 DESC")) {
+            while (rs.next()) out.put(rs.getString(1), rs.getInt(2));
+        }
+        return out;
+    }
+
+    public boolean deleteContent(int id) throws SQLException {
+        return executeUpdate("DELETE FROM content WHERE id=?", id) > 0;
+    }
+
+    // ============ relationships: path <-> category / keyword ============
+
+    public boolean linkPathToCategory(int pathId, int categoryId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT OR IGNORE INTO path_category (path_id, category_id) VALUES (?,?)")) {
+            ps.setInt(1, pathId);
+            ps.setInt(2, categoryId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    public boolean unlinkPathFromCategory(int pathId, int categoryId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "DELETE FROM path_category WHERE path_id=? AND category_id=?")) {
+            ps.setInt(1, pathId);
+            ps.setInt(2, categoryId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    public List<Row> selectPathCategories(int pathId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT c.id AS id, c.word_id AS word_id, w.word AS word
+                FROM path_category pc
+                JOIN category c ON c.id = pc.category_id
+                JOIN word w ON w.id = c.word_id
+                WHERE pc.path_id = ? ORDER BY w.word""")) {
+            ps.setInt(1, pathId);
+            return all(ps);
+        }
+    }
+
+    public boolean linkPathToKeyword(int pathId, int keywordId, int hits) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO path_keyword (path_id, keyword_id, hits) VALUES (?,?,?)
+                ON CONFLICT(path_id, keyword_id) DO UPDATE SET hits = excluded.hits""")) {
+            ps.setInt(1, pathId);
+            ps.setInt(2, keywordId);
+            ps.setInt(3, hits);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    public List<Row> selectPathKeywords(int pathId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT k.id AS id, k.phrase AS keyword, k.category_id AS category_id,
+                       w.word AS category_word, pk.hits AS hits
+                FROM path_keyword pk
+                JOIN keyword k ON k.id = pk.keyword_id
+                JOIN category c ON c.id = k.category_id
+                JOIN word w ON w.id = c.word_id
+                WHERE pk.path_id = ? ORDER BY pk.hits DESC""")) {
+            ps.setInt(1, pathId);
+            return all(ps);
+        }
+    }
+
+    /** Paths carrying a given keyword — the "where does this phrase appear" view. */
+    public List<Row> selectPathsForKeyword(int keywordId, int limit) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT p.*, h.hash_value AS hash_value,
+                       s.name AS source_name, a.name AS aspect_name, pk.hits AS hits
+                FROM path_keyword pk
+                JOIN path p ON p.id = pk.path_id
+                LEFT JOIN hash h ON h.id = p.hash_id
+                LEFT JOIN source s ON s.id = p.source_id
+                LEFT JOIN aspect a ON a.id = p.aspect_id
+                WHERE pk.keyword_id = ? ORDER BY pk.hits DESC LIMIT ?""")) {
+            ps.setInt(1, keywordId);
+            ps.setInt(2, limit);
+            return all(ps);
+        }
+    }
+
+    /**
+     * Join across the schema boundary: corpus {@code path} rows enriched with their
+     * forensic {@code item} status. Only possible because both live in one database.
+     */
+    public List<Row> selectPathsWithItemStatus(int limit, int offset) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT p.id AS id, p.file_name AS file_name, p.file_type AS file_type,
+                       p.element_id AS element_id, i.status AS item_status,
+                       i.custodian AS custodian
+                FROM path p
+                LEFT JOIN item i ON i.id = p.element_id
+                ORDER BY p.id LIMIT ? OFFSET ?""")) {
+            ps.setInt(1, limit);
+            ps.setInt(2, offset);
+            return all(ps);
+        }
+    }
+
+    /** Counts per source, joined through paths — drives the dashboard breakdown. */
+    public Map<String, Integer> countPathsBySource() throws SQLException {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("""
+                SELECT IFNULL(s.name,'(unassigned)') AS name, COUNT(*) AS n
+                FROM path p LEFT JOIN source s ON s.id = p.source_id
+                GROUP BY name ORDER BY n DESC""")) {
+            while (rs.next()) out.put(rs.getString(1), rs.getInt(2));
+        }
+        return out;
+    }
+
+    public Map<String, Integer> countPathsByAspect() throws SQLException {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("""
+                SELECT IFNULL(a.name,'(unassigned)') AS name, COUNT(*) AS n
+                FROM path p LEFT JOIN aspect a ON a.id = p.aspect_id
+                GROUP BY name ORDER BY n DESC""")) {
+            while (rs.next()) out.put(rs.getString(1), rs.getInt(2));
+        }
+        return out;
+    }
+
+    public Map<String, Integer> countPathsByCategory() throws SQLException {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("""
+                SELECT w.word AS name, COUNT(*) AS n
+                FROM path_category pc
+                JOIN category c ON c.id = pc.category_id
+                JOIN word w ON w.id = c.word_id
+                GROUP BY name ORDER BY n DESC""")) {
+            while (rs.next()) out.put(rs.getString(1), rs.getInt(2));
+        }
+        return out;
+    }
+
+    // ============ aggregates for the detail and analytics destinations ============
+
+    /** Per-source rollup: file count, total bytes, distinct types, read count. */
+    public Row selectSourceStatistics(int sourceId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT COUNT(*)                                   AS files,
+                       IFNULL(SUM(p.file_size),0)                 AS bytes,
+                       COUNT(DISTINCT p.file_type)                AS types,
+                       SUM(CASE WHEN p.file_status='Read' THEN 1 ELSE 0 END) AS read_files,
+                       MIN(p.file_date)                           AS earliest,
+                       MAX(p.file_date)                           AS latest
+                FROM path p WHERE p.source_id = ?""")) {
+            ps.setInt(1, sourceId);
+            return single(ps);
+        }
+    }
+
+    /** Per-aspect rollup, same shape as {@link #selectSourceStatistics}. */
+    public Row selectAspectStatistics(int aspectId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT COUNT(*)                                   AS files,
+                       IFNULL(SUM(p.file_size),0)                 AS bytes,
+                       COUNT(DISTINCT p.file_type)                AS types,
+                       SUM(CASE WHEN p.file_status='Read' THEN 1 ELSE 0 END) AS read_files,
+                       MIN(p.file_date)                           AS earliest,
+                       MAX(p.file_date)                           AS latest
+                FROM path p WHERE p.aspect_id = ?""")) {
+            ps.setInt(1, aspectId);
+            return single(ps);
+        }
+    }
+
+    /** File-type histogram scoped to one source. */
+    public Map<String, Integer> countTypesForSource(int sourceId) throws SQLException {
+        return countScoped("SELECT file_type, COUNT(*) FROM path WHERE source_id=? "
+                + "GROUP BY file_type ORDER BY 2 DESC", sourceId);
+    }
+
+    /** File-type histogram scoped to one aspect. */
+    public Map<String, Integer> countTypesForAspect(int aspectId) throws SQLException {
+        return countScoped("SELECT file_type, COUNT(*) FROM path WHERE aspect_id=? "
+                + "GROUP BY file_type ORDER BY 2 DESC", aspectId);
+    }
+
+    /** Categories attached to files from one source, with file counts. */
+    public List<Row> selectCategoriesForSource(int sourceId) throws SQLException {
+        return joinedTerms("""
+                SELECT c.id AS id, w.word AS word, COUNT(*) AS files
+                FROM path p
+                JOIN path_category pc ON pc.path_id = p.id
+                JOIN category c ON c.id = pc.category_id
+                JOIN word w ON w.id = c.word_id
+                WHERE p.source_id = ?
+                GROUP BY c.id, w.word ORDER BY files DESC""", sourceId);
+    }
+
+    /** Keywords found in files from one source, with total hits. */
+    public List<Row> selectKeywordsForSource(int sourceId) throws SQLException {
+        return joinedTerms("""
+                SELECT k.id AS id, k.phrase AS keyword, w.word AS category_word,
+                       SUM(pk.hits) AS hits, COUNT(*) AS files
+                FROM path p
+                JOIN path_keyword pk ON pk.path_id = p.id
+                JOIN keyword k ON k.id = pk.keyword_id
+                JOIN category c ON c.id = k.category_id
+                JOIN word w ON w.id = c.word_id
+                WHERE p.source_id = ?
+                GROUP BY k.id, k.phrase, w.word ORDER BY hits DESC""", sourceId);
+    }
+
+    /** Categories attached to files from one aspect. */
+    public List<Row> selectCategoriesForAspect(int aspectId) throws SQLException {
+        return joinedTerms("""
+                SELECT c.id AS id, w.word AS word, COUNT(*) AS files
+                FROM path p
+                JOIN path_category pc ON pc.path_id = p.id
+                JOIN category c ON c.id = pc.category_id
+                JOIN word w ON w.id = c.word_id
+                WHERE p.aspect_id = ?
+                GROUP BY c.id, w.word ORDER BY files DESC""", aspectId);
+    }
+
+    /** Keywords found in files from one aspect. */
+    public List<Row> selectKeywordsForAspect(int aspectId) throws SQLException {
+        return joinedTerms("""
+                SELECT k.id AS id, k.phrase AS keyword, w.word AS category_word,
+                       SUM(pk.hits) AS hits, COUNT(*) AS files
+                FROM path p
+                JOIN path_keyword pk ON pk.path_id = p.id
+                JOIN keyword k ON k.id = pk.keyword_id
+                JOIN category c ON c.id = k.category_id
+                JOIN word w ON w.id = c.word_id
+                WHERE p.aspect_id = ?
+                GROUP BY k.id, k.phrase, w.word ORDER BY hits DESC""", aspectId);
+    }
+
+    /** Files belonging to one category, for the category drill-through. */
+    public List<Row> selectPathsForCategory(int categoryId, int limit) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT p.*, s.name AS source_name, a.name AS aspect_name,
+                       h.hash_value AS hash_value
+                FROM path_category pc
+                JOIN path p ON p.id = pc.path_id
+                LEFT JOIN source s ON s.id = p.source_id
+                LEFT JOIN aspect a ON a.id = p.aspect_id
+                LEFT JOIN hash h ON h.id = p.hash_id
+                WHERE pc.category_id = ? ORDER BY p.file_name LIMIT ?""")) {
+            ps.setInt(1, categoryId);
+            ps.setInt(2, limit);
+            return all(ps);
+        }
+    }
+
+    /** Categories a word belongs to, for the word detail destination. */
+    public List<Row> selectCategoriesForWord(int wordId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT c.id AS id, w.word AS word
+                FROM word_category wc
+                JOIN category c ON c.id = wc.category_id
+                JOIN word w ON w.id = c.word_id
+                WHERE wc.word_id = ? ORDER BY w.word""")) {
+            ps.setInt(1, wordId);
+            return all(ps);
+        }
+    }
+
+    /** Every registered path, ordered by file path — input to the directory tree. */
+    public List<Row> selectAllPathsForTree(Integer sourceId, Integer aspectId)
+            throws SQLException {
+        StringBuilder sql = new StringBuilder("""
+                SELECT p.id AS id, p.file_name AS file_name, p.file_path AS file_path,
+                       p.file_size AS file_size, p.file_type AS file_type,
+                       p.file_status AS file_status, p.element_id AS element_id,
+                       s.name AS source_name, a.name AS aspect_name
+                FROM path p
+                LEFT JOIN source s ON s.id = p.source_id
+                LEFT JOIN aspect a ON a.id = p.aspect_id
+                WHERE 1=1""");
+        List<Object> args = new ArrayList<>();
+        if (sourceId != null) { sql.append(" AND p.source_id = ?"); args.add(sourceId); }
+        if (aspectId != null) { sql.append(" AND p.aspect_id = ?"); args.add(aspectId); }
+        sql.append(" ORDER BY p.file_path");
+        try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            bind(ps, args);
+            return all(ps);
+        }
+    }
+
+    /**
+     * Combined-filter counts for the comprehensive dashboard.
+     *
+     * <p>Any argument may be null, meaning "no restriction on that dimension".
+     */
+    public Row countFiltered(Integer sourceId, Integer aspectId, Integer categoryId,
+                             String fileType) throws SQLException {
+        StringBuilder sql = new StringBuilder("""
+                SELECT COUNT(DISTINCT p.id) AS files,
+                       IFNULL(SUM(DISTINCT p.file_size),0) AS bytes
+                FROM path p""");
+        if (categoryId != null) {
+            sql.append(" JOIN path_category pc ON pc.path_id = p.id AND pc.category_id = ?");
+        }
+        sql.append(" WHERE 1=1");
+        List<Object> args = new ArrayList<>();
+        if (categoryId != null) { args.add(categoryId); }
+        if (sourceId != null) { sql.append(" AND p.source_id = ?"); args.add(sourceId); }
+        if (aspectId != null) { sql.append(" AND p.aspect_id = ?"); args.add(aspectId); }
+        if (fileType != null && !fileType.isBlank()) {
+            sql.append(" AND p.file_type = ?");
+            args.add(fileType);
+        }
+        try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            bind(ps, args);
+            return single(ps);
+        }
+    }
+
+    /** Read/unread split, for dashboards. */
+    public Map<String, Integer> countByReviewState() throws SQLException {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery(
+                     "SELECT file_status, COUNT(*) FROM path GROUP BY file_status")) {
+            while (rs.next()) out.put(rs.getString(1), rs.getInt(2));
+        }
+        return out;
+    }
+
+    private Map<String, Integer> countScoped(String sql, int id) throws SQLException {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) out.put(rs.getString(1), rs.getInt(2));
+            }
+        }
+        return out;
+    }
+
+    private List<Row> joinedTerms(String sql, int id) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            return all(ps);
+        }
+    }
+
+    // ==================== batch analysis runs ====================
+
+    public int insertBatchRun(String template, String priority, String errorHandling,
+                              Integer sourceId, Integer aspectId, String fileType,
+                              int selected, Instant startedAt) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO batch_run (template, priority, error_handling, source_id,
+                                       aspect_id, file_type, state, selected, started_at)
+                VALUES (?,?,?,?,?,?,'Running',?,?)""", Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, template);
+            ps.setString(2, priority);
+            ps.setString(3, errorHandling);
+            if (sourceId == null) { ps.setNull(4, Types.INTEGER); } else { ps.setInt(4, sourceId); }
+            if (aspectId == null) { ps.setNull(5, Types.INTEGER); } else { ps.setInt(5, aspectId); }
+            ps.setString(6, fileType);
+            ps.setInt(7, selected);
+            ps.setLong(8, startedAt.toEpochMilli());
+            ps.executeUpdate();
+            return generatedKey(ps);
+        }
+    }
+
+    public boolean finishBatchRun(int runId, String state, int completed, int failed,
+                                  Instant finishedAt, long millis, String note)
+            throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                UPDATE batch_run SET state=?, completed=?, failed=?, finished_at=?,
+                                     millis=?, note=? WHERE id=?""")) {
+            ps.setString(1, state);
+            ps.setInt(2, completed);
+            ps.setInt(3, failed);
+            ps.setLong(4, finishedAt.toEpochMilli());
+            ps.setLong(5, millis);
+            ps.setString(6, note);
+            ps.setInt(7, runId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    public void insertBatchItem(int runId, int pathId, String outcome, String detail,
+                                long millis) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                INSERT OR REPLACE INTO batch_run_item (run_id, path_id, outcome, detail, millis)
+                VALUES (?,?,?,?,?)""")) {
+            ps.setInt(1, runId);
+            ps.setInt(2, pathId);
+            ps.setString(3, outcome);
+            ps.setString(4, detail);
+            ps.setLong(5, millis);
+            ps.executeUpdate();
+        }
+    }
+
+    public List<Row> selectBatchRuns(int limit) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT b.*, s.name AS source_name, a.name AS aspect_name
+                FROM batch_run b
+                LEFT JOIN source s ON s.id = b.source_id
+                LEFT JOIN aspect a ON a.id = b.aspect_id
+                ORDER BY b.started_at DESC LIMIT ?""")) {
+            ps.setInt(1, limit);
+            return all(ps);
+        }
+    }
+
+    public Row selectBatchRun(int runId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT b.*, s.name AS source_name, a.name AS aspect_name
+                FROM batch_run b
+                LEFT JOIN source s ON s.id = b.source_id
+                LEFT JOIN aspect a ON a.id = b.aspect_id
+                WHERE b.id = ?""")) {
+            ps.setInt(1, runId);
+            return single(ps);
+        }
+    }
+
+    /** Per-file outcomes for one run, worst first so failures surface. */
+    public List<Row> selectBatchItems(int runId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT bi.*, p.file_name AS file_name, p.file_type AS file_type,
+                       p.file_size AS file_size
+                FROM batch_run_item bi
+                JOIN path p ON p.id = bi.path_id
+                WHERE bi.run_id = ?
+                ORDER BY CASE bi.outcome WHEN 'Failed' THEN 0 ELSE 1 END, p.file_name""")) {
+            ps.setInt(1, runId);
+            return all(ps);
+        }
+    }
+
+    public int countBatchRuns() throws SQLException {
+        return scalar("SELECT COUNT(*) FROM batch_run");
+    }
+
+    public boolean deleteBatchRun(int runId) throws SQLException {
+        return executeUpdate("DELETE FROM batch_run WHERE id=?", runId) > 0;
+    }
+
+    // ==================== plumbing ====================
+
+    /**
+     * A single result row as a name-keyed map. Chosen so the DAO stays small and the
+     * facade owns all DTO construction; nothing outside this package sees {@code Row}
+     * in a signature that matters for parity.
+     */
+    public static final class Row {
+        private final Map<String, Object> values;
+
+        Row(Map<String, Object> values) {
+            this.values = values;
+        }
+
+        public String str(String key) {
+            Object v = values.get(key);
+            return v == null ? null : String.valueOf(v);
+        }
+
+        public int i(String key) {
+            Object v = values.get(key);
+            return v == null ? 0 : ((Number) v).intValue();
+        }
+
+        public Integer boxed(String key) {
+            Object v = values.get(key);
+            return v == null ? null : ((Number) v).intValue();
+        }
+
+        public long l(String key) {
+            Object v = values.get(key);
+            return v == null ? 0L : ((Number) v).longValue();
+        }
+
+        public double d(String key) {
+            Object v = values.get(key);
+            return v == null ? 0d : ((Number) v).doubleValue();
+        }
+
+        public boolean bool(String key) {
+            Object v = values.get(key);
+            return v != null && ((Number) v).intValue() != 0;
+        }
+
+        public Instant instant(String key) {
+            Object v = values.get(key);
+            return v == null ? null : Instant.ofEpochMilli(((Number) v).longValue());
+        }
+
+        public LocalDate date(String key) {
+            String s = str(key);
+            return (s == null || s.isBlank()) ? null : LocalDate.parse(s);
+        }
+    }
+
+    private static Row row(ResultSet rs) throws SQLException {
+        Map<String, Object> m = new LinkedHashMap<>();
+        int n = rs.getMetaData().getColumnCount();
+        for (int i = 1; i <= n; i++) {
+            m.put(rs.getMetaData().getColumnLabel(i), rs.getObject(i));
+        }
+        return new Row(m);
+    }
+
+    private static Row single(PreparedStatement ps) throws SQLException {
+        try (ResultSet rs = ps.executeQuery()) {
+            return rs.next() ? row(rs) : null;
+        }
+    }
+
+    private static List<Row> all(PreparedStatement ps) throws SQLException {
+        List<Row> out = new ArrayList<>();
+        try (ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                out.add(row(rs));
+            }
+        }
+        return out;
+    }
+
+    private static void bind(PreparedStatement ps, List<Object> args) throws SQLException {
+        for (int i = 0; i < args.size(); i++) {
+            ps.setObject(i + 1, args.get(i));
+        }
+    }
+
+    private static int generatedKey(PreparedStatement ps) throws SQLException {
+        try (ResultSet keys = ps.getGeneratedKeys()) {
+            return keys.next() ? keys.getInt(1) : -1;
+        }
+    }
+
+    private int executeUpdate(String sql, int id) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            return ps.executeUpdate();
+        }
+    }
+
+    private boolean exists(String sql, String arg) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, arg);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private int scalar(String sql) throws SQLException {
+        try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sql)) {
+            return rs.next() ? rs.getInt(1) : 0;
+        }
+    }
+
+}
