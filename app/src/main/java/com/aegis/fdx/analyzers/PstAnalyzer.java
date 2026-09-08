@@ -109,7 +109,11 @@ public final class PstAnalyzer implements Analyzer {
 
     private void emitMessage(PSTMessage msg, String folderPath, Item parent,
                              ChildSink sink, int seq) {
-        String subject = msg.getSubject();
+        String subject = null;
+        try {
+            subject = msg.getSubject();
+        } catch (Exception ignored) { }
+
         String name = (subject == null || subject.isBlank())
                 ? "message_" + seq + ".msg"
                 : sanitize(subject) + ".msg";
@@ -125,23 +129,42 @@ public final class PstAnalyzer implements Analyzer {
                 + " → " + (folderPath.isEmpty() ? "" : folderPath + "/") + name);
 
         child.subject(subject);
-        child.from(fmtFrom(msg));
-        child.to(msg.getDisplayTo());
-        child.cc(msg.getDisplayCC());
-        child.messageId(msg.getInternetMessageId());
-        if (msg.getMessageDeliveryTime() != null) {
-            child.sentDate(msg.getMessageDeliveryTime().toInstant());
-            child.modified(msg.getMessageDeliveryTime().toInstant());
-        }
-        if (msg.getCreationTime() != null) child.created(msg.getCreationTime().toInstant());
+        try { child.from(fmtFrom(msg)); } catch (Exception ignored) { }
+        try { child.to(msg.getDisplayTo()); } catch (Exception ignored) { }
+        try { child.cc(msg.getDisplayCC()); } catch (Exception ignored) { }
+        try { child.messageId(msg.getInternetMessageId()); } catch (Exception ignored) { }
+        try {
+            if (msg.getMessageDeliveryTime() != null) {
+                child.sentDate(msg.getMessageDeliveryTime().toInstant());
+                child.modified(msg.getMessageDeliveryTime().toInstant());
+            }
+        } catch (Exception ignored) { }
+        try {
+            if (msg.getCreationTime() != null) child.created(msg.getCreationTime().toInstant());
+        } catch (Exception ignored) { }
         child.addMetadata("Mailbox-Folder", folderPath.isEmpty() ? "(root)" : folderPath);
 
-        String body = msg.getBody();
-        if (body == null || body.isBlank()) body = msg.getBodyHTML();
+        String body = "";
+        try {
+            body = msg.getBody();
+        } catch (Exception ignored) { }
+        if (body == null || body.isBlank()) {
+            try {
+                body = msg.getBodyHTML();
+            } catch (Exception ignored) { }
+        }
+        if (body == null || body.isBlank()) {
+            try {
+                body = msg.getRTFBody();
+            } catch (Exception ignored) { }
+        }
         child.extractedText(EmlAnalyzer.header(child) + (body == null ? "" : body.strip()));
         child.size(child.extractedText().length());
 
-        int nAtt = msg.getNumberOfAttachments();
+        int nAtt = 0;
+        try {
+            nAtt = msg.getNumberOfAttachments();
+        } catch (Exception ignored) { }
         child.attachmentCount(nAtt);
 
         // The message element itself is already fully parsed: emit with no stream.
@@ -154,8 +177,15 @@ public final class PstAnalyzer implements Analyzer {
                 byte[] data = readAttachment(att);
                 if (data == null) continue;
 
-                String aName = att.getLongFilename();
-                if (aName == null || aName.isBlank()) aName = att.getFilename();
+                String aName = null;
+                try {
+                    aName = att.getLongFilename();
+                } catch (Exception ignored) { }
+                if (aName == null || aName.isBlank()) {
+                    try {
+                        aName = att.getFilename();
+                    } catch (Exception ignored) { }
+                }
                 if (aName == null || aName.isBlank()) aName = "attachment_" + (i + 1);
 
                 Item grand = new Item(child.id() + "-A" + (i + 1), aName);
@@ -193,8 +223,14 @@ public final class PstAnalyzer implements Analyzer {
     }
 
     private static String fmtFrom(PSTMessage msg) {
-        String addr = msg.getSenderEmailAddress();
-        String name = msg.getSenderName();
+        String addr = null;
+        try {
+            addr = msg.getSenderEmailAddress();
+        } catch (Exception ignored) { }
+        String name = null;
+        try {
+            name = msg.getSenderName();
+        } catch (Exception ignored) { }
         if (addr == null || addr.isBlank()) return name;
         if (name == null || name.isBlank()) return addr;
         return name + " <" + addr + ">";

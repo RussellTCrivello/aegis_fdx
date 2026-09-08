@@ -89,7 +89,8 @@ echo; echo "== JUnit suites (facade, agent, batch, model, scenario) =="
     com.aegis.fdx.EndToEndScenarioTest \
     com.aegis.fdx.SettingsPersistenceTest \
     com.aegis.fdx.HostMetricsTest \
-    com.aegis.fdx.FailureRecoveryTest
+    com.aegis.fdx.FailureRecoveryTest \
+    com.aegis.fdx.AegisCharsetProviderTest
 
 echo; echo "== architecture invariants (structural rules the build must not break) =="
 "$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.ArchitectureInvariantsTest "$WORK/arch"
