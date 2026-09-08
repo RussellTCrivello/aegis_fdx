@@ -25,12 +25,12 @@ never as verified.
 
 | Classification | Rows |
 |---|---:|
-| VERIFIED | 59 |
+| VERIFIED | 76 |
 | LIMITED | 3 |
-| ADAPTED | 7 |
+| ADAPTED | 8 |
 | UNSUPPORTED | 3 |
 | ABSENT | 1 |
-| **Total** | **73** |
+| **Total** | **91** |
 
 
 ## Overview
@@ -117,7 +117,7 @@ never as verified.
 | R04 | avg_processing_time / success_rate tiles | **ADAPTED** | `AnalyticsFacade` | `AnalyticsFacade#reviewProgress` | `DestinationCoverageTest#reviewProgress` | The reference hardcodes 2.3 s and 98.5%. Only figures that can be computed from the case are shown: processed, errors, locked, read/unread. |
 | R05 | per-file retry | **VERIFIED** | `ErrorDashboardScreen` | `FileProcessingFacade#retryFile` | `DestinationCoverageTest#retryElement` | The Errors destination retries a selected element through the same pipeline the case was built with. The element keeps its identifier, notes and tags; hashes and text are recomputed; a missing original is reported and nothing is changed. |
 | R06 | 404 / 500 pages | **UNSUPPORTED** | `Fas` | `Fas#emptyState` | `UiParityTest#screenInventory` | HTTP error pages have no desktop equivalent; failures surface as inline states and dialogs on the destination that caused them. |
-| R07 | /set_language/<lang> | **ABSENT** | `SettingsScreen` | `CaseSettings#saveTo` | `SettingsPersistenceTest#optionsSurviveRestart` | Translation catalogues are a separate workstream; the interface ships in one language. Adding one would mean a resource bundle per destination, not an architectural change. |
+| R07 | /set_language/<lang> | **ABSENT** | `SettingsScreen` | `CaseSettings#saveTo` | `SettingsPersistenceTest#optionsSurviveRestart` | Deliberately deferred, not forgotten: translation begins after the English interface is stable. Inventory, resource architecture and frozen domain vocabulary are in docs/LOCALIZATION_PREPARATION.md; the matching interface row is interface-function-matrix.tsv ST2. |
 | R08 | Jinja components/*.html | **UNSUPPORTED** | `Fas` | `Fas#card` | `UiParityTest#stylesheetPresent` | Template partials are not destinations; the equivalent reusable pieces are UiParts and ChartPane. |
 
 ## Engine
@@ -155,6 +155,8 @@ never as verified.
 | F03 | unreadable case database | **VERIFIED** | `LiveCase` | `CaseFolder#database` | `ResilienceTest#unreadableDatabaseIsExplained` | The one file a case cannot do without: named, explained, and paired with what to do about it, instead of a driver-level message. |
 | F04 | missing extracted text or metadata | **VERIFIED** | `IntegrityVerifier` | `IntegrityVerifier#verify` | `ResilienceTest#missingTextIsReported` | Search keeps working from the index, the verifier raises findings for the missing evidence text, and a lost case.json is written again. |
 | F05 | interrupted run | **VERIFIED** | `IngestPipeline` | `CaseDatabase#setQueueState` | `M3AcceptanceTest` | An abruptly stopped run resumes without redoing finished work, and the recovered case matches an uninterrupted one. |
+| F13 | corrupt / unsupported / malformed archive / depth-limited input | **VERIFIED** | `ErrorDashboardScreen` | `AnalyticsFacade#errorReport` | `FailureRecoveryTest#corruptFile` | Each bad input becomes a status with a reason; the run continues; nothing is dropped. |
+| F14 | empty case, empty/malformed query, duplicate relationship, invariant violation, restart, malformed model reply | **VERIFIED** | `SearchScreen` | `SearchFacade#search` | `FailureRecoveryTest#emptyAndMalformedSearch` | Zero answers, validation messages, no double counts, relationships survive reopen, garbage model body is a reported failure. |
 
 ## Architecture
 
@@ -165,6 +167,29 @@ never as verified.
 | X03 | no reference-runtime dependency | **VERIFIED** | `AegisFacades` | `AegisFacades#open` | `ArchitectureInvariantsTest#noWebApiOrPythonRuntimeDependency` | No Python, no web API, and only the AI client may use the network. |
 | X04 | clean shutdown | **VERIFIED** | `LiveCase` | `LiveCase#close` | `ArchitectureInvariantsTest#aClosedCaseReleasesItsWorkersAndFiles` | Workers stop, files unlock, and the case reopens intact. |
 | X05 | interface controls are wired | **VERIFIED** | `FasApp` | `FasApp#register` | `ArchitectureInvariantsTest#everyControlEndsInAnOperation` | Every control ends in an operation and every destination is reachable. |
+
+## Relationships
+
+The file ↔ keyword ↔ category ↔ category word model added after the destination matrix. Every count is computed from recorded relationships over the whole case. See `docs/REFERENCE_RELATIONSHIP_MODEL.md` for the reference evidence and `docs/INTERFACE_FUNCTION_MATRIX.md` for the per-control trace.
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| L01 | keywords ↔ files (keywords_paths) | **VERIFIED** | `RelationshipFacade` | `RelationshipFacade#keyword` | `RelationshipModelTest#keywordBidirectional` | Keyword → files equals files → keyword; per-file hit counts come from the analyzer, never from seeding. |
+| L02 | category ↔ files through its words | **VERIFIED** | `RelationshipFacade` | `RelationshipFacade#category` | `RelationshipModelTest#categoryBidirectional` | A category reaches the distinct files containing any of its words, as the reference count query does; list counts equal detail counts across the whole case. |
+| L03 | category word ↔ files (words_paths) | **VERIFIED** | `RelationshipFacade` | `RelationshipFacade#categoryWord` | `RelationshipModelTest#categoryWordBidirectional` | Word → files equals files → word for every registered file. |
+| L04 | keyword ↔ category ↔ word (keywords.category, words_categorys) | **VERIFIED** | `RelationshipFacade` | `RelationshipFacade#keyword` | `RelationshipModelTest#termToTerm` | Only edges the schema records: a keyword's one category, a category's words, a word's categories. |
+| L05 | edge derivation from stored content | **VERIFIED** | `RelationshipAnalyzer` | `RelationshipAnalyzer#analyzeAll` | `RelationshipModelTest#duplicateRelationship` | Whole-word, non-overlapping phrase matching over the stored text; re-running or double-linking never duplicates an edge. |
+| L06 | term invariants (keyword ≥ 3 words, category = 1 word) | **VERIFIED** | `Terms` | `Terms#classify` | `RelationshipModelTest#invariants` | Enforced in the facade for keywords, categories and category words; display form survives normalisation. |
+| L07 | search across everything with match type | **VERIFIED** | `RelationshipFacade` | `RelationshipFacade#search` | `RelationshipModelTest#searchByLocation` | Every row says where it matched: file name, path, metadata, content, keyword, category or category word. Empty and blank queries return nothing. |
+| L08 | Keyword/keywords_list.html usage_count | **VERIFIED** | `KeywordsScreen` | `RelationshipFacade#keywordFileCounts` | `RelationshipModelTest#categoryBidirectional` | The Files column is COUNT(DISTINCT path_id) over the whole case for every keyword, not the visible page. |
+| L09 | Category/categories_list.html file_count | **VERIFIED** | `CategoriesScreen` | `RelationshipFacade#categoryFileCounts` | `RelationshipModelTest#categoryBidirectional` | Files column per category and a per-word file badge on the category-words pane. |
+| L10 | Word/Word_list.html usage_count | **VERIFIED** | `WordsScreen` | `RelationshipFacade#wordFileCounts` | `RelationshipModelTest#categoryWordBidirectional` | Files column per word; a word outside every category has no relation and shows 0. |
+| L11 | category detail (files, keywords, words) | **ADAPTED** | `TermDetailScreen` | `RelationshipFacade#category` | `RelationshipModelTest#categoryBidirectional` | The reference has no category detail page (only the words list). The Java Category Detail exists because the relation is queryable; it fabricates nothing beyond the recorded edges. |
+| L12 | file/file_detail.html relationships | **VERIFIED** | `FileDetailScreen` | `RelationshipFacade#forFile` | `RelationshipModelTest#fileDetail` | Path, name, size, SHA-256, MD5, MIME, created, modified, processing status, OCR, then clickable keyword, category and category-word chips with whole-case counts. |
+| L13 | relationship integrity traversal (File→Keyword→Category→Word→Files, both directions) | **VERIFIED** | `SearchScreen` | `RelationshipIntegrity#check` | `RelationshipModelTest#integrityConsistent` | Every edge walked both ways with agreeing whole-case counts; a planted orphan edge is reported (integrityDetectsDamage). docs/RELATIONSHIP_INTEGRITY_REPORT.md |
+| L14 | merge duplicate keywords / categories | **VERIFIED** | `KeywordsScreen` | `KeywordFacade#mergeDuplicates` | `RelationshipModelTest#mergeDuplicates` | Case-insensitive duplicates merged into the oldest term; edges re-pointed with INSERT OR IGNORE so counts do not double. |
+| L15 | CSV export of keywords, categories, words | **VERIFIED** | `KeywordsScreen` | `ExportFacade#exportTermsCsv` | `RelationshipModelTest#mergeDuplicates` | Whole-case terms with file counts written as UTF-8 CSV via Fas.saveBytes. |
+| L16 | interface-function matrix policed | **VERIFIED** | `Router` | `Router#open` | `InterfaceFunctionMatrixTest#javaSymbolsResolve` | docs/interface-function-matrix.tsv: every Java symbol, test and screen/button label resolved against the source tree. |
 
 ## The three items that needed a decision
 

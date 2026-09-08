@@ -168,12 +168,24 @@ public final class AgentOrchestrator {
         return tool.execute(new ToolRequest(call.arguments(), context));
     }
 
-    /** Appends an explicit caveat when nothing was retrieved. */
+    /**
+     * Labels every statement with its provenance and appends an explicit caveat when
+     * nothing was retrieved. The model is asked to label; the rule in {@link Provenance}
+     * only ever demotes, so an unsupported "observation" cannot survive.
+     */
     private static String withGroundingNote(String answer, AgentActivity activity) {
-        if (activity.isGrounded() || activity.steps().isEmpty()) {
-            return answer;
+        List<String> ids = new ArrayList<>();
+        for (ToolResult.Evidence e : activity.evidence()) {
+            ids.add(e.id());
         }
-        return answer + "\n\n(No matching records were found, so this answer is not "
+        boolean anythingRead = activity.isGrounded();
+        Provenance.Labelled labelled = Provenance.label(answer, ids, anythingRead, List.of());
+        activity.recordProvenance(labelled.counts());
+        String text = labelled.text();
+        if (activity.isGrounded() || activity.steps().isEmpty()) {
+            return text;
+        }
+        return text + "\n\n[UNKNOWN] (No matching records were found, so this answer is not "
                 + "supported by case data.)";
     }
 
@@ -209,6 +221,12 @@ public final class AgentOrchestrator {
                 .append("- Work in steps: call a tool, read the result, then decide the next ")
                 .append("step. Several tools may be needed for one question.\n")
                 .append("- Cite the record identifiers the tools return, e.g. item:E-000001.\n")
+                .append("- Start every statement of your final answer with one label: ")
+                .append("[OBSERVED] for a fact read from a record a tool returned, ")
+                .append("[DERIVED] for a count or comparison computed from such records, ")
+                .append("[INFERRED] for your own conclusion, ")
+                .append("[USER-PROVIDED] for something the operator told you, ")
+                .append("[UNKNOWN] when the tools did not supply it.\n")
                 .append("- Be concise and factual.\n\n");
 
         sb.append("CALLING A TOOL\n")

@@ -1,6 +1,7 @@
 package com.aegis.fdx.facade;
 
 import com.aegis.fdx.facade.dto.FileRelationships;
+import com.aegis.fdx.facade.dto.MatchRow;
 import com.aegis.fdx.facade.dto.Page;
 import com.aegis.fdx.facade.dto.TermSummary;
 import com.aegis.fdx.store.CorpusDatabase;
@@ -10,6 +11,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.EnumSet;
 
 /**
  * The relationship graph, in both directions.
@@ -320,6 +324,148 @@ public final class RelationshipFacade {
             out.put("word:" + t.normalized(), t.fileCount());
         }
         return out;
+    }
+
+    // ============================================ whole-case counts for list rows
+
+    /** File count per keyword id, for every keyword in the case. */
+    public Map<Integer, Integer> keywordFileCounts() {
+        return counts(keywords(null, 100_000, 0).results());
+    }
+
+    /** File count per category id, for every category in the case. */
+    public Map<Integer, Integer> categoryFileCounts() {
+        return counts(categories(null, 100_000, 0).results());
+    }
+
+    /** File count per word id, for every category word in the case. */
+    public Map<Integer, Integer> wordFileCounts() {
+        return counts(categoryWords(null, 100_000, 0).results());
+    }
+
+    private static Map<Integer, Integer> counts(List<TermSummary> terms) {
+        Map<Integer, Integer> out = new LinkedHashMap<>();
+        for (TermSummary t : terms) {
+            out.put(t.id(), t.fileCount());
+        }
+        return out;
+    }
+
+    // ================================================================== search
+
+    /** Search scope: which places a text is looked for. */
+    public enum Scope { EVERYWHERE, KEYWORD, CATEGORY, CATEGORY_WORD, CONTENT, FILE_NAME, PATH, METADATA }
+
+    /** Looks for the text everywhere and reports where each file matched. */
+    public List<MatchRow> search(String text, int limit) {
+        return search(text, EnumSet.of(Scope.EVERYWHERE), limit);
+    }
+
+    /**
+     * Search restricted to the given scopes. A file appears once per distinct match type
+     * so an examiner can see every way it was reached; order is name, path, keyword,
+     * category, category word, content, metadata — most specific evidence first.
+     */
+    public List<MatchRow> search(String text, Set<Scope> scopes, int limit) {
+        String q = text == null ? "" : text.trim();
+        if (q.isEmpty()) {
+            return List.of();
+        }
+        int lim = Validate.limit(limit);
+        boolean all = scopes == null || scopes.isEmpty() || scopes.contains(Scope.EVERYWHERE);
+        List<MatchRow> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        try {
+            if (all || scopes.contains(Scope.FILE_NAME) || scopes.contains(Scope.PATH)) {
+                for (CorpusDatabase.Row r : db.selectFilesByNameOrPath(q, lim)) {
+                    boolean name = r.i("name_match") == 1;
+                    if (name && (all || scopes.contains(Scope.FILE_NAME))) {
+                        add(out, seen, row(r, MatchRow.MatchType.FILE_NAME, q, null, null, null,
+                                r.str("file_name"), 0));
+                    } else if (!name && (all || scopes.contains(Scope.PATH))) {
+                        add(out, seen, row(r, MatchRow.MatchType.PATH, q, null, null, null,
+                                r.str("file_path"), 0));
+                    }
+                }
+            }
+            if (all || scopes.contains(Scope.KEYWORD)) {
+                for (CorpusDatabase.Row k : db.selectKeywordsMatching(q)) {
+                    for (CorpusDatabase.Row r : db.selectFilesForKeyword(k.i("id"), lim)) {
+                        add(out, seen, row(r, MatchRow.MatchType.KEYWORD, k.str("keyword"),
+                                k, null, null, k.str("keyword"), r.i("hits")));
+                    }
+                }
+            }
+            if (all || scopes.contains(Scope.CATEGORY)) {
+                for (CorpusDatabase.Row c : db.selectCategoriesMatching(q)) {
+                    for (CorpusDatabase.Row r : db.selectFilesForCategory(c.i("id"), lim)) {
+                        add(out, seen, row(r, MatchRow.MatchType.CATEGORY, c.str("word"),
+                                null, c, null, c.str("word"), 0));
+                    }
+                }
+            }
+            if (all || scopes.contains(Scope.CATEGORY_WORD)) {
+                for (CorpusDatabase.Row w : db.selectCategoryWordsMatching(q)) {
+                    for (CorpusDatabase.Row r : db.selectFilesForWord(w.i("id"), lim)) {
+                        add(out, seen, row(r, MatchRow.MatchType.CATEGORY_WORD, w.str("word"),
+                                null, null, w, w.str("word"), r.i("hits")));
+                    }
+                }
+            }
+            if (all || scopes.contains(Scope.CONTENT)) {
+                for (CorpusDatabase.Row r : db.selectFilesByContent(q, lim)) {
+                    add(out, seen, row(r, MatchRow.MatchType.CONTENT, q, null, null, null,
+                            "content contains \"" + q + "\"", 0));
+                }
+            }
+            if (all || scopes.contains(Scope.METADATA)) {
+                for (CorpusDatabase.Row r : db.selectFilesByMetadata(q, lim)) {
+                    add(out, seen, row(r, MatchRow.MatchType.METADATA, q, null, null, null,
+                            r.str("field"), 0));
+                }
+            }
+        } catch (SQLException e) {
+            throw FacadeException.internal("search failed", e);
+        }
+        return out.size() > lim ? new ArrayList<>(out.subList(0, lim)) : out;
+    }
+
+    /** Whole-case relationship totals, straight from the tables. */
+    public Map<String, Integer> totals() {
+        try {
+            CorpusDatabase.Row r = db.selectRelationshipTotals();
+            Map<String, Integer> out = new LinkedHashMap<>();
+            for (String k : List.of("files", "keywords", "categories", "category_words",
+                    "keyword_edges", "word_edges", "category_edges")) {
+                out.put(k, r.i(k));
+            }
+            return out;
+        } catch (SQLException e) {
+            throw FacadeException.internal("failed to read relationship totals", e);
+        }
+    }
+
+    private static void add(List<MatchRow> out, Set<String> seen, MatchRow row) {
+        String key = row.pathId() + "|" + row.matchType() + "|" + row.matchedTerm().toLowerCase();
+        if (seen.add(key)) {
+            out.add(row);
+        }
+    }
+
+    private static MatchRow row(CorpusDatabase.Row r, MatchRow.MatchType type, String term,
+                                CorpusDatabase.Row keyword, CorpusDatabase.Row category,
+                                CorpusDatabase.Row word, String snippet, int hits) {
+        return new MatchRow(
+                r.i("id"), r.str("element_id"), r.str("file_name"), r.str("file_path"),
+                r.str("file_type"), r.l("file_size"), r.str("source_name"), r.str("aspect_name"),
+                type, term,
+                keyword == null ? null : keyword.str("keyword"),
+                keyword == null ? null : keyword.i("id"),
+                category == null ? null : category.str("word"),
+                category == null ? null : category.i("id"),
+                word == null ? null : word.str("word"),
+                word == null ? null : word.i("id"),
+                snippet, hits);
     }
 
     // =============================================================== internals

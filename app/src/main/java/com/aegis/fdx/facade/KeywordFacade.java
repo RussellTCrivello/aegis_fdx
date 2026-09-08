@@ -45,6 +45,11 @@ public final class KeywordFacade {
             db.insertKeyword(k, cat.i("id"));
             return true;
         } catch (SQLException e) {
+            if (isUniqueViolation(e)) {
+                // The same phrase (case-insensitively) already exists: a refusal the
+                // operator can act on, not a failure. Duplicate = same relationship twice.
+                return false;
+            }
             throw FacadeException.internal("failed to create keyword", e);
         }
     }
@@ -160,8 +165,35 @@ public final class KeywordFacade {
         }
     }
 
+    /**
+     * Merges every case-insensitive duplicate group into its oldest keyword, moving the
+     * file edges across. Returns the number of keywords removed.
+     */
+    public int mergeDuplicates() {
+        try {
+            int removed = 0;
+            for (CorpusDatabase.Row g : db.findDuplicateKeywords()) {
+                int keep = g.i("keep_id");
+                for (CorpusDatabase.Row k : db.selectKeywordsByNormalizedPhrase(g.str("normalized"))) {
+                    if (k.i("id") != keep) {
+                        db.mergeKeyword(k.i("id"), keep);
+                        removed++;
+                    }
+                }
+            }
+            return removed;
+        } catch (SQLException e) {
+            throw FacadeException.internal("failed to merge duplicate keywords", e);
+        }
+    }
+
     private static KeywordDto toDto(CorpusDatabase.Row r) {
         return new KeywordDto(r.i("id"), r.str("keyword"),
                 r.i("category_id"), r.str("category_word"));
+    }
+
+    private static boolean isUniqueViolation(SQLException e) {
+        String m = e.getMessage();
+        return m != null && m.contains("UNIQUE");
     }
 }

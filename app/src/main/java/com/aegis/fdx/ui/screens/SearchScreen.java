@@ -14,6 +14,9 @@ import com.aegis.fdx.ai.tools.AgentContext;
 import com.aegis.fdx.ui.AnalyzeAction;
 import com.aegis.fdx.ui.Fas;
 import com.aegis.fdx.ui.Icons;
+import com.aegis.fdx.ui.Router;
+import com.aegis.fdx.facade.RelationshipFacade;
+import com.aegis.fdx.facade.dto.MatchRow;
 import com.aegis.fdx.ui.Screen;
 
 import javafx.collections.FXCollections;
@@ -71,9 +74,21 @@ public final class SearchScreen implements Screen {
     private int offset;
     private int total;
 
+    private final Router router;
+    private final javafx.collections.ObservableList<MatchRow> matchRows =
+            FXCollections.observableArrayList();
+    private ComboBox<String> scopeBox;
+    private Label matchLabel;
+    private TableView<MatchRow> matchTable;
+
     public SearchScreen(AegisFacades facades, AgentService agent) {
+        this(facades, agent, null);
+    }
+
+    public SearchScreen(AegisFacades facades, AgentService agent, Router router) {
         this.facades = facades;
         this.agent = agent;
+        this.router = router == null ? Router.NONE : router;
     }
 
     @Override
@@ -180,9 +195,27 @@ public final class SearchScreen implements Screen {
         VBox previewCard = Fas.cardWithHeader("Preview", "Matching text and metadata", snippetArea);
         previewCard.setPrefHeight(220);
 
-        SplitPane split = new SplitPane(resultsCard, previewCard);
+        // ---- search everywhere: file ↔ keyword ↔ category ↔ category word ----
+        scopeBox = combo("Everywhere", "Keyword", "Category", "Category word", "Content",
+                "File name", "Path", "Metadata");
+        scopeBox.setPrefWidth(150);
+        Button goRel = Fas.secondary("Search relationships", Icons.LINK);
+        goRel.setOnAction(e -> runRelationshipSearch());
+        Button update = Fas.outline("Update associations", Icons.REFRESH);
+        update.setOnAction(e -> updateAssociations());
+        Button check = Fas.outline("Check relationships", Icons.CHECK_CIRCLE);
+        check.setOnAction(e -> checkRelationships());
+        matchLabel = Fas.muted("Reports where each file matched: name, path, metadata, "
+                + "content, keyword, category or category word");
+        matchTable = buildMatchTable();
+        matchTable.setPrefHeight(220);
+        VBox relCard = Fas.cardWithHeader("Search Everywhere", null,
+                new VBox(10, Fas.row(8, Fas.fieldLabel("Scope"), scopeBox, goRel, update, check,
+                        Fas.spacer(), matchLabel), matchTable));
+
+        SplitPane split = new SplitPane(resultsCard, relCard, previewCard);
         split.setOrientation(javafx.geometry.Orientation.VERTICAL);
-        split.setDividerPositions(0.66);
+        split.setDividerPositions(0.45, 0.78);
         VBox.setVgrow(split, Priority.ALWAYS);
 
         VBox searchCard = Fas.card(
@@ -211,6 +244,119 @@ public final class SearchScreen implements Screen {
         t.getColumns().add(strCol("Rank", 80, r -> String.format("%.3f", r.rank())));
         t.getColumns().add(strCol("Path", 260, SearchResultDto::filePath));
         return t;
+    }
+
+    private TableView<MatchRow> buildMatchTable() {
+        TableView<MatchRow> t = new TableView<>(matchRows);
+        t.setPlaceholder(Fas.emptyState(
+                "No relationship matches. Search a keyword, category, category word, "
+                        + "file name, path, metadata value or piece of content."));
+        t.getColumns().add(mCol("File Name", 200, MatchRow::fileName));
+        t.getColumns().add(mCol("Matched In", 110, r -> r.matchType().label()));
+        t.getColumns().add(mCol("Matched Term", 180, MatchRow::matchedTerm));
+        t.getColumns().add(mCol("Keyword", 160, MatchRow::keyword));
+        t.getColumns().add(mCol("Category", 110, MatchRow::category));
+        t.getColumns().add(mCol("Category Word", 110, MatchRow::categoryWord));
+        t.getColumns().add(mCol("Hits", 60, r -> r.hits() > 0 ? String.valueOf(r.hits()) : ""));
+        t.getColumns().add(mCol("Evidence", 220, MatchRow::snippet));
+        t.getColumns().add(mCol("Source", 110, MatchRow::sourceName));
+        t.getColumns().add(mCol("Path", 240, MatchRow::filePath));
+        t.setRowFactory(tv -> {
+            javafx.scene.control.TableRow<MatchRow> row = new javafx.scene.control.TableRow<>();
+            row.setOnMouseClicked(e -> {
+                if (e.getClickCount() == 2 && !row.isEmpty()) {
+                    router.openFile(row.getItem().pathId());
+                }
+            });
+            return row;
+        });
+        t.getSelectionModel().selectedItemProperty().addListener((o, a, b) -> {
+            if (b != null) {
+                snippetArea.setText(b.fileName() + "\n" + nz(b.filePath())
+                        + "\n\nMatched in: " + b.matchType().label()
+                        + "\nTerm: " + nz(b.matchedTerm())
+                        + (b.keyword() != null ? "\nKeyword: " + b.keyword() : "")
+                        + (b.category() != null ? "\nCategory: " + b.category() : "")
+                        + (b.categoryWord() != null ? "\nCategory word: " + b.categoryWord() : "")
+                        + "\n\n" + nz(b.snippet()));
+            }
+        });
+        return t;
+    }
+
+    private static TableColumn<MatchRow, String> mCol(
+            String name, double w, java.util.function.Function<MatchRow, String> f) {
+        TableColumn<MatchRow, String> c = new TableColumn<>(name);
+        c.setPrefWidth(w);
+        c.setCellValueFactory(cd -> new javafx.beans.property.SimpleStringProperty(
+                f.apply(cd.getValue()) == null ? "" : f.apply(cd.getValue())));
+        return c;
+    }
+
+    private void runRelationshipSearch() {
+        String q = queryField.getText();
+        if (q == null || q.isBlank()) {
+            matchRows.clear();
+            matchLabel.setText("Enter a term first");
+            return;
+        }
+        // strip the quotes a term detail adds for the index query
+        String text = q.trim().replaceAll("^\"|\"$", "");
+        RelationshipFacade.Scope scope = switch (scopeBox.getValue()) {
+            case "Keyword" -> RelationshipFacade.Scope.KEYWORD;
+            case "Category" -> RelationshipFacade.Scope.CATEGORY;
+            case "Category word" -> RelationshipFacade.Scope.CATEGORY_WORD;
+            case "Content" -> RelationshipFacade.Scope.CONTENT;
+            case "File name" -> RelationshipFacade.Scope.FILE_NAME;
+            case "Path" -> RelationshipFacade.Scope.PATH;
+            case "Metadata" -> RelationshipFacade.Scope.METADATA;
+            default -> RelationshipFacade.Scope.EVERYWHERE;
+        };
+        try {
+            var found = facades.relationships().search(text, java.util.EnumSet.of(scope), 500);
+            matchRows.setAll(found);
+            java.util.Set<Integer> files = new java.util.HashSet<>();
+            for (MatchRow r : found) {
+                files.add(r.pathId());
+            }
+            matchLabel.setText(files.size() + " file(s), " + found.size() + " match(es) for \u201c"
+                    + text + "\u201d in " + scopeBox.getValue().toLowerCase());
+        } catch (FacadeException e) {
+            matchRows.clear();
+            matchLabel.setText(e.getMessage());
+        }
+    }
+
+    /** Walks the relationship graph from both ends and shows the report. */
+    private void checkRelationships() {
+        try {
+            var report = facades.relationshipIntegrity().check();
+            matchLabel.setText(report.summary());
+            snippetArea.setText(com.aegis.fdx.facade.RelationshipIntegrity.render(report));
+            Alert a = new Alert(report.consistent() ? Alert.AlertType.INFORMATION
+                    : Alert.AlertType.WARNING, report.summary(), ButtonType.OK);
+            a.setHeaderText(report.consistent() ? "Relationships are consistent"
+                    : report.findings().size() + " inconsistency(ies) found — see the preview pane");
+            a.showAndWait();
+        } catch (FacadeException e) {
+            matchLabel.setText("Could not check relationships: " + e.getMessage());
+        }
+    }
+
+    /** Re-derives file ↔ word and file ↔ keyword edges from the stored text of every file. */
+    private void updateAssociations() {
+        try {
+            var r = facades.relationshipAnalyzer().analyzeAll(null);
+            matchLabel.setText("Associations updated: " + r.filesScanned() + " file(s) scanned, "
+                    + r.filesWithText() + " with text, " + r.keywordLinks() + " keyword link(s), "
+                    + r.wordLinks() + " category-word link(s) across "
+                    + r.keywordsChecked() + " keyword(s) and " + r.wordsChecked() + " word(s)");
+            if (!matchRows.isEmpty()) {
+                runRelationshipSearch();
+            }
+        } catch (FacadeException e) {
+            matchLabel.setText("Could not update associations: " + e.getMessage());
+        }
     }
 
     private static TableColumn<SearchResultDto, String> strCol(

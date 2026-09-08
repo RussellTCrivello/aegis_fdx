@@ -187,6 +187,11 @@ Tests: `aspectFacade`, `editAspect`, `aspectStatistics`, `relationships`.
 | **Assign to a file** | `linkPathToCategory` | `relationshipModel` | Complete |
 | **Assigned by analysis** | `BatchAnalysisFacade` CLASSIFY | `classification` | Complete |
 | Category-driven search | `SearchCriteria.category` | `combinedFilters` | Complete |
+| Exactly-one-word invariant (UI, facade, DAO) | `Terms#requireCategory`, `CorpusDatabase#insertCategory` | `RelationshipModelTest#storageInvariants`, `FailureRecoveryTest#invariantViolations` | Complete |
+| Find / merge duplicates | `CategoryFacade#findDuplicates`, `#mergeDuplicates` | `RelationshipModelTest#mergeDuplicates` | Complete |
+| Export CSV | `ExportFacade#exportTermsCsv` | `RelationshipModelTest#mergeDuplicates` | Complete |
+| Reverse detail (files, keywords, words) | `RelationshipFacade#category` → `TermDetailScreen` | `RelationshipModelTest#categoryBidirectional` | Complete |
+| Whole-case file counts | `CorpusDatabase#selectCategoriesWithFileCounts` | `RelationshipModelTest`, `RelationshipIntegrity` | Complete |
 | Analyze (AI) | `AnalyzeAction` | `AiAgentTest` | Complete |
 
 ### Keywords
@@ -197,7 +202,11 @@ Tests: `aspectFacade`, `editAspect`, `aspectStatistics`, `relationships`.
 | Create | `createKeyword` | `corpusFacades` | Complete |
 | Edit | `updateKeyword` | `corpusFacades` | Complete |
 | Delete / bulk delete | `deleteKeyword`, `bulkDeleteKeywords` | `corpusFacades` | Complete |
-| Duplicate detection | `findDuplicates` | `corpusFacades` | Complete |
+| Duplicate detection / merge | `findDuplicates`, `mergeDuplicates` | `RelationshipModelTest#mergeDuplicates` | Complete |
+| ≥ 3-word invariant (UI, facade, DAO) | `Terms#requireKeyword`, `CorpusDatabase#insertKeyword` | `RelationshipModelTest#storageInvariants`, `FailureRecoveryTest#invariantViolations` | Complete |
+| Duplicate phrase refused, not crashed | `createKeyword` → `false` | `FailureRecoveryTest#duplicateRelationship` | Complete |
+| Export CSV | `ExportFacade#exportTermsCsv` | `RelationshipModelTest#mergeDuplicates` | Complete |
+| Whole-case file counts and match type | `RelationshipFacade#keyword`, `#keywordFileCounts` | `RelationshipModelTest#keywordBidirectional` | Complete |
 | Grouped by category | `keywordIdsByCategory` | `corpusFacades` | Complete |
 | Detail with occurrences | `TermDetailScreen` | `keywordDetail` | Complete |
 | Files carrying it | `filesForKeyword` | `keywordDetail` | Complete |
@@ -299,6 +308,9 @@ before a run, then exact counts (2 and 1) matching the actual text afterwards.
 | Refuse a case already open elsewhere | `LiveCase` lock detection | `ResilienceTest#aCaseOpenElsewhereIsRefused` | Complete |
 | Explain an unreadable database | `LiveCase` constructor | `ResilienceTest#unreadableDatabaseIsExplained` | Complete |
 | Verify stored evidence | `IntegrityVerifier#verify` | `ResilienceTest#missingTextIsReported`, `M3AcceptanceTest` | Complete |
+| Verify relationship graph both ways | `RelationshipIntegrity#check` (Search → Check relationships) | `RelationshipModelTest#integrityConsistent`, `#integrityDetectsDamage` | Complete |
+| Re-derive relationships (idempotent) | `RelationshipAnalyzer#analyzeAll` (Update associations) | `integrityConsistent` (×3 re-run, edges unchanged) | Complete |
+| Survive restart with counts intact | `LiveCase` reopen | `FailureRecoveryTest#restartKeepsRelationships` | Complete |
 
 ### Import / export
 

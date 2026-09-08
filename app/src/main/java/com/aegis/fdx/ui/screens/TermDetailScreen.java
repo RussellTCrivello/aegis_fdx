@@ -3,11 +3,8 @@ package com.aegis.fdx.ui.screens;
 import com.aegis.fdx.facade.AegisFacades;
 import com.aegis.fdx.facade.FacadeException;
 import com.aegis.fdx.facade.SearchCriteria;
-import com.aegis.fdx.facade.dto.CategoryUsage;
-import com.aegis.fdx.facade.dto.KeywordDto;
-import com.aegis.fdx.facade.dto.KeywordUsage;
 import com.aegis.fdx.facade.dto.SearchResultDto;
-import com.aegis.fdx.facade.dto.WordDto;
+import com.aegis.fdx.facade.dto.TermSummary;
 import com.aegis.fdx.ui.Detail;
 import com.aegis.fdx.ai.agent.AgentService;
 import com.aegis.fdx.ai.tools.AgentContext;
@@ -25,21 +22,25 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
 /**
- * Detail for one vocabulary term — a word or a keyword.
+ * Detail for one node of the relationship graph — a keyword, a category or a category
+ * word.
  *
- * <p>Shows the term, the categories it belongs to, where it occurs in indexed material,
- * and (for keywords) the per-file hit counts recorded during processing. One
- * implementation serves both because they differ only in how occurrences are resolved.
+ * <p>Everything shown is read from the relationships the case actually recorded: the
+ * files the term reaches (with per-file occurrence counts where the relation keeps
+ * them), and the neighbouring terms — each with its own whole-case file count. One
+ * implementation serves all three kinds because the graph is the same from every node;
+ * only the labels and the back destination differ.
  */
 public final class TermDetailScreen implements Detail {
 
     /** Which kind of term this destination shows. */
-    public enum Kind { WORD, KEYWORD }
+    public enum Kind { WORD, KEYWORD, CATEGORY }
 
     private final AegisFacades facades;
     private final Router router;
@@ -53,8 +54,10 @@ public final class TermDetailScreen implements Detail {
     private Label subtitle;
     private VBox statsRow;
     private Label occurrencesLabel;
-    private final ObservableList<CategoryUsage> categories = FXCollections.observableArrayList();
-    private final ObservableList<KeywordUsage.FileHit> hits = FXCollections.observableArrayList();
+    private FlowPane categoryChips;
+    private FlowPane keywordChips;
+    private FlowPane wordChips;
+    private final ObservableList<TermSummary.FileRef> files = FXCollections.observableArrayList();
     private final ObservableList<SearchResultDto> occurrences = FXCollections.observableArrayList();
 
     public TermDetailScreen(AegisFacades facades, Router router, Kind kind,
@@ -67,18 +70,33 @@ public final class TermDetailScreen implements Detail {
 
     @Override
     public String title() {
-        return kind == Kind.WORD ? "Word Detail" : "Keyword Detail";
+        return switch (kind) {
+            case WORD -> "Word Detail";
+            case KEYWORD -> "Keyword Detail";
+            case CATEGORY -> "Category Detail";
+        };
+    }
+
+    private String listDestination() {
+        return switch (kind) {
+            case WORD -> "Words";
+            case KEYWORD -> "Keywords";
+            case CATEGORY -> "Categories";
+        };
     }
 
     @Override
     public String breadcrumb() {
-        String root = kind == Kind.WORD ? "Words" : "Keywords";
-        return "Home / " + root + (termText.isBlank() ? " / Detail" : " / " + termText);
+        return "Home / " + listDestination() + (termText.isBlank() ? " / Detail" : " / " + termText);
     }
 
     @Override
     public String icon() {
-        return kind == Kind.WORD ? Icons.BOOK : Icons.KEY;
+        return switch (kind) {
+            case WORD -> Icons.BOOK;
+            case KEYWORD -> Icons.KEY;
+            case CATEGORY -> Icons.TAGS;
+        };
     }
 
     @Override
@@ -93,57 +111,60 @@ public final class TermDetailScreen implements Detail {
         subtitle = Fas.muted("");
         statsRow = new VBox();
         occurrencesLabel = Fas.muted("");
+        categoryChips = new FlowPane(6, 6);
+        keywordChips = new FlowPane(6, 6);
+        wordChips = new FlowPane(6, 6);
 
-        Button back = Fas.outline(kind == Kind.WORD ? "Back to Words" : "Back to Keywords", null);
-        back.setOnAction(e -> router.open(kind == Kind.WORD ? "Words" : "Keywords"));
+        Button back = Fas.outline("Back to " + listDestination(), null);
+        back.setOnAction(e -> router.open(listDestination()));
 
         Button analyze = AnalyzeAction.secondaryButton(agent,
-                kind == Kind.WORD ? "Analyze Word" : "Analyze Keyword",
+                "Analyze " + kindLabel(),
                 "Where does this term appear on the case, and what does that suggest?",
-                () -> kind == Kind.WORD
-                        ? AgentContext.ofScreen("Words")
-                        : AgentContext.ofScreen("Keywords").withKeyword(termId));
+                () -> kind == Kind.KEYWORD
+                        ? AgentContext.ofScreen("Keywords").withKeyword(termId)
+                        : AgentContext.ofScreen(listDestination()));
 
         Button searchBtn = Fas.secondary("Search for this term", Icons.SEARCH);
         searchBtn.setOnAction(e -> router.openSearch(quoted(termText)));
 
-        TableView<CategoryUsage> catTable = new TableView<>(categories);
-        catTable.setPlaceholder(Fas.emptyState("Not linked to any category."));
-        catTable.setPrefHeight(150);
-        TableColumn<CategoryUsage, String> c1 = new TableColumn<>("Category");
-        c1.setPrefWidth(200);
-        c1.setCellValueFactory(c ->
-                new javafx.beans.property.SimpleStringProperty(c.getValue().word()));
-        catTable.getColumns().add(c1);
-        catTable.setRowFactory(t -> {
-            javafx.scene.control.TableRow<CategoryUsage> row = new javafx.scene.control.TableRow<>();
-            row.setOnMouseClicked(e -> {
-                if (e.getClickCount() == 2 && !row.isEmpty()) {
-                    router.openCategory(row.getItem().categoryId());
-                }
-            });
-            return row;
+        Button manage = Fas.outline(kind == Kind.CATEGORY ? "Manage words" : "Open in list", null);
+        manage.setOnAction(e -> {
+            if (kind == Kind.CATEGORY) {
+                router.openCategory(termId);
+            } else {
+                router.open(listDestination());
+            }
         });
 
-        TableView<KeywordUsage.FileHit> hitTable = new TableView<>(hits);
-        hitTable.setPlaceholder(Fas.emptyState(
-                "No recorded hits. Hits are counted when material is classified."));
-        hitTable.setPrefHeight(200);
-        TableColumn<KeywordUsage.FileHit, String> h1 = new TableColumn<>("File");
-        h1.setPrefWidth(240);
-        h1.setCellValueFactory(c ->
+        TableView<TermSummary.FileRef> fileTable = new TableView<>(files);
+        fileTable.setPlaceholder(Fas.emptyState(
+                "No related files. Relationships are derived from stored text when material"
+                        + " is registered; use Update associations on the Search page to re-derive."));
+        fileTable.setPrefHeight(260);
+        TableColumn<TermSummary.FileRef, String> f1 = new TableColumn<>("File");
+        f1.setPrefWidth(240);
+        f1.setCellValueFactory(c ->
                 new javafx.beans.property.SimpleStringProperty(c.getValue().fileName()));
-        TableColumn<KeywordUsage.FileHit, String> h2 = new TableColumn<>("Source");
-        h2.setPrefWidth(150);
-        h2.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
+        TableColumn<TermSummary.FileRef, String> f2 = new TableColumn<>("Path");
+        f2.setPrefWidth(280);
+        f2.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
+                c.getValue().filePath() == null ? "" : c.getValue().filePath()));
+        TableColumn<TermSummary.FileRef, String> f3 = new TableColumn<>("Source");
+        f3.setPrefWidth(130);
+        f3.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 c.getValue().sourceName() == null ? "" : c.getValue().sourceName()));
-        TableColumn<KeywordUsage.FileHit, String> h3 = new TableColumn<>("Hits");
-        h3.setPrefWidth(70);
-        h3.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
-                String.valueOf(c.getValue().hits())));
-        hitTable.getColumns().addAll(h1, h2, h3);
-        hitTable.setRowFactory(t -> {
-            javafx.scene.control.TableRow<KeywordUsage.FileHit> row =
+        TableColumn<TermSummary.FileRef, String> f4 = new TableColumn<>("Type");
+        f4.setPrefWidth(70);
+        f4.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
+                c.getValue().fileType() == null ? "" : c.getValue().fileType()));
+        TableColumn<TermSummary.FileRef, String> f5 = new TableColumn<>("Hits");
+        f5.setPrefWidth(70);
+        f5.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
+                kind == Kind.CATEGORY ? "—" : String.valueOf(c.getValue().hits())));
+        fileTable.getColumns().addAll(f1, f2, f3, f4, f5);
+        fileTable.setRowFactory(t -> {
+            javafx.scene.control.TableRow<TermSummary.FileRef> row =
                     new javafx.scene.control.TableRow<>();
             row.setOnMouseClicked(e -> {
                 if (e.getClickCount() == 2 && !row.isEmpty()) {
@@ -175,14 +196,21 @@ public final class TermDetailScreen implements Detail {
                         : c.getValue().snippets().get(0).replace('\n', ' ')));
         occTable.getColumns().addAll(o1, o2, o3, o4);
 
+        VBox related = new VBox(10,
+                Fas.fieldLabel("Categories"), categoryChips,
+                Fas.fieldLabel("Keywords"), keywordChips,
+                Fas.fieldLabel("Category words"), wordChips);
+
         VBox content = new VBox(16,
-                Fas.pageHeader(title(), null, analyze, back, searchBtn),
+                Fas.pageHeader(title(), null, analyze, back, manage, searchBtn),
                 new VBox(2, heading, subtitle),
                 statsRow,
                 new HBox(14,
-                        grow(Fas.cardWithHeader("Categories", null, catTable)),
-                        grow(Fas.cardWithHeader("Recorded Hits",
-                                "Counted when material is classified", hitTable))),
+                        grow(Fas.cardWithHeader("Related Terms",
+                                "Each with its own whole-case file count; click to open", related)),
+                        grow(Fas.cardWithHeader("Related Files",
+                                "Files this term reaches through recorded relationships",
+                                fileTable))),
                 Fas.cardWithHeader("Occurrences in Indexed Text",
                         "Live search across everything the engine indexed",
                         new VBox(10, occurrencesLabel, occTable)));
@@ -190,6 +218,14 @@ public final class TermDetailScreen implements Detail {
         ScrollPane sp = new ScrollPane(content);
         sp.setFitToWidth(true);
         return sp;
+    }
+
+    private String kindLabel() {
+        return switch (kind) {
+            case WORD -> "Word";
+            case KEYWORD -> "Keyword";
+            case CATEGORY -> "Category";
+        };
     }
 
     private static VBox grow(VBox v) {
@@ -204,31 +240,25 @@ public final class TermDetailScreen implements Detail {
             return;
         }
         try {
-            int fileCount = 0;
-            int totalHits = 0;
-
-            if (kind == Kind.WORD) {
-                WordDto w = facades.words().getWord(termId);
-                termText = w.word();
-                subtitle.setText("Vocabulary term");
-                categories.setAll(facades.analytics().categoriesForWord(termId));
-                hits.clear();
-            } else {
-                KeywordDto k = facades.keywords().getKeyword(termId);
-                termText = k.keyword();
-                subtitle.setText("Keyword in category " + k.categoryWord());
-                categories.setAll(java.util.List.of(
-                        new CategoryUsage(k.categoryId(), k.categoryWord(), 0)));
-                var fileHits = facades.analytics().filesForKeyword(termId, 200);
-                hits.setAll(fileHits);
-                fileCount = fileHits.size();
-                for (var fh : fileHits) {
-                    totalHits += fh.hits();
-                }
-            }
+            TermSummary t = switch (kind) {
+                case WORD -> facades.relationships().categoryWord(termId);
+                case KEYWORD -> facades.relationships().keyword(termId);
+                case CATEGORY -> facades.relationships().category(termId);
+            };
+            termText = t.text();
             heading.setText(termText);
+            subtitle.setText(switch (kind) {
+                case WORD -> "Category word · normalised as \"" + t.normalized() + "\"";
+                case KEYWORD -> "Keyword · " + t.wordCount() + " words · normalised as \""
+                        + t.normalized() + "\"";
+                case CATEGORY -> "Category · files are reached through its words or by attribution";
+            });
+            files.setAll(t.files());
+            chips(categoryChips, t.categories(), "No categories");
+            chips(keywordChips, t.keywords(), "No keywords");
+            chips(wordChips, t.categoryWords(), "No category words");
 
-            // Live occurrence search against the index, independent of stored hits.
+            // Live occurrence search against the index, independent of stored relations.
             int indexed = 0;
             try {
                 var page = facades.search().search(
@@ -242,17 +272,37 @@ public final class TermDetailScreen implements Detail {
             }
 
             statsRow.getChildren().setAll(Fas.statsGrid(
-                    Fas.statCard(Icons.FILE_TEXT, Fas.PRIMARY,
-                            String.valueOf(indexed), "Items Containing"),
+                    Fas.statCard(Icons.FILES, Fas.PRIMARY,
+                            String.valueOf(t.fileCount()), "Related Files"),
                     Fas.statCard(Icons.KEY, Fas.WARNING,
-                            String.valueOf(totalHits), "Recorded Hits"),
-                    Fas.statCard(Icons.FILES, Fas.INFO,
-                            String.valueOf(fileCount), "Classified Files"),
+                            String.valueOf(t.hits()), "Occurrences Recorded"),
+                    Fas.statCard(Icons.FILE_TEXT, Fas.INFO,
+                            String.valueOf(indexed), "Indexed Items Containing"),
                     Fas.statCard(Icons.TAGS, Fas.SUCCESS,
-                            String.valueOf(categories.size()), "Categories")));
+                            String.valueOf(t.categories().size() + t.keywords().size()
+                                    + t.categoryWords().size()), "Related Terms")));
         } catch (FacadeException e) {
             heading.setText("Could not load this term");
             subtitle.setText(e.getMessage());
+        }
+    }
+
+    private void chips(FlowPane pane, java.util.List<TermSummary.RelatedTerm> terms, String none) {
+        pane.getChildren().clear();
+        if (terms.isEmpty()) {
+            pane.getChildren().add(Fas.muted(none));
+            return;
+        }
+        for (TermSummary.RelatedTerm r : terms) {
+            Button b = Fas.ghost(r.text() + "  (" + r.fileCount() + ")", null);
+            b.setOnAction(e -> {
+                switch (r.kind()) {
+                    case KEYWORD -> router.openKeyword(r.id());
+                    case CATEGORY -> router.openCategoryDetail(r.id());
+                    case CATEGORY_WORD -> router.openWord(r.id());
+                }
+            });
+            pane.getChildren().add(b);
         }
     }
 

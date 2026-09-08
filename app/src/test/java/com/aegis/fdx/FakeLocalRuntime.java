@@ -33,6 +33,7 @@ public final class FakeLocalRuntime implements AutoCloseable {
             new java.util.concurrent.atomic.AtomicInteger();
     private final int port;
     private volatile boolean failNext;
+    private volatile String rawNext;
     private volatile int delayMillis;
 
     public FakeLocalRuntime(int port) throws IOException {
@@ -62,6 +63,12 @@ public final class FakeLocalRuntime implements AutoCloseable {
     /** Makes the next call return HTTP 500. */
     public FakeLocalRuntime failNextCall() {
         this.failNext = true;
+        return this;
+    }
+
+    /** Makes the next chat call return this exact body (HTTP 200) — for malformed replies. */
+    public FakeLocalRuntime rawNextBody(String body) {
+        this.rawNext = body;
         return this;
     }
 
@@ -104,6 +111,12 @@ public final class FakeLocalRuntime implements AutoCloseable {
         if (failNext) {
             failNext = false;
             send(ex, 500, "{\"error\":\"scripted failure\"}");
+            return;
+        }
+        if (rawNext != null) {
+            String raw = rawNext;
+            rawNext = null;
+            send(ex, 200, raw);
             return;
         }
         if (delayMillis > 0) {

@@ -46,7 +46,12 @@ FXDIR="${AEGIS_FX:-$HOME/.cache/tools/javafx-sdk-21.0.4/lib}"
 # What actually built and ran this attempt. A result is only reproducible if the
 # toolchain behind it is on the record — including when it is not the reference one.
 JAVA_V="$("$JDKBIN/java" -version 2>&1 | head -1 || echo "no java at $JDKBIN")"
-JAVAC_V="$("$JDKBIN/javac" -version 2>&1 | head -1 || echo "no javac at $JDKBIN")"
+if [ -x "$JDKBIN/javac" ]; then
+    JAVAC_V="$("$JDKBIN/javac" -version 2>&1 | head -1)"
+else
+    ECJJAR="${AEGIS_ECJ:-$HOME/.cache/tools/ecj/ecj.jar}"
+    JAVAC_V="no javac at $JDKBIN; $("$JDKBIN/java" -jar "$ECJJAR" -version 2>&1 | head -1 | cut -c1-60)"
+fi
 if [ -d "$FXDIR" ]; then
     FX_V="$(ls "$FXDIR" | head -3 | tr '\n' ' ')"
 else

@@ -80,9 +80,11 @@ class BatchAnalysisTest {
             Fixture x = seed(c, tmp);
             int kwId = x.f().keywords().listKeywords().results().get(0).id();
 
-            // nothing has been analysed yet
-            assertTrue(x.f().analytics().filesForKeyword(kwId, 50).isEmpty(),
-                    "no hits should exist before an analysis run");
+            // registration already derived the edges from the stored text (as the
+            // reference does when it stores content); a batch run must agree with it,
+            // not add to it
+            var before = x.f().analytics().filesForKeyword(kwId, 50);
+            assertEquals(2, before.size(), "registration derives hits from real text");
 
             BatchRun run = x.f().batch().run(
                     new Request(Template.KEYWORD_SCAN), null);
