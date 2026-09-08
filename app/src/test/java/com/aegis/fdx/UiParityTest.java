@@ -122,6 +122,21 @@ class UiParityTest {
         }
         // distinct glyphs, so no two nav entries look identical
         assertEquals(required.length, java.util.Arrays.stream(required).distinct().count());
+
+        // Glyphs the stat cards across the analysis screens bind to; a missing
+        // constant here is a compile failure in the screen that references it, so
+        // this guards the set the screens are allowed to use.
+        String[] statGlyphs = {
+                Icons.FILES, Icons.CHECK_CIRCLE, Icons.FOLDER, Icons.FOLDER_OPEN,
+                Icons.FONTS, Icons.TAGS, Icons.KEY, Icons.DATABASE, Icons.HDD_STACK,
+                Icons.ARCHIVE, Icons.LIST, Icons.CHART, Icons.SHIELD, Icons.INFO,
+                Icons.ALERT
+        };
+        for (String p : statGlyphs) {
+            assertNotNull(p);
+            assertFalse(p.isBlank());
+        }
+
         assertNotNull(Icons.outline(Icons.SEARCH, "#4f46e5", 16));
         assertNotNull(Icons.filled(Icons.PLAY, "#4f46e5", 16));
         assertNotNull(Icons.box(Icons.GEAR, "#4f46e5", 16));

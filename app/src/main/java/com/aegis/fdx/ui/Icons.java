@@ -177,6 +177,10 @@ public final class Icons {
     public static final String INFO =
             "M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zm0 2.6h.01M8 7v4.2";
 
+    /** bi-exclamation-triangle — Errors and processing failures */
+    public static final String ALERT =
+            "M8 2 15 13.5H1L8 2zM8 6.2v3.2M8 11.3h.01";
+
     // --- factories --------------------------------------------------------
 
     /** A stroked glyph, which is how most Bootstrap Icons read at small sizes. */
