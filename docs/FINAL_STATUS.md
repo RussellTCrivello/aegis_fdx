@@ -158,3 +158,59 @@ existing architecture.
   Ratios transfer; absolute throughput is a floor, not a prediction.
 - **Verified to 5M items**, not 10M+.
 - **Extraction, OCR and parsing remain unprofiled.**
+
+---
+
+## 6. Release-acceptance pass — 2026-09-08
+
+**Verdict: NOT ready for release. The JavaFX application has never been compiled or
+executed.** Full detail: **`docs/RELEASE_ACCEPTANCE.md`**.
+
+Everything behind the interface is implemented, measured and tested. The interface layer
+on top of it is source code no compiler has accepted. Of the 38 Definition-of-Done items,
+**22 VERIFIED · 7 LIMITED · 9 NOT RUN**; all 9 NOT RUN require a running JavaFX
+application on Windows.
+
+### Resolved this pass
+
+| Item | Outcome |
+|---|---|
+| **`CorpusDatabase` role (§22)** | **Not a second database.** A DAO over the one `case.db` connection — proven by transaction visibility and rollback, not inspection. `path` is a projection of `item` with an `ON DELETE CASCADE` FK. 12 tests. |
+| **Term semantics gap (§16)** | **Real defect, fixed.** The 3+/1/1 rules were enforced in Java but not in the schema; raw SQL could insert a one-word "keyword". Four triggers now enforce it on INSERT and UPDATE, reaching existing cases at migration. |
+| **Duplicate connection (§8)** | Confirmed fixed and now **test-enforced** — `ArchitectureInvariantsTest#onlyCaseDatabaseOpensAConnection` fails if any class but `CaseDatabase` opens a connection. |
+| **Matrix over-reading (§33)** | "VERIFIED" now explicitly states it means *the operation is proven and the control is wired in source* — **not** that anyone clicked it. |
+
+### Test status
+
+```
+Headless suite            172 tests    172 passed · 0 failed    (7.8 s)
+  Architecture             14   incl. single-connection invariant
+  Corpus authority         12   NEW — §22 resolved by execution
+  Batch / recovery          5
+  Dashboard statistics     12
+  Search facets             8
+  Relationship counts       6
+  Relationship model       16
+  Instrumentation           9
+  Interface matrix          7   static resolution only
+JavaFX / UI suites          5 suites   NOT RUN — will not compile without JavaFX
+Integration scripts         run-tests.sh, final-acceptance.sh   NOT RUN — need Gradle + JavaFX
+```
+
+### Decisions (unchanged, better supported)
+
+- **KEEP SQLITE.** Never the bottleneck; both real defects were application-level and
+  fixed in place. No migration, no DuckDB.
+- **KEEP JAVA CORE.** No native candidate identified — but extraction and OCR remain
+  unprofiled, so that question is not yet properly asked.
+
+### The release gate
+
+1. Obtain JavaFX 21 SDK; add the Gradle wrapper (**absent from this repository**).
+2. Compile `ui/**` and `Launcher.java`; fix what surfaces.
+3. Launch: startup, case open, dashboard, navigation, clean shutdown, no orphan threads.
+4. Comprehensive Dashboard live: every tile, refresh, filters, charts, behaviour under
+   ingest, cancellation on navigate-away.
+5. Run the five excluded UI suites plus `run-tests.sh` / `final-acceptance.sh`.
+6. Windows acceptance and clean-install (AT-10); 10M benchmark on reference hardware.
+7. Localisation only after the above.

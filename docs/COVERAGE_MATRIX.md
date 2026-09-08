@@ -6,7 +6,7 @@ names Java or a test that does not exist, if a limitation is left unexplained, o
 destination in the interface is missing from the inventory. If this document and the
 code ever disagree, the build says so.
 
-**Generated:** 2026-09-08T16:34:01Z
+**Generated:** 2026-09-08T16:52:39Z
 
 ## How to read it
 
@@ -25,12 +25,12 @@ never as verified.
 
 | Classification | Rows |
 |---|---:|
-| VERIFIED | 84 |
+| VERIFIED | 88 |
 | LIMITED | 3 |
 | ADAPTED | 8 |
 | UNSUPPORTED | 3 |
 | ABSENT | 1 |
-| **Total** | **99** |
+| **Total** | **103** |
 
 
 ## Overview
@@ -221,6 +221,20 @@ never as verified.
 | # | Reference / capability | Classification | Java | Operation | Test | Notes |
 |---|---|---|---|---|---|---|
 | P08 | runtime instrumentation of the timed operations | **VERIFIED** | `Store` | `OperationTimings#snapshot` | `OperationTimingsTest#percentilesSeparateFastFromSlow` | Counts, totals, max and bucketed p50/p95/p99 per operation; never under-reports, never over-reports by more than 2x, under 2 microseconds per call, exact under eight concurrent writers. |
+
+## Architecture
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| P09 | CorpusDatabase is a DAO on the one case connection, not a second database | **VERIFIED** | `Store` | `CorpusDatabase#CorpusDatabase` | `CorpusAuthorityTest#corpusSharesTheCaseConnectionRatherThanOpeningItsOwn` | Proven by transaction visibility and rollback, not by inspection: an uncommitted corpus write is visible through CaseDatabase and vanishes on its rollback. Only case.db is ever created; PRAGMA database_list shows main and temp only. |
+| P10 | path is a projection of item, not a rival record of case membership | **VERIFIED** | `Store` | `CorpusSchema#migrate` | `CorpusAuthorityTest#pathIsASatelliteOfItemAndIsDeletedWithIt` | path.element_id REFERENCES item(id) ON DELETE CASCADE; deleting the item removes the path row. Four denormalised columns are recorded as technical debt, not drift that is currently reachable. |
+| P11 | exactly one class opens a database connection | **VERIFIED** | `Store` | `CaseDatabase#connection` | `ArchitectureInvariantsTest#onlyCaseDatabaseOpensAConnection` | Walks every main-tree source file; fails if any class but CaseDatabase opens a connection. Replaces a grep that would not survive a merge, after a second UI connection was found bypassing every configured PRAGMA. |
+
+## Relationships
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| P12 | term semantics enforced by the schema, not only by Java | **VERIFIED** | `Store` | `CorpusSchema#migrate` | `CorpusAuthorityTest#rawSqlCannotBypassTheKeywordThreeWordRule` | Triggers on INSERT and UPDATE reject a keyword under three words and a category word of more than one. Triggers rather than CHECK so existing multi-gigabyte cases gain the rule at migration without a table rebuild. |
 
 ## The three items that needed a decision
 

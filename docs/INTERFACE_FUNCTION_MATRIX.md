@@ -17,6 +17,14 @@ Every interactive element of the reference (`RussellTCrivello/file_analysis`: te
 
 Nothing is ABSENT: every reference element has a Java destination or an explained status.
 
+## What VERIFIED does and does not mean here
+
+**Read this before quoting a status.** Every status in this table is established by *static resolution plus a headless test*: the control exists in the JavaFX source, its handler and facade resolve to real symbols, and the named test exercises the underlying operation against a real `case.db` and a real Lucene index.
+
+What no row in this table establishes is that a human clicked the control in a running application. JavaFX could not be obtained in the build environment used for this pass, so the UI layer has never been compiled or executed. A row therefore means **"the operation behind this control is proven, and the control is wired to it in source"** — not "this button has been observed to work".
+
+The gap is narrow but real, and it is exactly the class of defect static resolution cannot see: a handler attached to the wrong control, a value formatted into the wrong column, a dialog that never opens, a listener that is registered twice. Those require §4 of the acceptance directive — launching the real application — and that step is **NOT RUN**.
+
 ## Columns
 
 `reference_destination`, `reference_template`, `html_element`, `js_handler`, `js_api_operation`, `python_route`, `python_backend_operation` describe the reference. `java_destination`, `java_control`, `java_handler`, `java_facade`, `db_index_operation`, `expected_visible_result`, `test`, `status`, `note` describe the Java application. Java symbols are `Class#method` and are resolved against the source tree by the test.
