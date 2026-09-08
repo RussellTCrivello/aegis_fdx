@@ -1,6 +1,6 @@
 # AEGIS-FDX source manifest - regenerate with: packaging/make-manifest.sh (or .ps1)
 # Verifies a checkout is complete and self-consistent before building.
-# Generated: 2026-09-08T12:18:53Z
+# Generated: 2026-09-08T12:28:07Z
 16ca465504404df14dea70cbc0c7d490a6b80fb7bd378e4a3b66667ba1d1d91c  app/build.gradle.kts
 a50ba435da72eba0899409746b3dbf616778e46aa3a2c12643c4f41f31595201  app/src/main/java/com/aegis/fdx/Launcher.java
 29dae5158b78f30d122b76fea149bdb9b94c473892cb529459d54b12a7c725c8  app/src/main/java/com/aegis/fdx/ai/agent/AgentActivity.java
@@ -37,15 +37,15 @@ c44b89400e2321ecc9896bb90916bffd75a37df4be1b685a2eff3a7b7bf500d2  app/src/main/j
 add6e7d2dbb4638c15c3e2b3679c15a4714919b0c1e8cbe179f21ce90d08ac5f  app/src/main/java/com/aegis/fdx/engine/CaseStore.java
 8a7dcebeac638ded7ae12defc3dab5d4b7f46db368e6491dab00d6eeb8e3dbf1  app/src/main/java/com/aegis/fdx/engine/EngineEvent.java
 45d7dfaba8dde182f524ca8b68c93e7adffb1894427563632e031928041dea76  app/src/main/java/com/aegis/fdx/engine/Filters.java
-7ec9eb83a0a2d9a80fe6fe5b4dfd8ce1d503c11a859f18c7b213cea71f424d7d  app/src/main/java/com/aegis/fdx/engine/IngestPipeline.java
+5516a3aba722310d8e86aee9e727178c192e39d1e1e2f8b92a566177a023358c  app/src/main/java/com/aegis/fdx/engine/IngestPipeline.java
 229855682558acb5bcc76b0c05131d7b23c36cda696c489742eeab368119241d  app/src/main/java/com/aegis/fdx/engine/IntegrityVerifier.java
-a90c1bab84356cbb83dfa21aef99d3e3dba315403659fd3ce261a9cc3951a3af  app/src/main/java/com/aegis/fdx/engine/LiveCase.java
+d0785c15571d9879aa66c21a0ae6ca869e9c52089c7643d52e818e79e6b5091c  app/src/main/java/com/aegis/fdx/engine/LiveCase.java
 e076c1d2711acbd4234b3da6b65f4f75a48ca1d0a5753e988af75c057d034ddb  app/src/main/java/com/aegis/fdx/engine/QueryParser.java
 d92c8c17bec40352b8f3a356e0845abdf30ae5216403da5355ac8fc31967cf8c  app/src/main/java/com/aegis/fdx/engine/SearchHit.java
 657e332d061cebdad1580b5f5b2c202a7d728429a977f85acf4ec596bb6c08f5  app/src/main/java/com/aegis/fdx/export/ExportRequest.java
 00747015803494287be1b4ac639e0ad67bd2327935f9d5d1e60caad6201dcf22  app/src/main/java/com/aegis/fdx/export/Exporter.java
 610d7eb46b128751d6d6444405d5e37a8c8aa92774d78820b18696737698160e  app/src/main/java/com/aegis/fdx/export/Reports.java
-9b3f7a498030c18c66ce37db8e46b30542eedc52d659b029659d428a424119b3  app/src/main/java/com/aegis/fdx/facade/AegisFacades.java
+012ca338e4a94b7092986444826719926b0b13df3ec348d9a8de5c35e9c971e6  app/src/main/java/com/aegis/fdx/facade/AegisFacades.java
 08c9d0c93cee2fccf6ab085b83ed07883f93b885626f4fbac5d4bf11fb608ba6  app/src/main/java/com/aegis/fdx/facade/AnalyticsFacade.java
 bc0391450e6be7ba87298201634d3e77d12cbb9fe66275aab25492c5157b50c4  app/src/main/java/com/aegis/fdx/facade/AspectFacade.java
 2a3237a26bc9bab5f94089c66e2123f340a409b2927b2bb134c8aaf3dd6b5410  app/src/main/java/com/aegis/fdx/facade/BatchAnalysisFacade.java
@@ -54,7 +54,7 @@ e730d05e1d6bce1832d44529c9ffa7c3bf135f205d053fdae1751a33a3233b48  app/src/main/j
 a3adde072e7eed58cbf403fe130a8368409a7b118899d0aea6214e54cdc446c3  app/src/main/java/com/aegis/fdx/facade/DashboardFacade.java
 e235561560d9a348c16e47b32fd5f11334435103ba34435ca45bec3e6fddb1ac  app/src/main/java/com/aegis/fdx/facade/ExportFacade.java
 3c038fcb52e45c3d56ba1436013bf840c7967ee6117e137f26e806e6152789b5  app/src/main/java/com/aegis/fdx/facade/FacadeException.java
-af7b159029e4cff761ce06773c9615e8734400ab6b2828e729aec04fba21a58a  app/src/main/java/com/aegis/fdx/facade/FileProcessingFacade.java
+f32f170dbc9236f5834e6c397c890ac3f2a25f1e02547a1aab5bffe17ea3979e  app/src/main/java/com/aegis/fdx/facade/FileProcessingFacade.java
 bd229b0a9a00a8c97b78d1962e9247205f0dc3d92d00f2d6277137ef6bae952f  app/src/main/java/com/aegis/fdx/facade/FileState.java
 ee798860ef8d2fdd274595cfb218e93af46b506592f19df34cfa1cf774b2d816  app/src/main/java/com/aegis/fdx/facade/HostMetrics.java
 c4ececa85b95cd5b86db6a8dc9234e6a9a50c304a88b34351f9d5bb4c49f2d31  app/src/main/java/com/aegis/fdx/facade/ImportFacade.java
@@ -131,7 +131,7 @@ eec76a5bd0f8054f31a8ba93318cefb15e4d4ec4f65a58a5c0b9e4b51845b503  app/src/main/j
 16f9d83a78e7eae3bff6e5935f3a6d959a342994d291ccc56beff2455c3ffc81  app/src/main/java/com/aegis/fdx/ui/screens/ComprehensiveDashboardScreen.java
 6a8abab044627f9400dfc3de443615bec4f459573179195d4ad4778b5beb3bb1  app/src/main/java/com/aegis/fdx/ui/screens/DashboardScreen.java
 2a40906acb43a95a9ffa120fec084b83a8ea88621d7a78c4e8bdce52e8199ede  app/src/main/java/com/aegis/fdx/ui/screens/EmailWordsScreen.java
-bb1abbbbf9250696c809605e1aa484db730a99b0e9548f2cd08477d847b3519b  app/src/main/java/com/aegis/fdx/ui/screens/ErrorDashboardScreen.java
+37c5cbcb0419445eb14ac4bafa008c908242c18df4040d347d72652dcd3aa9be  app/src/main/java/com/aegis/fdx/ui/screens/ErrorDashboardScreen.java
 00118f87d7234de080177bd5e86b9c07222a42f82ed9e6c8d395c44f51eb4795  app/src/main/java/com/aegis/fdx/ui/screens/FileDetailScreen.java
 f4977650b0d12592c9e142787f9c70fdb345e0932d2230a5965ac51caec7476c  app/src/main/java/com/aegis/fdx/ui/screens/FileLibraryScreen.java
 e7fd640b680b403095ae6ae5bb83eb04f1a3b029b15f00119dad9a8fa9316df7  app/src/main/java/com/aegis/fdx/ui/screens/FullContentScreen.java
@@ -157,7 +157,8 @@ aa7de375f17a070f56016b1ad22778c5e9465010fc65aea0550d28f1399ec700  app/src/test/j
 637b59612ab83b3d625d6288d3ddf9c31dc2b3b736b71ae8a313b45efdf37f1c  app/src/test/java/com/aegis/fdx/ArchitectureInvariantsTest.java
 e8fea76f46e488e1bdb5b263f6ab9f99247557e6433f9e8e6a20eba440309945  app/src/test/java/com/aegis/fdx/BatchAnalysisTest.java
 c80e5f5e3ca1e8d6c2badf706b1245f419e2803251a484cdb26fc5c7e02ddfa2  app/src/test/java/com/aegis/fdx/Benchmark.java
-4b2fff8b9b2ec91fa30d1254ceecc5110f7df6bce7f61b4e4116ee64f3382ad1  app/src/test/java/com/aegis/fdx/DestinationCoverageTest.java
+2907b4ea61d4b997cb178594722f74eb4675a60c84098f96448165f7d6d4900f  app/src/test/java/com/aegis/fdx/CoverageMatrixTest.java
+7ab06cd808518da1fc0ee0acbf835f990bc943f0c631fafc3a8054977b6f762e  app/src/test/java/com/aegis/fdx/DestinationCoverageTest.java
 1e651d71e32312e531cc0b20329ffb38613aabc7602975eb12b1aede3747f672  app/src/test/java/com/aegis/fdx/DragDropIngestTest.java
 9e5ac13a894acca055fb690d54d738202e100e3abeaf79f95cc98325e6dcd0f0  app/src/test/java/com/aegis/fdx/EndToEndScenarioTest.java
 f41cd5b70173ab2a17b2ab079a907c2764d4f761038b476baf2c95049e59d8bc  app/src/test/java/com/aegis/fdx/FacadeParityTest.java
@@ -175,7 +176,7 @@ e13179312d01e17a0bdb67ca9f3d378200224b16ff97bb930369892210e7d539  app/src/test/j
 0d554c75ee36316a7386ab073b5f1fbab56a4709223396bac8866b1042966406  app/src/test/java/com/aegis/fdx/UiParityTest.java
 e5eaee2782bad62f1fc6c2bca3da146251746f69cd6ebfebda8f3538ad196053  app/src/test/java/com/aegis/fdx/WindowsCompatibilityTest.java
 fc7cf6ba96b1afa7c821aee42a664fb2d41e0b272c5295540a45d72578dbcfd2  build.gradle.kts
-ef46a64d5274c7f4d78f05815a3fcbc1c7191718ccf5efb1b93ea7238f33af83  final-acceptance.sh
+7a2cadaf24d0660eec1210666c5d3ea0a1b3c9f9a55d9762eb83d57296dff327  final-acceptance.sh
 6bbf7673068b79a8f1e376f8a07ebe11e50c17444489b3b4e402a8b0406e9e3a  packaging/build-installer.sh
 3ce3242bc73d0b63b1c4817d2041ebe829f0835b1b82badc664b883d8147267f  packaging/fix-settings.ps1
 e9d0741b78ebe54a11942709e6008d00b7fc0bd00e645a05b1e0621530e35817  packaging/make-manifest.ps1
@@ -184,5 +185,5 @@ e9d0741b78ebe54a11942709e6008d00b7fc0bd00e645a05b1e0621530e35817  packaging/make
 cb9d83e858c082389a42ea8112bd5800d4ca9a1034814eea8247580da7a3afa4  packaging/verify-sources.ps1
 b4f0bbdde5fd04e8f7516b9473fc21738a92d431c70b1ceb63bf664e197aac65  packaging/verify-sources.sh
 ccff60b96ef35513b7b9be80d9b054a504927c3c142eddb36fc4bd3e65c680c5  run-tests.ps1
-6dbbfc677355d686315a18e2cccb2e42c2cd6c358d6420718f91264113c7c4b4  run-tests.sh
+d6f8d1926fa91d0e6c382f471bae19095e661b732178a70cbad7d1705c9742c6  run-tests.sh
 c9e2473d3c501323d179fa767af22e5930c4df5b19a850a2fff8dfd8d392a11a  settings.gradle.kts

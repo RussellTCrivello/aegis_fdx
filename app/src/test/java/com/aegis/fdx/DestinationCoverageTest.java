@@ -11,6 +11,8 @@ import com.aegis.fdx.facade.dto.ErrorReport;
 import com.aegis.fdx.facade.dto.KeywordUsage;
 import com.aegis.fdx.facade.dto.PathDto;
 import com.aegis.fdx.facade.dto.PathNode;
+import com.aegis.fdx.facade.dto.ProcessingResultDto;
+import com.aegis.fdx.model.Item;
 import com.aegis.fdx.store.CorpusDatabase;
 
 import org.junit.jupiter.api.DisplayName;
@@ -339,6 +341,53 @@ class DestinationCoverageTest {
             ErrorReport r = s.f().analytics().errorReport();
             assertTrue(r.isClean(), "the seeded corpus processes cleanly");
             assertEquals(0, r.total());
+        }
+    }
+
+    @Test
+    @DisplayName("An element can be tried again, keeping its identity and the reviewer's work")
+    void retryElement(@TempDir Path tmp) throws Exception {
+        Path ev = tmp.resolve("evidence");
+        Files.createDirectories(ev);
+        Path doc = ev.resolve("statement.txt");
+        Files.writeString(doc, "Statement of account for Acme, June 2024.", StandardCharsets.UTF_8);
+
+        try (LiveCase c = openCase(tmp)) {
+            AegisFacades f = AegisFacades.open(c);
+            int src = f.sources().createSource("S", "NL", "custodian", 0.5);
+            int asp = f.aspects().createAspect("A", 0.5);
+            f.processing("S", "A").processFolder(ev.toString());
+            f.contents().registerIngestedItems(src, asp);
+
+            Item before = c.allItems().get(0);
+            c.applyTag(List.of(before), "Responsive", "tester");
+            c.setNotes(before, "checked by hand", "tester");
+            int elementsBefore = c.db().count();
+
+            ProcessingResultDto retried = f.processing().retryFile(before.id());
+            assertTrue(retried.success(), "the element processes on a second run: " + retried.error());
+
+            Item after = c.byId(before.id());
+            assertNotNull(after, "the element keeps its identifier across a retry");
+            assertEquals(elementsBefore, c.db().count(),
+                    "a retry re-runs an element; it does not create a second one");
+            assertEquals(before.sha256(), after.sha256(), "the digest is recomputed and agrees");
+            assertTrue(after.tags().contains("Responsive"), "the reviewer's tag survives the retry");
+            assertEquals("checked by hand", after.notes(), "the reviewer's note survives the retry");
+            assertTrue(after.extractedText().contains("Acme"), "the text was extracted again");
+
+            // An element nobody has heard of is reported, not thrown.
+            ProcessingResultDto unknown = f.processing().retryFile("E-999999-E1");
+            assertFalse(unknown.success());
+            assertTrue(unknown.error().contains("no element"), unknown.error());
+
+            // The original material has moved on: say so, and change nothing.
+            Files.delete(doc);
+            ProcessingResultDto gone = f.processing().retryFile(before.id());
+            assertFalse(gone.success());
+            assertTrue(gone.error().contains("no longer at"), gone.error());
+            assertNotNull(c.byId(before.id()), "a failed retry leaves the element in place");
+            assertEquals(elementsBefore, c.db().count());
         }
     }
 

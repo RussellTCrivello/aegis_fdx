@@ -161,6 +161,17 @@ public final class AegisFacades {
         return new FileProcessingFacade(liveCase, sourceName, aspectName);
     }
 
+    /**
+     * Processing operations that act on elements already in the case, such as a retry.
+     *
+     * <p>Source and aspect are attributes of new material; an element that is already
+     * registered keeps the ones it was ingested with, so this session states plainly
+     * that it is not adding anything under a new heading.
+     */
+    public FileProcessingFacade processing() {
+        return new FileProcessingFacade(liveCase, "(existing element)", "(existing element)");
+    }
+
     /** Import operations that need the processing pipeline. */
     public ImportFacade imports(String sourceName, String aspectName) {
         return new ImportFacade(processing(sourceName, aspectName));

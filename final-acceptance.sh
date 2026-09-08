@@ -347,6 +347,20 @@ else
     record "Architecture invariants" SKIP "suite not detected in $L"
 fi
 
+# The coverage inventory must resolve: no unclassified row, no invented symbol.
+if grep -q "coverage inventory" "$L" 2>/dev/null; then
+    COVBLOCK=$(awk '/== coverage inventory/{f=1} f{print} f&&/^=== [0-9]+ passed/{exit}' "$L")
+    COVFAIL=$(printf '%s' "$COVBLOCK" | grep -oE "^=== [0-9]+ passed, [0-9]+ failed" | grep -oE "[0-9]+ failed" | grep -oE "^[0-9]+")
+    COVROWS=$(awk -F'\t' '!/^#/ && $1 != "id" && NF >= 8 {n++} END {print n+0}' docs/coverage.tsv 2>/dev/null)
+    if [ "${COVFAIL:-1}" = "0" ]; then
+        record "Coverage inventory" PASS "${COVROWS:-0} rows classified, every symbol resolves"
+    else
+        record "Coverage inventory" FAIL "${COVFAIL} coverage check(s) failed"
+    fi
+else
+    record "Coverage inventory" SKIP "suite not detected in $L"
+fi
+
 # The JUnit half of the test base, run without a build tool.
 JU=$(grep -oE "=== [0-9]+ tests, [0-9]+ passed, [0-9]+ failed[^=]*===" "$L" | sed -n 1p)
 if [ -n "$JU" ]; then

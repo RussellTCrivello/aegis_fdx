@@ -83,10 +83,32 @@ public final class LiveCase implements AutoCloseable {
         });
     }
 
-    public void pauseIngest() { IngestPipeline p = running; if (p != null) p.pause(); }
-    public void resumeIngest() { IngestPipeline p = running; if (p != null) p.resume(); }
+    public void pauseIngest() { IngestPipeline p = running; if (p != null) p.pause(); }    public void resumeIngest() { IngestPipeline p = running; if (p != null) p.resume(); }
     public void cancelIngest() { IngestPipeline p = running; if (p != null) p.cancel(); }
     public boolean ingestRunning() { return running != null; }
+
+    /**
+     * Runs one element through the pipeline again, off the interface thread.
+     *
+     * <p>Used by the error views: a file that failed once — locked, unreadable for a
+     * moment, on a share that dropped — can be tried again without re-running the case.
+     * The element keeps its identity, so nothing that refers to it is orphaned.
+     *
+     * @param itemId   the element to try again
+     * @param listener receives the same engine events an ingest run produces
+     */
+    public Future<Item> retryElement(String itemId, Consumer<EngineEvent> listener) {
+        Consumer<EngineEvent> sink = listener == null ? e -> { } : listener;
+        return ingestPool.submit(() -> {
+            Item existing = byId(itemId);
+            if (existing == null) {
+                throw new IllegalArgumentException("no element " + itemId + " in this case");
+            }
+            IngestPipeline pipe = new IngestPipeline(folder, db, index, settings, sink);
+            pipe.seedIdSequence(db.count());
+            return pipe.retry(existing);
+        });
+    }
 
     // ---- search --------------------------------------------------------------
 

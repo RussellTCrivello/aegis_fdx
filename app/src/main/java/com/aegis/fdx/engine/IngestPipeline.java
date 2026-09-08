@@ -287,6 +287,62 @@ public final class IngestPipeline {
         }
     }
 
+    /**
+     * Re-runs one element that did not come through the first time.
+     *
+     * <p>A failure during intake is usually about the moment, not the file: a document
+     * locked by another program, a network share that dropped, a temporary read error.
+     * The reference application offers a per-file retry for exactly this, and so does
+     * this one — through the same pipeline as the original run, with no separate
+     * "reprocessing" path that could diverge from it.
+     *
+     * <p>The element keeps its identifier, so the registry row, the review state and
+     * anything else attached to it stay attached. The reviewer's own work — notes and
+     * tags — is carried across; everything the pipeline derives is recomputed from the
+     * file as it is now, including hashes, so a retry cannot silently keep a stale
+     * digest. The original evidence is only ever read.
+     *
+     * @param existing the element to run again, as currently stored
+     * @return the element as it stands after the new attempt
+     * @throws java.io.FileNotFoundException when the original file is no longer where
+     *                                       the case recorded it
+     */
+    public Item retry(Item existing) throws Exception {
+        if (existing == null) {
+            throw new IllegalArgumentException("no element to retry");
+        }
+        String recorded = existing.sourcePath();
+        if (recorded == null || recorded.isBlank()) {
+            throw new java.io.FileNotFoundException(
+                    "element " + existing.id() + " has no original path to read again");
+        }
+        Path file = Path.of(recorded);
+        if (!Files.isRegularFile(file)) {
+            throw new java.io.FileNotFoundException(
+                    "the original file is no longer at " + recorded);
+        }
+
+        // Children discovered by a successful retry must not collide with ids the
+        // case has already issued.
+        try { idSeq = Math.max(idSeq, db.maxElementSequence()); } catch (Exception ignored) { }
+
+        Item fresh = fromFile(existing.id(), file, existing.custodian());
+        fresh.notes(existing.notes());
+        fresh.tags().addAll(existing.tags());
+
+        listener.accept(new EngineEvent.Log("INFO",
+                "Retry: " + existing.name() + " (" + existing.id() + ")"));
+        try { db.setQueueState(existing.id(), "PROCESSING"); } catch (Exception ignored) { }
+
+        runElement(fresh, file, null);
+        index.commit();
+        runOcrSweep();
+        index.commit();
+
+        try { db.setQueueState(existing.id(), queueStateOf(fresh.status())); } catch (Exception ignored) { }
+        return fresh;
+    }
+
     private Item fromFile(String id, Path p, String custodian) throws IOException {
         Item it = new Item(id, p.getFileName().toString());
         it.sourcePath(p.toAbsolutePath().toString());

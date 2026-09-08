@@ -100,9 +100,48 @@ public final class FileProcessingFacade implements AutoCloseable {
         }
     }
 
+    /**
+     * Tries one element again, through the same pipeline that first processed it.
+     *
+     * <p>For the error views: a document that was locked, a share that dropped, a read
+     * that timed out. The element keeps its identifier and the reviewer's notes and
+     * tags; everything derived from the file is recomputed. Like the rest of this
+     * facade it reports a failure in the result rather than throwing.
+     *
+     * @param elementId the element to run again, e.g. {@code E-000004-E1}
+     */
+    public ProcessingResultDto retryFile(String elementId) {
+        String id = Validate.required(elementId, "elementId");
+        try {
+            Item before = liveCase.byId(id);
+            if (before == null) {
+                return new ProcessingResultDto(null, id, "", 0L, false,
+                        "no element " + id + " in this case", enableStorage, false, null, 0);
+            }
+            Item after = liveCase.retryElement(id, ev -> { }).get();
+            boolean ok = after.status() == ItemStatus.INDEXED;
+            return new ProcessingResultDto(
+                    after.sourcePath(),
+                    after.name(),
+                    after.extension(),
+                    after.size(),
+                    ok,
+                    ok ? null : (after.errors().isEmpty()
+                            ? String.valueOf(after.status())
+                            : String.join("; ", after.errors())),
+                    enableStorage,
+                    after.duplicateOf() != null,
+                    after.sha256(),
+                    after.extractedText() == null ? 0 : after.extractedText().length());
+        } catch (Exception e) {
+            Throwable cause = e.getCause() == null ? e : e.getCause();
+            return new ProcessingResultDto(null, id, "", 0L, false,
+                    String.valueOf(cause.getMessage()), enableStorage, false, null, 0);
+        }
+    }
+
     /** Processes a folder recursively, returning one entry per discovered element. */
-    public List<ProcessingResultDto> processFolder(String folderPath) {
-        String p = Validate.required(folderPath, "folderPath");
+    public List<ProcessingResultDto> processFolder(String folderPath) {        String p = Validate.required(folderPath, "folderPath");
         Path dir = Path.of(p);
 
         if (!Files.exists(dir)) {

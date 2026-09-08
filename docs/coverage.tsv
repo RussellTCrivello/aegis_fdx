@@ -1,0 +1,88 @@
+# Coverage inventory — every destination, capability and deliberate omission
+#
+# This file is the data behind docs/COVERAGE_MATRIX.md. It is checked by
+# CoverageMatrixTest, which fails the build when a row is unclassified, when a
+# Java or test symbol named here does not exist, or when a destination in the
+# interface is missing from the inventory. Prose can drift; this cannot.
+#
+# classification:
+#   VERIFIED     implemented, reachable from the interface, persisted where it
+#                should be, and proven by a test that runs in this environment
+#   LIMITED      implemented and reachable; full validation needs hardware or
+#                software that is not present here (model runtime, OCR binary,
+#                graphics device, Windows host). A note states what is missing.
+#   ADAPTED      the reference behaviour is delivered, in the form the Java
+#                architecture calls for rather than the reference's form
+#   UNSUPPORTED  deliberately not reproduced; the note says why
+#   ABSENT       no Java counterpart; the note says why and what it would take
+#
+# columns: id  area  reference  classification  java_symbol  operation  test  note
+id	area	reference	classification	java_symbol	operation	test	note
+D01	Overview	Analysis/dashboard.html	VERIFIED	DashboardScreen	DashboardFacade#getStats	FacadeParityTest#DashboardStatsCheck	Counts, breakdowns and recent items are read from the case database on each visit.
+D02	Overview	Analysis/charts_dashboard.html	ADAPTED	ChartsDashboardScreen	DashboardFacade#getFileTypeBreakdown	DestinationCoverageTest#reviewProgress	Charts are drawn on a JavaFX canvas by ChartPane instead of a browser charting library; the aggregates behind them are identical.
+D03	Overview	Analysis/comprehensive_dashboard.html	VERIFIED	ComprehensiveDashboardScreen	AnalyticsFacade#filteredCounts	DestinationCoverageTest#combinedFilters	Combined source/aspect/category/type filters narrow every tile consistently.
+D04	Overview	Analysis/analysis_batch.html	VERIFIED	BatchAnalysisScreen	BatchAnalysisFacade#start	BatchAnalysisTest#hitsComeFromRealAnalysis	Keyword hits are counted in the extracted text; runs are persisted and survive a restart.
+D05	Overview	Analysis/path_analysis.html	VERIFIED	PathAnalysisScreen	AnalyticsFacade#directoryTree	DestinationCoverageTest#directoryTree	A real tree over path.file_path with rolled-up totals per folder.
+D06	Overview	Analysis/file_classification.html	ADAPTED	AnalysisScreen	DashboardFacade#getCategoriesFiltered	UiParityTest#screenInventory	Folded into the Analysis destination rather than kept as a separate page, which is how the reference reaches it in practice.
+D07	Sources	Sources/sources_list.html	VERIFIED	SourcesScreen	SourceFacade#listSources	FacadeParityTest#sourceFacade	List, create, duplicate and delete all write through to the case database.
+D08	Sources	Sources/source_detail.html	VERIFIED	SourceDetailScreen	AnalyticsFacade#sourceStatistics	DestinationCoverageTest#sourceStatistics	Statistics are computed from the registry, not stored counters.
+D09	Sources	Sources/source_categories_keywords.html	VERIFIED	RelationshipsScreen	AnalyticsFacade#categoriesForSource	DestinationCoverageTest#relationships	Joins path → path_category / path_keyword for that source.
+D10	Sources	source add / edit forms	VERIFIED	SourceForm	SourceFacade#updateSource	DestinationCoverageTest#editSource	Edit persists and a duplicate name is refused with a message.
+D11	Aspects	Side/sides_list.html	VERIFIED	AspectsScreen	AspectFacade#listAspects	FacadeParityTest#aspectFacade	The reference's "side" is named "aspect" throughout; the deprecated alias still resolves.
+D12	Aspects	Side/side_detail.html	VERIFIED	AspectDetailScreen	AnalyticsFacade#aspectStatistics	DestinationCoverageTest#aspectStatistics	Statistics are scoped to that aspect alone.
+D13	Aspects	Side/side_categories_keywords.html	VERIFIED	RelationshipsScreen	AnalyticsFacade#keywordsForAspect	DestinationCoverageTest#relationships	Same relationship view, scoped to an aspect.
+D14	Aspects	side add / edit	VERIFIED	AspectsScreen	AspectFacade#updateAspect	DestinationCoverageTest#editAspect	Edit persists and a duplicate name is refused.
+D15	Vocabulary	Word/Word_list.html	VERIFIED	WordsScreen	WordFacade#getWords	FacadeParityTest#corpusFacades	Create, rename, bulk delete.
+D16	Vocabulary	Word/Word_detail.html	VERIFIED	TermDetailScreen	AnalyticsFacade#categoriesForWord	DestinationCoverageTest#wordDetail	Resolves the categories a word belongs to and the files carrying it.
+D17	Vocabulary	Word/Word_add.html	ADAPTED	WordsScreen	WordFacade#createWord	FacadeParityTest#corpusFacades	A dialog on the list destination rather than a separate page — the desktop equivalent of a form route.
+D18	Vocabulary	Category/categories_list.html	VERIFIED	CategoriesScreen	CategoryFacade#listCategories	FacadeParityTest#corpusFacades	List, create, delete, and word membership.
+D19	Vocabulary	Category/category_words.html	ADAPTED	CategoriesScreen	CategoryFacade#getCategoryWords	DestinationCoverageTest#categoryDrillThrough	A pane inside the category destination; drill-through to the files under a category is a real query.
+D20	Vocabulary	Keyword/keywords_list.html	VERIFIED	KeywordsScreen	KeywordFacade#listKeywords	FacadeParityTest#corpusFacades	Includes duplicate detection and bulk delete.
+D21	Vocabulary	Keyword/keyword_detail.html	VERIFIED	TermDetailScreen	AnalyticsFacade#filesForKeyword	DestinationCoverageTest#keywordDetail	Lists the files carrying the keyword with per-file hit counts.
+D22	Vocabulary	Keyword/keywords_add_edit.html	ADAPTED	KeywordsScreen	KeywordFacade#createKeyword	FacadeParityTest#corpusFacades	Add and edit are a dialog on the list destination rather than two separate routes, which is the desktop equivalent of a form page and keeps the reviewer's place in the list.
+D23	Files	file/files_list.html	VERIFIED	FileLibraryScreen	ContentFacade#getPaths	UiParityTest#contentsIntegration	Columns, filters and paging match the reference list.
+D24	Files	file/file_detail.html	VERIFIED	FileDetailScreen	ContentFacade#getPath	UiParityTest#contentValidation	Promoted from a dialog to a destination: metadata, hashes, relationships, extracted text.
+D25	Files	file/full_content.html	VERIFIED	FullContentScreen	ContentFacade#getContentAsText	UiParityTest#contentValidation	Full extracted text with in-document search.
+D26	Files	file/upload.html	VERIFIED	UploadScreen	FileProcessingFacade#processFolder	DragDropIngestTest	Real ingest: drag-and-drop, folders, containers and multi-select.
+D27	Files	file/File_Management_Analysis_System.html	VERIFIED	ArchivesScreen	AnalyticsFacade#archiveTree	DestinationCoverageTest#archiveTree	Container nesting from the engine's parent/depth relationships.
+D28	Files	email_words/email_words.html	VERIFIED	EmailWordsScreen	SearchFacade#search	UiParityTest#screenInventory	Term frequency over email bodies, backed by the index.
+D29	Search	Search/search.html	VERIFIED	SearchScreen	SearchFacade#search	QueryParserTest	33 grammar checks over the real Lucene index.
+D30	Search	Search/search_advanced.html	VERIFIED	AdvancedSearchScreen	SearchCriteria	QueryValidationTest	Field-by-field builder composing SearchCriteria; invalid input is reported, not thrown.
+D31	Search	Search/search_enhanced.html	ADAPTED	SearchScreen	SearchFacade#getSearchSuggestions	FacadeParityTest#searchHistoryFacade	Folded into the main search destination as suggestions and filters rather than a second page.
+D32	Search	Search/saved_searches.html	VERIFIED	SavedSearchesScreen	SearchHistoryFacade#saveSearch	FacadeParityTest#searchHistoryFacade	Saved searches and history persist in the case database.
+D33	System	Notifications/notifications.html	VERIFIED	NotificationsScreen	NotificationFacade#getNotifications	FacadeParityTest#notificationFacade	Alerts are rows in the case database, dismissable and counted.
+D34	System	ImportExport/import_export.html	VERIFIED	ImportExportScreen	ImportFacade#importDatabaseBackup	M3AcceptanceTest	Export formats and a database backup/restore path, both verified end to end.
+D35	System	Settings/settings.html	VERIFIED	SettingsScreen	CaseSettings#saveTo	SettingsPersistenceTest#optionsSurviveRestart	Choices are written to settings.properties in the case folder and reapplied on open.
+D36	System	Setup/database_setup.html	VERIFIED	SetupScreen	IntegrityVerifier	M3AcceptanceTest	Case and schema status, plus a real integrity verification run.
+D37	System	error dashboard (/api/errors/*)	VERIFIED	ErrorDashboardScreen	AnalyticsFacade#errorReport	DestinationCoverageTest#errorReport	Failures by type with causes; a clean case reports none rather than failing.
+D38	System	performance (/performance/*)	VERIFIED	PerformanceScreen	HostMetrics#sample	HostMetricsTest#cpuIsMeasuredOrDeclaredMissing	CPU, memory and disk are measured from the OS; anything unmeasurable is shown as text, never as a zero.
+D39	System	concurrency/dashboard.html	VERIFIED	ProcessingMonitorScreen	LiveCase#ingestRunning	PipelineAcceptanceTest	Live worker and queue state during a real ingest, with pause, resume and cancel.
+R01	Reference behaviour	batch Schedule / Off-Hours controls	UNSUPPORTED	BatchAnalysisScreen	BatchAnalysisFacade#start	BatchAnalysisTest#distinctFromProcessing	In the reference these controls are inert: analysis-batch-page.js posts to the immediate-processing endpoint and the schedule is never stored or acted on. Reproducing a control that does nothing would be a fake feature; the destination offers explicit start, cancel and re-run instead.
+R02	Reference behaviour	batch History modal	VERIFIED	BatchAnalysisScreen	BatchAnalysisFacade#history	BatchAnalysisTest#historySurvivesRestart	The reference's history modal is hardcoded HTML; here runs are rows in the case database and survive a restart.
+R03	Reference behaviour	CPU / Memory / Disk meters	VERIFIED	HostMetrics	HostMetrics#sample	HostMetricsTest#volumeIsMeasuredFromTheRealFilesystem	The reference's meters are static markup. These are read from OperatingSystemMXBean and FileStore, and declare themselves unavailable when a counter cannot be read.
+R04	Reference behaviour	avg_processing_time / success_rate tiles	ADAPTED	AnalyticsFacade	AnalyticsFacade#reviewProgress	DestinationCoverageTest#reviewProgress	The reference hardcodes 2.3 s and 98.5%. Only figures that can be computed from the case are shown: processed, errors, locked, read/unread.
+R05	Reference behaviour	per-file retry	VERIFIED	ErrorDashboardScreen	FileProcessingFacade#retryFile	DestinationCoverageTest#retryElement	The Errors destination retries a selected element through the same pipeline the case was built with. The element keeps its identifier, notes and tags; hashes and text are recomputed; a missing original is reported and nothing is changed.
+R06	Reference behaviour	404 / 500 pages	UNSUPPORTED	Fas	Fas#emptyState	UiParityTest#screenInventory	HTTP error pages have no desktop equivalent; failures surface as inline states and dialogs on the destination that caused them.
+R07	Reference behaviour	/set_language/<lang>	ABSENT	SettingsScreen	CaseSettings#saveTo	SettingsPersistenceTest#optionsSurviveRestart	Translation catalogues are a separate workstream; the interface ships in one language. Adding one would mean a resource bundle per destination, not an architectural change.
+R08	Reference behaviour	Jinja components/*.html	UNSUPPORTED	Fas	Fas#card	UiParityTest#stylesheetPresent	Template partials are not destinations; the equivalent reusable pieces are UiParts and ChartPane.
+E01	Engine	ingest of mixed formats	VERIFIED	IngestPipeline	IngestPipeline#ingest	PipelineAcceptanceTest	AT-01: 44-file mixed corpus, containers, mail, office, images.
+E02	Engine	nested container extraction	VERIFIED	IngestPipeline	IngestPipeline#ingest	PipelineAcceptanceTest	AT-02: ZIP → ZIP → EML → PDF chain.
+E03	Engine	encrypted containers	VERIFIED	IngestPipeline	CaseSettings#passwords	PipelineAcceptanceTest	AT-03: marked Locked, the run continues.
+E04	Engine	deduplication scopes	VERIFIED	CaseDatabase	CaseDatabase#findDuplicate	PipelineAcceptanceTest	AT-04: off / per-custodian / global; nothing is ever deleted.
+E05	Engine	interrupt and resume	VERIFIED	IngestPipeline	CaseDatabase#setQueueState	M3AcceptanceTest	AT-05: a resumed case matches an uninterrupted one.
+E06	Engine	evidence hashing	VERIFIED	IngestPipeline	IntegrityVerifier#verify	M3AcceptanceTest	AT-09: SHA-256 and MD5 verified after write; tampering is detected.
+E07	Engine	OCR of image-only documents	LIMITED	OcrEngine	OcrEngine#run	M3AcceptanceTest	Implemented and wired, including the "not installed" path. Tesseract is not present in this environment, so the OCR assertions report as skipped rather than passing. Install Tesseract to validate.
+E08	Engine	export (native / EML / PDF / CSV)	VERIFIED	Exporter	Exporter#export	M3AcceptanceTest	With a manifest and load file.
+E09	Engine	Windows path and filename handling	LIMITED	CaseFolder	CaseFolder#dataFileFor	WindowsCompatibilityTest	18 checks pass on Linux over reserved names, trailing dots, MAX_PATH and CRLF/BOM. Certification on a Windows host is still required.
+A01	AI	optional local agent	VERIFIED	AgentService	AgentService#fromEnvironment	AiBoundaryTest	B-04: the application is fully usable with the agent disabled, absent or unreachable.
+A02	AI	manual invocation only	VERIFIED	AnalyzeAction	AgentService#ask	AiBoundaryTest	B-03/B-05: the agent runs from the Assistant screen and Analyze buttons; ingest makes no model call.
+A03	AI	read-only tool boundary	VERIFIED	CaseTools	AgentTool#schema	AiAgentTest#readOnlyByDefault	B-01/B-02: ten read-only tools, no shell, SQL, filesystem or network reach.
+A04	AI	confirmed write actions	VERIFIED	MutatingTools	MutatingTools#all	AiAgentTest#noEscapeHatches	B-07: write tools appear only after an explicit confirmation and never touch evidence.
+A05	AI	nothing loads at startup	VERIFIED	AgentService	AgentService#isModelLoaded	ArchitectureInvariantsTest#nothingAiLoadsWhileTheApplicationStarts	B-08: wiring the service builds no provider and contacts no runtime.
+A06	AI	answers from a real local model	LIMITED	HttpLocalModelProvider	HttpLocalModelProvider#chat	AiAgentTest#wireProtocol	The client, tool loop, grounding and audit trail are exercised against a scripted runtime that speaks the real protocol. Generating text with an actual 7B model needs hardware this environment does not have; run Ollama locally to validate quality.
+A07	AI	assistant destination	VERIFIED	AgentScreen	AgentService#ask	AiBoundaryTest	The only destination that can start the agent. It reports availability on arrival without loading anything, and asks for confirmation before write tools are registered.
+X01	Architecture	one datastore	VERIFIED	CaseDatabase	CaseFolder#database	ArchitectureInvariantsTest#caseDatabaseIsTheOnlyDatastore	No second store may appear in a case folder.
+X02	Architecture	database authoritative, index derived	VERIFIED	LiveCase	LiveCase#indexedCount	ArchitectureInvariantsTest#theDatabaseOutlivesTheIndex	Destroying the index leaves every record readable.
+X03	Architecture	no reference-runtime dependency	VERIFIED	AegisFacades	AegisFacades#open	ArchitectureInvariantsTest#noWebApiOrPythonRuntimeDependency	No Python, no web API, and only the AI client may use the network.
+X04	Architecture	clean shutdown	VERIFIED	LiveCase	LiveCase#close	ArchitectureInvariantsTest#aClosedCaseReleasesItsWorkersAndFiles	Workers stop, files unlock, and the case reopens intact.
+X05	Architecture	interface controls are wired	VERIFIED	FasApp	FasApp#register	ArchitectureInvariantsTest#everyControlEndsInAnOperation	Every control ends in an operation and every destination is reachable.

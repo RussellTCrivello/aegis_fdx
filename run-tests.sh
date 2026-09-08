@@ -80,6 +80,9 @@ echo; echo "== JUnit suites (facade, agent, batch, model, scenario) =="
 echo; echo "== architecture invariants (structural rules the build must not break) =="
 "$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.ArchitectureInvariantsTest "$WORK/arch"
 
+echo; echo "== coverage inventory (every destination classified, every claim resolvable) =="
+"$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.CoverageMatrixTest
+
 echo; echo "== interface suites (need a JavaFX runtime with native libraries) =="
 # The runner reports checks that cannot run for want of a graphics device as
 # "not runnable on this machine" and still fails the battery for anything else.
