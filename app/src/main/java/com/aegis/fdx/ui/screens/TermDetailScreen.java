@@ -87,7 +87,8 @@ public final class TermDetailScreen implements Detail {
 
     @Override
     public String breadcrumb() {
-        return "Home / " + listDestination() + (termText.isBlank() ? " / Detail" : " / " + termText);
+        return "Home / Analysis / " + listDestination()
+                + (termText.isBlank() ? " / Detail" : " / " + termText);
     }
 
     @Override

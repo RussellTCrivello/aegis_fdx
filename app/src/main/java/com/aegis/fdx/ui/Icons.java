@@ -181,6 +181,43 @@ public final class Icons {
     public static final String ALERT =
             "M8 2 15 13.5H1L8 2zM8 6.2v3.2M8 11.3h.01";
 
+    /** bi-card-heading — Titles */
+    public static final String CARD_HEADING =
+            "M2 3h12v10H2V3zm1.5 2v1.5M2 9.5h12M4.5 11v1M8 11v1";
+
+    /** bi-geo-alt — Geolocation */
+    public static final String GEO =
+            "M8 2a3.5 3.5 0 0 0-3.5 3.5C4.5 8 8 14 8 14s3.5-6 3.5-8.5A3.5 3.5 0 0 0 8 2zm0 2a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z";
+
+    /** bi-share — Relations */
+    public static final String SHARE =
+            "M11.5 2.5a1.8 1.8 0 1 0 0 3.6M4.5 6.2a1.8 1.8 0 1 0 0 3.6M11.5 9.9a1.8 1.8 0 1 0 0 3.6M6 7.5l4-2.4M6 8.5l4 2.4";
+
+    /** bi-grid — Grid view */
+    public static final String GRID =
+            "M2.5 2.5h4v4h-4v-4zm5.5 0h4v4H8v-4zM2.5 8.5h4v4h-4v-4zm5.5 0h4v4H8v-4z";
+
+    /** bi-arrow-left — Back */
+    public static final String ARROW_LEFT = "M13 8H3M6.5 4.5 3 8l3.5 3.5";
+
+    /** bi-arrow-right — Forward */
+    public static final String ARROW_RIGHT = "M3 8h10M9.5 4.5 13 8l-3.5 3.5";
+
+    /** bi-clipboard — Copy */
+    public static final String CLIPBOARD =
+            "M5 3.5h6v1.5h1.5v9.5h-9V5H5V3.5zM5.5 2h5v2h-5V2z";
+
+    /** bi-filetype — Titles stat */
+    public static final String FILETYPE =
+            "M4.5 2h5L12 4.5V13h-7.5V2zM4 6h4.5M4 8.5h4.5M4 11h3";
+
+    /** bi-pie-chart — Classification */
+    public static final String PIE =
+            "M8 2a6 6 0 1 0 6 6h-6V2zm1.5 1.6v3.4h3.4A3.6 3.6 0 0 0 9.5 3.6z";
+
+    /** bi-check-all — Select all */
+    public static final String CHECK_ALL = "M2.5 8.5 5.5 11.5 10 5.5M7 11.5l1.5 1.5L13.5 7";
+
     // --- factories --------------------------------------------------------
 
     /** A stroked glyph, which is how most Bootstrap Icons read at small sizes. */

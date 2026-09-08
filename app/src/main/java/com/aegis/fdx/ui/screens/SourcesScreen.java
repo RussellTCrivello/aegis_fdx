@@ -6,6 +6,7 @@ import com.aegis.fdx.facade.SourceDraft;
 import com.aegis.fdx.facade.dto.SourceDto;
 import com.aegis.fdx.ui.Fas;
 import com.aegis.fdx.ui.Icons;
+import com.aegis.fdx.ui.Router;
 import com.aegis.fdx.ui.Screen;
 
 import javafx.collections.FXCollections;
@@ -39,18 +40,29 @@ import java.time.LocalDate;
 public final class SourcesScreen implements Screen {
 
     private final AegisFacades facades;
+    private final Router router;
     private final ObservableList<SourceDto> rows = FXCollections.observableArrayList();
     private TableView<SourceDto> table;
     private Label countLabel;
     private TextField searchField;
 
     public SourcesScreen(AegisFacades facades) {
+        this(facades, null);
+    }
+
+    public SourcesScreen(AegisFacades facades, Router router) {
         this.facades = facades;
+        this.router = router == null ? Router.NONE : router;
     }
 
     @Override
     public String title() {
         return "Sources";
+    }
+
+    @Override
+    public String breadcrumb() {
+        return "Home / Analysis / Sources";
     }
 
     @Override
@@ -101,7 +113,7 @@ public final class SourcesScreen implements Screen {
                     return;
                 }
                 Button view = Fas.ghost("", Icons.EYE);
-                view.setOnAction(e -> showDetail(item));
+                view.setOnAction(e -> router.openSource(item.id()));
                 Button dup = Fas.ghost("", Icons.FILES);
                 dup.setOnAction(e -> {
                     facades.sources().duplicateSource(item.id());
@@ -113,6 +125,15 @@ public final class SourcesScreen implements Screen {
             }
         });
         table.getColumns().add(actions);
+        table.setRowFactory(t -> {
+            javafx.scene.control.TableRow<SourceDto> row = new javafx.scene.control.TableRow<>();
+            row.setOnMouseClicked(e -> {
+                if (e.getClickCount() == 2 && !row.isEmpty()) {
+                    router.openSource(row.getItem().id());
+                }
+            });
+            return row;
+        });
 
         VBox content = new VBox(16,
                 Fas.pageHeader("Sources", "Home / Sources", searchField, refresh, add),

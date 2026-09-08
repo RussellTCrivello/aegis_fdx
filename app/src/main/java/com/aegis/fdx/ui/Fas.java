@@ -142,6 +142,90 @@ public final class Fas {
         }
     }
 
+    /**
+     * Analysis-hub card: tinted icon chip, entity name, live count and a hint.
+     * Clicking it navigates to the entity collection.
+     */
+    public static VBox hubCard(String iconPath, String accent, String title,
+                               String count, String hint, Runnable onOpen) {
+        StackPane chip = new StackPane(Icons.box(iconPath, accent, 18));
+        chip.getStyleClass().add("hub-icon");
+        chip.setStyle("-fx-background-color: " + tint(accent) + ";");
+
+        Label t = new Label(title);
+        t.getStyleClass().add("hub-card-title");
+        Label c = new Label(count);
+        c.getStyleClass().add("hub-card-count");
+        Label h = new Label(hint);
+        h.getStyleClass().add("hub-card-sub");
+        h.setWrapText(true);
+
+        javafx.scene.control.Button open = new Button("Open");
+        open.getStyleClass().add("btn-outline");
+        open.setGraphic(Icons.box(Icons.CHEVRON_RIGHT, PRIMARY, 12));
+        open.setOnAction(e -> onOpen.run());
+
+        VBox box = new VBox(8, chip, t, c, h, open);
+        box.getStyleClass().add("hub-card");
+        box.setOnMouseClicked(e -> onOpen.run());
+        HBox.setHgrow(box, Priority.ALWAYS);
+        return box;
+    }
+
+    /** Updates the count label of a hub card produced by {@link #hubCard}. */
+    public static void setHubCount(VBox hubCard, String count) {
+        if (hubCard.getChildren().size() > 2
+                && hubCard.getChildren().get(2) instanceof Label l) {
+            l.setText(count);
+        }
+    }
+
+    /**
+     * Compact summary tile used on management screens:
+     * Total / Filtered / Visible / Page style figures.
+     */
+    public static VBox summaryTile(String value, String label) {
+        Label v = new Label(value);
+        v.getStyleClass().add("summary-tile-value");
+        Label l = new Label(label);
+        l.getStyleClass().add("summary-tile-label");
+        VBox box = new VBox(4, v, l);
+        box.getStyleClass().add("summary-tile");
+        HBox.setHgrow(box, Priority.ALWAYS);
+        return box;
+    }
+
+    /** Updates the value label of a summary tile. */
+    public static void setSummary(VBox tile, String value) {
+        if (!tile.getChildren().isEmpty() && tile.getChildren().get(0) instanceof Label l) {
+            l.setText(value);
+        }
+    }
+
+    /** Pagination button with the shared page-btn treatment. */
+    public static Button pageButton(String text) {
+        Button b = new Button(text);
+        b.getStyleClass().add("page-btn");
+        return b;
+    }
+
+    /** Sub-tab toggle used inside the file-analysis view. */
+    public static Button subTab(String text, boolean active) {
+        Button b = new Button(text);
+        b.getStyleClass().add("sub-tab");
+        if (active) {
+            b.getStyleClass().add("active");
+        }
+        return b;
+    }
+
+    /** Copies text to the system clipboard. */
+    public static void copyText(String text) {
+        javafx.scene.input.ClipboardContent c = new javafx.scene.input.ClipboardContent();
+        c.putString(text == null ? "" : text);
+        javafx.scene.input.Clipboard.getSystemClipboard().setContent(c);
+    }
+
     // ---- badges ----------------------------------------------------------
 
     /** Python {@code .badge}. */

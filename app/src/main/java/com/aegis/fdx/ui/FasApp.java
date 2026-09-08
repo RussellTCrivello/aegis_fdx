@@ -9,6 +9,9 @@ import com.aegis.fdx.ui.screens.AdvancedSearchScreen;
 import com.aegis.fdx.ui.screens.AgentScreen;
 import com.aegis.fdx.ui.screens.ArchivesScreen;
 import com.aegis.fdx.ui.screens.BatchAnalysisScreen;
+import com.aegis.fdx.ui.screens.GeolocationScreen;
+import com.aegis.fdx.ui.screens.RelationsScreen;
+import com.aegis.fdx.ui.screens.TitlesScreen;
 import com.aegis.fdx.ui.screens.AspectDetailScreen;
 import com.aegis.fdx.ui.screens.ChartsDashboardScreen;
 import com.aegis.fdx.ui.screens.ComprehensiveDashboardScreen;
@@ -94,6 +97,10 @@ public final class FasApp extends Application implements Router {
     private Label statusRight;
     private String currentKey;
     private final java.util.Deque<String> historyStack = new java.util.ArrayDeque<>();
+    private final java.util.Deque<String> forwardStack = new java.util.ArrayDeque<>();
+    private Button backBtn;
+    private Button fwdBtn;
+    private javafx.scene.control.TextField globalSearch;
     private CorpusDatabase corpusDao;
     private Path settingsFile;
 
@@ -125,16 +132,19 @@ public final class FasApp extends Application implements Router {
         }
 
         register(new DashboardScreen(facades));
-        register(new AnalysisScreen(facades));
+        register(new AnalysisScreen(facades, this));
         register(new SearchScreen(facades, agent, this));
-        register(new SourcesScreen(facades));
-        register(new AspectsScreen(facades));
-        register(new EmailWordsScreen(facades));
+        register(new SourcesScreen(facades, this));
+        register(new AspectsScreen(facades, this));
+        register(new EmailWordsScreen(facades, this));
         register(new KeywordsScreen(facades, agent, this));
         register(new WordsScreen(facades, this));
         register(new CategoriesScreen(facades, agent, this));
         register(new UploadScreen(facades));
-        register(new FileLibraryScreen(facades));
+        register(new FileLibraryScreen(facades, this));
+        register(new TitlesScreen(facades, this));
+        register(new RelationsScreen(facades, this));
+        register(new GeolocationScreen(facades, this));
         register(new NotificationsScreen(facades));
         register(new SettingsScreen(facades, settings, settingsFile));
         register(new AgentScreen(facades, agent));
@@ -232,6 +242,9 @@ public final class FasApp extends Application implements Router {
         nav.getChildren().add(navLink("Keywords"));
         nav.getChildren().add(navLink("Words"));
         nav.getChildren().add(navLink("Categories"));
+        nav.getChildren().add(navLink("Titles"));
+        nav.getChildren().add(navLink("Relations"));
+        nav.getChildren().add(navLink("Geolocation"));
 
         nav.getChildren().add(sectionLabel("FILES"));
         nav.getChildren().add(navLink("Upload Files"));
@@ -293,7 +306,46 @@ public final class FasApp extends Application implements Router {
         pageTitle = new Label("Dashboard");
         pageTitle.getStyleClass().add("page-title");
         breadcrumb = new Label("Home / Dashboard");
-        breadcrumb.getStyleClass().add("breadcrumb");
+        breadcrumb.setStyle("-fx-cursor: hand;");
+        breadcrumb.setOnMouseClicked(e -> {
+            // Breadcrumb segments navigate: "Home / Analysis / Category" — clicking
+            // goes back through the history toward the matching destination.
+            String crumb = breadcrumb.getText();
+            if (crumb != null && crumb.contains("Analysis")) {
+                navigate("Analysis");
+            } else {
+                navigate("Dashboard");
+            }
+        });
+
+        backBtn = new Button();
+        backBtn.getStyleClass().add("topbar-nav-btn");
+        backBtn.setGraphic(Icons.box(Icons.ARROW_LEFT, "#64748b", 15));
+        backBtn.setOnAction(e -> back());
+        fwdBtn = new Button();
+        fwdBtn.getStyleClass().add("topbar-nav-btn");
+        fwdBtn.setGraphic(Icons.box(Icons.ARROW_RIGHT, "#64748b", 15));
+        fwdBtn.setOnAction(e -> forward());
+        backBtn.setDisable(true);
+        fwdBtn.setDisable(true);
+
+        globalSearch = new javafx.scene.control.TextField();
+        globalSearch.setPromptText(
+                "Search all data: files, categories, keywords, sources, sides, words, titles...");
+        globalSearch.getStyleClass().add("global-search");
+        globalSearch.setOnAction(e -> {
+            String q = globalSearch.getText();
+            if (q != null && !q.isBlank()) {
+                openSearch(q.trim());
+            }
+        });
+        Button globalGo = Fas.primary("Search", Icons.SEARCH);
+        globalGo.setOnAction(e -> {
+            String q = globalSearch.getText();
+            if (q != null && !q.isBlank()) {
+                openSearch(q.trim());
+            }
+        });
 
         Button refresh = Fas.ghost("Refresh", Icons.REFRESH);
         refresh.setOnAction(e -> {
@@ -303,7 +355,11 @@ public final class FasApp extends Application implements Router {
             }
         });
 
-        HBox bar = new HBox(12, new VBox(1, pageTitle, breadcrumb), Fas.spacer(), refresh);
+        HBox nav = new HBox(2, backBtn, fwdBtn);
+        nav.setAlignment(Pos.CENTER_LEFT);
+
+        HBox bar = new HBox(12, nav, new VBox(1, pageTitle, breadcrumb),
+                Fas.spacer(), globalSearch, globalGo, refresh);
         bar.setAlignment(Pos.CENTER_LEFT);
         bar.getStyleClass().add("topbar");
         return bar;
@@ -328,6 +384,10 @@ public final class FasApp extends Application implements Router {
     // ---- navigation -----------------------------------------------------
 
     private void navigate(String key) {
+        navigate(key, true);
+    }
+
+    private void navigate(String key, boolean pushHistory) {
         Screen s = screens.get(key);
         if (s == null) {
             return;
@@ -341,8 +401,9 @@ public final class FasApp extends Application implements Router {
                 // leaving a screen must never block navigation
             }
         }
-        if (currentKey != null && !currentKey.equals(key)) {
+        if (pushHistory && currentKey != null && !currentKey.equals(key)) {
             historyStack.push(currentKey);
+            forwardStack.clear();
         }
         currentKey = key;
 
@@ -370,6 +431,16 @@ public final class FasApp extends Application implements Router {
                     s.title(), (System.nanoTime() - t0) / 1_000_000.0));
         } catch (RuntimeException e) {
             statusLeft.setText(s.title() + " \u2014 " + e.getMessage());
+        }
+        updateNavButtons();
+    }
+
+    private void updateNavButtons() {
+        if (backBtn != null) {
+            backBtn.setDisable(historyStack.isEmpty());
+        }
+        if (fwdBtn != null) {
+            fwdBtn.setDisable(forwardStack.isEmpty());
         }
     }
 
@@ -438,20 +509,33 @@ public final class FasApp extends Application implements Router {
         if (historyStack.isEmpty()) {
             return;
         }
-        String previous = historyStack.pop();
-        // navigate() would push the current key back on, producing a loop.
-        String restore = currentKey;
-        currentKey = null;
-        navigate(previous);
-        if (restore != null && !historyStack.isEmpty()
-                && restore.equals(historyStack.peek())) {
-            historyStack.pop();
+        if (currentKey != null) {
+            forwardStack.push(currentKey);
         }
+        String previous = historyStack.pop();
+        navigate(previous, false);
     }
 
     @Override
     public boolean canGoBack() {
         return !historyStack.isEmpty();
+    }
+
+    @Override
+    public void forward() {
+        if (forwardStack.isEmpty()) {
+            return;
+        }
+        if (currentKey != null) {
+            historyStack.push(currentKey);
+        }
+        String next = forwardStack.pop();
+        navigate(next, false);
+    }
+
+    @Override
+    public boolean canGoForward() {
+        return !forwardStack.isEmpty();
     }
 
     /** Sets the record on a detail destination, then shows it. */

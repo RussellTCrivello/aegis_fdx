@@ -6,7 +6,7 @@ names Java or a test that does not exist, if a limitation is left unexplained, o
 destination in the interface is missing from the inventory. If this document and the
 code ever disagree, the build says so.
 
-**Generated:** 2026-09-08T16:52:39Z
+**Generated:** 2026-09-08T18:11:33Z
 
 ## How to read it
 
@@ -25,12 +25,12 @@ never as verified.
 
 | Classification | Rows |
 |---|---:|
-| VERIFIED | 88 |
+| VERIFIED | 91 |
 | LIMITED | 3 |
 | ADAPTED | 8 |
 | UNSUPPORTED | 3 |
 | ABSENT | 1 |
-| **Total** | **103** |
+| **Total** | **106** |
 
 
 ## Overview
@@ -235,6 +235,14 @@ never as verified.
 | # | Reference / capability | Classification | Java | Operation | Test | Notes |
 |---|---|---|---|---|---|---|
 | P12 | term semantics enforced by the schema, not only by Java | **VERIFIED** | `Store` | `CorpusSchema#migrate` | `CorpusAuthorityTest#rawSqlCannotBypassTheKeywordThreeWordRule` | Triggers on INSERT and UPDATE reject a keyword under three words and a category word of more than one. Triggers rather than CHECK so existing multi-gigabyte cases gain the rule at migration without a table rebuild. |
+
+## Analysis hub
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| D40 | Analysis hub — titles card | **VERIFIED** | `TitlesScreen` | `ContentFacade#getPaths` | `UiParityTest#contentsIntegration` | Distinct file names grouped from the path registry with per-title file, type and source counts; double-click opens the file. |
+| D41 | Analysis hub — relations card | **VERIFIED** | `RelationsScreen` | `RelationshipFacade#search` | `RelationshipModelTest#searchByLocation` | Whole-case edge totals plus a scoped graph search; every match reports where the file matched. |
+| D42 | Analysis hub — geolocation card | **VERIFIED** | `GeolocationScreen` | `ContentFacade#getPaths` | `UiParityTest#contentsIntegration` | Groups non-blank path.coordinates from registered material; an empty case reports 0 / 0 with an explicit empty state. |
 
 ## The three items that needed a decision
 

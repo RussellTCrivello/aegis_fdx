@@ -76,8 +76,8 @@ public final class SourceDetailScreen implements Detail {
 
     @Override
     public String breadcrumb() {
-        return source == null ? "Home / Sources / Detail"
-                : "Home / Sources / " + source.name();
+        return source == null ? "Home / Analysis / Sources / Detail"
+                : "Home / Analysis / Sources / " + source.name();
     }
 
     @Override

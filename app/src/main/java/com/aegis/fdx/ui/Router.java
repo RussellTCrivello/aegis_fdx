@@ -45,6 +45,12 @@ public interface Router {
     /** True when {@link #back()} would do something. */
     boolean canGoBack();
 
+    /** Moves forward in the navigation history, if {@link #back()} was used. */
+    default void forward() { }
+
+    /** True when {@link #forward()} would do something. */
+    default boolean canGoForward() { return false; }
+
     /** A router that goes nowhere, for screens built outside the application shell. */
     Router NONE = new Router() {
         @Override public void open(String destination) { }

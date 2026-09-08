@@ -60,6 +60,11 @@ public final class WordsScreen implements Screen {
     }
 
     @Override
+    public String breadcrumb() {
+        return "Home / Analysis / Words";
+    }
+
+    @Override
     public String icon() {
         return Icons.BOOK;
     }

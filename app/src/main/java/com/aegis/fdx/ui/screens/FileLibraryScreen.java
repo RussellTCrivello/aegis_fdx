@@ -7,6 +7,7 @@ import com.aegis.fdx.facade.dto.Page;
 import com.aegis.fdx.facade.dto.PathDto;
 import com.aegis.fdx.ui.Fas;
 import com.aegis.fdx.ui.Icons;
+import com.aegis.fdx.ui.Router;
 import com.aegis.fdx.ui.Screen;
 
 import javafx.collections.FXCollections;
@@ -41,6 +42,7 @@ import java.util.List;
 public final class FileLibraryScreen implements Screen {
 
     private final AegisFacades facades;
+    private final Router router;
     private final ObservableList<PathDto> rows = FXCollections.observableArrayList();
     private TableView<PathDto> table;
     private ComboBox<String> typeFilter;
@@ -53,7 +55,12 @@ public final class FileLibraryScreen implements Screen {
     private boolean updatingFilters;
 
     public FileLibraryScreen(AegisFacades facades) {
+        this(facades, null);
+    }
+
+    public FileLibraryScreen(AegisFacades facades, Router router) {
         this.facades = facades;
+        this.router = router == null ? Router.NONE : router;
     }
 
     @Override
@@ -144,9 +151,9 @@ public final class FileLibraryScreen implements Screen {
                     return;
                 }
                 Button view = Fas.ghost("", Icons.EYE);
-                view.setOnAction(e -> showDetail(item));
+                view.setOnAction(e -> router.openFile(item.id()));
                 Button content = Fas.ghost("", Icons.FILE_TEXT);
-                content.setOnAction(e -> showContent(item));
+                content.setOnAction(e -> router.openContent(item.id()));
                 Button toggle = Fas.ghost("", Icons.CHECK_CIRCLE);
                 toggle.setOnAction(e -> {
                     facades.contents().setPathStatus(item.id(),
@@ -158,6 +165,15 @@ public final class FileLibraryScreen implements Screen {
             }
         });
         table.getColumns().add(cAct);
+        table.setRowFactory(t -> {
+            javafx.scene.control.TableRow<PathDto> row = new javafx.scene.control.TableRow<>();
+            row.setOnMouseClicked(e -> {
+                if (e.getClickCount() == 2 && !row.isEmpty()) {
+                    router.openFile(row.getItem().id());
+                }
+            });
+            return row;
+        });
 
         pageLabel = Fas.muted("0 - 0 of 0");
         Button prev = Fas.outline("Previous", null);

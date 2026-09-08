@@ -68,7 +68,8 @@ public final class AspectDetailScreen implements Detail {
     @Override public String title() { return "Aspect Detail"; }
 
     @Override public String breadcrumb() {
-        return aspect == null ? "Home / Aspects / Detail" : "Home / Aspects / " + aspect.name();
+        return aspect == null ? "Home / Analysis / Sides / Detail"
+                : "Home / Analysis / Sides / " + aspect.name();
     }
 
     @Override public String icon() { return Icons.DIAGRAM3; }
