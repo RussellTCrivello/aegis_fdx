@@ -208,16 +208,45 @@ permanent affordance for that guarantee.
 
 ```
 <case>/
-  data/      extracted binaries (AES-256 optional, default on)
-  index/     Lucene 9.x — one index per case
-  text/      extracted text, one file per element
-  db/        SQLite (WAL) — queue, metadata, tags, notes, audit
-  logs/      Logback rolling
-  exports/   productions + loadfile.csv
-  case.json  settings (F-29)
+  data/               extracted binaries (AES-256 optional, default on)
+  index/              Lucene 9.x — one index per case, derived
+  text/               extracted text, one file per element
+  db/case.db          SQLite (WAL) — the record of authority
+  logs/               Logback rolling, plus any quarantined damaged index
+  exports/            productions + loadfile.csv
+  case.json           case descriptor
+  settings.properties the operator's processing choices (F-29)
 ```
 
 Move or archive a case = copy the folder. No external state.
+
+**One store, and one of them is derived.** `db/case.db` holds every element, its
+metadata, tags, notes, review state, the work queue and the audit log; the Lucene index
+holds a second, searchable copy of the same facts. The database is authoritative and the
+index is derived from it, which has three consequences the code depends on:
+
+- `CaseDatabase#allItems` reads the case back out, so `LiveCase#rebuildIndex` can
+  reconstruct the index from the database and the text store — tags, notes, hashes and
+  extracted text included.
+- A corrupt or half-written index therefore never costs a case. `LiveCase` rebuilds it
+  while opening, keeps the damaged directory under `logs/index-damaged-<time>` rather
+  than deleting it, and records the repair as a notification in the case. Setup offers
+  the same rebuild manually for an index left stale by an interrupted run.
+- A lock conflict is *not* damage. A case already open elsewhere is refused in words,
+  and the running session's index is left exactly as it is.
+
+`ArchitectureInvariantsTest` asserts the rule directly: destroy the index, and every
+element is still readable through the database and the registry.
+
+### Recovering a single element
+
+`IngestPipeline#retry` re-runs one element through the same pipeline that first
+processed it — same stages, same analyzers, same storage — keeping its identifier so the
+registry row and review state stay attached, and carrying the reviewer's notes and tags
+across. Everything derived from the file is recomputed, hashes included. `LiveCase#
+retryElement` runs it off the interface thread; `FileProcessingFacade#retryFile` reports
+the outcome in a result rather than an exception; the Errors destination is where an
+examiner reaches it.
 
 ---
 

@@ -1,6 +1,6 @@
 # Final Acceptance Result
 
-**Generated:** 2026-09-08 12:34:17 UTC  
+**Generated:** 2026-09-08 12:38:07 UTC  
 **Environment:** Linux 6.1.158+ x86_64 · 2 cores · 3 GB  
 **Runtime:** openjdk version "25.0.2" 2026-01-20 LTS  
 **Compiler:** Eclipse Compiler for Java(TM) v20260224-0835, 3.45.0, Copyright IBM Corp 2000, 2020. All rights reserved.  
@@ -60,8 +60,8 @@
 | Architecture invariants | **PASS** | 13 structural rules hold |
 | Failure and recovery | **PASS** | 6 checks: index rebuilt, case locked, database unreadable |
 | Coverage inventory | **PASS** | 73 rows classified, every symbol resolves |
-| JUnit suites (facade, agent, batch, model) | **PASS** |  65 tests, 65 passed, 0 failed, 0 skipped (4.1 s)  |
-| Interface suites | **PASS** |  30 tests, 29 passed, 0 failed, 0 skipped, 1 not runnable on this machine (5.8 s)  |
+| JUnit suites (facade, agent, batch, model) | **PASS** |  65 tests, 65 passed, 0 failed, 0 skipped (4.0 s)  |
+| Interface suites | **PASS** |  30 tests, 29 passed, 0 failed, 0 skipped, 1 not runnable on this machine (5.4 s)  |
 | AI does not load at startup | **PASS** | provider built on first invocation; the window holds no model class |
 | Settings persist with the case | **PASS** | written to settings.properties and reloaded on open |
 | Host meters are measured | **PASS** | CPU, memory and disk read from the OS and the filesystem |
@@ -91,10 +91,10 @@
 | docs/FORMATS.md | **PASS** | 134 lines |
 | docs/PERFORMANCE.md | **PASS** | 170 lines |
 | docs/DEPENDENCY_REPORT.md | **PASS** | 240 lines |
-| docs/ARCHITECTURE.md | **PASS** | 301 lines |
-| Ingest throughput | **PASS** | 401925 items/h (target 8000) |
-| Search p95 | **PASS** | 6.20 ms (target 2000) |
-| UI responsiveness | **PASS** | 3.836 ms max (target 500) |
+| docs/ARCHITECTURE.md | **PASS** | 330 lines |
+| Ingest throughput | **PASS** | 409814 items/h (target 8000) |
+| Search p95 | **PASS** | 4.62 ms (target 2000) |
+| UI responsiveness | **PASS** | 4.549 ms max (target 500) |
 | Performance certification | **SKIP** | development environment — indicator only |
 
 ## Raw logs
@@ -102,7 +102,7 @@
 ```
 total 72
 drwxr-xr-x 2 user user    60 Sep  8 12:15 .
-drwxr-xr-x 5 user user    60 Sep  8 12:34 ..
--rw-r--r-- 1 user user   294 Sep  8 12:34 package.log
--rw-r--r-- 1 user user 67832 Sep  8 12:34 tests.log
+drwxr-xr-x 5 user user    60 Sep  8 12:38 ..
+-rw-r--r-- 1 user user   294 Sep  8 12:38 package.log
+-rw-r--r-- 1 user user 67829 Sep  8 12:38 tests.log
 ```

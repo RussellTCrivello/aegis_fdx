@@ -8,6 +8,12 @@ Method: enumerated every `render_template(...)` target, every page route in
 **This audit supersedes the earlier 16-screen scope, which was an assumption rather
 than a measurement.**
 
+> **Reading this later:** the DONE/GAP statuses below record the state *at the time of
+> the audit*, which is what makes the gap analysis meaningful. All 33 destinations have
+> since been implemented. For the current per-capability position — verified, limited,
+> adapted, deliberately unsupported or absent, each naming its Java and its test — see
+> **`docs/COVERAGE_MATRIX.md`**, which is generated from data the build checks.
+
 ---
 
 ## 1. Headline finding

@@ -13,16 +13,20 @@ No cloud services; the application and its assistant run entirely offline.
 ## Status
 
 ```
-82 automated tests            0 failures   (last measured run)
-266 battery assertions        0 failures   (last measured run)
-56 release-gate checks        0 failures · 3 environmental skips
-+ 11 JUnit tests, 6 AI-boundary checks and 4 gate checks added since that run,
-  written but not yet executed — see docs/ADVERSARIAL_AUDIT.md
-33/33 audited destinations    33 figures rendered from the running application
-145/148 functions complete    3 explained, none silently missing
+1,072 battery assertions      0 failures   (executed on this machine)
+66 release-gate checks        0 failures · 5 environmental skips
+73 inventoried capabilities   54 verified · 3 limited · 7 adapted · 3 unsupported
+                              · 1 absent — every one classified and explained
+33/33 audited destinations    all reachable, all backed by real operations
+48 AI-boundary checks         0 failures
 ```
 
-Full detail, including honest limitations: **[VERIFICATION_REPORT.md](docs/VERIFICATION_REPORT.md)**
+Run it yourself: `./run-tests.sh` for the battery, `./final-acceptance.sh` for the
+release gate. Neither needs Gradle or the network.
+
+Full detail, including honest limitations:
+**[FINAL_STATUS.md](docs/FINAL_STATUS.md)** · **[COVERAGE_MATRIX.md](docs/COVERAGE_MATRIX.md)** ·
+**[VERIFICATION_REPORT.md](docs/VERIFICATION_REPORT.md)** · **[ADVERSARIAL_AUDIT.md](docs/ADVERSARIAL_AUDIT.md)**
 
 ---
 

@@ -10,13 +10,19 @@ facade". Each hunt below states the method used, so it can be repeated and disag
 with. Findings are recorded whether or not they were comfortable, and the fixes are
 listed with the test that now holds them in place.
 
-**Execution status, stated first.** This audit is *static*: greps, source reading,
-call-path tracing and reference comparison. The environment it was performed in has no
-JDK, no Gradle and no outbound network to fetch one, so nothing here was compiled or
-run. Every new test and gate check is wired into `run-tests.sh` and
-`final-acceptance.sh` and must be executed once on a machine with a JDK before the next
-release is declared. "It could not be run here" is recorded as exactly that, and never
-as "it passes".
+**Execution status, stated first.** Everything in this document has now been compiled
+and run. A previous revision of this audit was static — the environment had no JDK and
+no way to fetch one — and said so. That is no longer the case: the whole source tree
+compiles, every suite executes, and the release gate runs end to end. The numbers quoted
+below come from those runs. Where a check still cannot be executed here, the reason is
+named and the check is recorded as not run, never as passing.
+
+The toolchain differs from the reference one and that is part of the result: the runtime
+is a Temurin **25.0.2** image, the compiler is the **Eclipse batch compiler 3.45** rather
+than `javac`, and the JavaFX jars are a **20.0.1** build without Linux native libraries.
+Source and target level are held at 21. One check — the icon-set test, which builds a
+live scene graph — cannot run without a graphics device and reports itself as not
+runnable rather than as a failure.
 
 ---
 
@@ -31,6 +37,12 @@ as "it passes".
 | A-5 | **A backend capability no interface reached.** `SearchFacade.getSearchSuggestions` — fuzzy "did you mean" over the live index — existed, was tested by nothing and was reachable from nowhere. | Medium — backend without UI | **Wired.** A query that returns nothing now offers the closest documents on the case as clickable chips. Held by a new assertion block in `FacadeParityTest`, including that a nonsense query offers nothing rather than an invented suggestion. |
 | A-6 | **Documentation disagreed with the code in three places.** `VERIFICATION_REPORT.md` and `INTERFACE_INVENTORY.md` said contextual "analyse this" buttons were "not yet wired" (they are, on seven destinations); `INTERFACE_INVENTORY.md` said Batch Analysis had been folded into the Processing Monitor with no run-history table (it is a destination of its own, with persisted history); the host-gauge limitation was stated as impossible rather than unbuilt. | Medium — docs that lie are worse than docs that are missing | **Fixed** in all three documents. |
 | A-7 | **A screen lifecycle hole.** The shell stopped pollers by naming one class (`instanceof ProcessingMonitorScreen`). Any future polling destination would leak a timer and keep the JavaFX toolkit alive at exit — a defect this project has already been bitten by once. | Low, latent | **Fixed.** `Screen` now declares `onHide` and `dispose`; the shell drives both for every destination. |
+| A-8 | **The Java API carried the reference project's vocabulary.** `PreviewDto.PreviewType` exposed `pythonValue()` — a Java accessor named after the other implementation, on a public DTO. Nothing called it, which is how it survived review. | Low — architectural leakage into the public surface | **Fixed.** Renamed `label()`, documented as this application's own lowercase name for a preview kind. `ArchitectureInvariantsTest` now fails the build on reference-runtime references in the sources. |
+| A-9 | **Every shell script was committed non-executable.** `./run-tests.sh` and `./final-acceptance.sh` — the two documented entry points — failed on a fresh clone with `Permission denied`, and `final-acceptance.sh` recorded the resulting packaging failure as a product failure. | High — the documented way to verify the product did not work | **Fixed.** The execute bit is recorded in the repository for all eight scripts. `build-installer.sh` also gained a toolchain preflight that names what is missing and exits 3, which the gate reports as a skip rather than a failure. |
+| A-10 | **Half the test base could not run without the network.** The JUnit suites — facade, agent, batch, model, destinations — were reachable only through Gradle, which resolves dependencies online. On an air-gapped machine that half silently never ran, and nobody would have noticed. | High — unverifiable verification | **Fixed.** `JUnitRunner` executes them from `lib/` alone, and the battery runs them. It also distinguishes a failure caused by there being no graphics device from a real failure. |
+| A-11 | **A lock conflict would have been treated as damage.** While adding index recovery, opening a case that was already open threw a Lucene lock error, which the new repair path read as corruption: it moved the healthy index of the live session aside and rebuilt underneath it. Found by probing, before it ever shipped. | High — data loss in the recovery path itself | **Fixed.** Lock conflicts are recognised and refused in words; the repair path restores the case unchanged if a rebuild cannot start; `ResilienceTest` asserts the open session's index is untouched. |
+| A-12 | **The reference's per-file retry had no counterpart.** `/api/analysis/retry/<file_id>` genuinely reprocesses a file there. Here, a file that failed once could only be dealt with by re-running the case. | Medium — a real reference capability, missing | **Implemented.** `IngestPipeline#retry` re-runs one element through the same pipeline, keeping its identifier, notes and tags; the Errors destination offers it; `DestinationCoverageTest#retryElement` covers success, an unknown element and a missing original. |
+| A-13 | **A corrupt index made a case unopenable.** Even though the database holds everything the index does, a half-written index refused the whole case. | Medium — recoverable data presented as lost | **Fixed.** `CaseDatabase#allItems` reads the case back out; `LiveCase` rebuilds the index on open, keeps the damaged copy under `logs/`, records the repair as a notification, and Setup offers a manual rebuild. |
 
 ---
 
@@ -98,14 +110,17 @@ documented, self-contained step: install a local runtime, pull a model, launch w
 
 ---
 
-## 4. What must still be executed
+## 4. What still cannot be executed here
 
-| Item | Where | Why it is not done here |
+| Item | Where it must run | Why not here |
 |---|---|---|
-| `./run-tests.sh` (now including `SettingsPersistenceTest`, `HostMetricsTest` and B-08) | Any machine with JDK 21 + JavaFX 21 | No JDK in this environment, and no network to install one |
-| `./final-acceptance.sh` (now 63 distinct checks, including four new ones) | Same | Same. The four new checks are pure source inspection and *were* executed standalone here: all four pass |
-| Visual confirmation of the Host Resources card and the Settings page | Screenshot harness | Requires a display and a JDK |
-| Real-model answer quality | A machine with ≥ 6 GB free RAM | Hardware |
+| The icon-set check (one JUnit test that builds a scene graph) | Any desktop with JavaFX and a display | No graphics device, and the only JavaFX jars obtainable in this environment carry no Linux native libraries. Reported as "not runnable on this machine", never as a pass. |
+| OCR assertions | A machine with Tesseract installed | Tesseract is not present; the suite reports the OCR checks as skipped and the "not installed" path is itself tested. |
+| `packaging/build-installer.sh` | A full JDK 21+ with `jlink` and `jpackage` | The runtime here has no compiler or packaging tools. The script now says so and exits 3; the gate records a skip. |
+| Windows MSI and Windows-host validation | A Windows machine | Platform. The 18 Windows-compatibility checks pass here on their portable parts. |
+| Real-model answer quality | A machine with enough memory for a 7B model | Hardware. The protocol, tool loop, grounding and audit trail are verified against a scripted runtime; no test fakes generation. |
+| Certified performance figures | 8-core / 16 GB / NVMe reference hardware | This environment has 2 cores and 3 GB; its figures are indicators only. |
 
-Until those runs happen, the honest statement about this round is: the changes are
-written, the rules are encoded as tests and gates, and nothing has been executed.
+Everything else in this repository was executed: **1,072 assertions across the battery,
+0 failures**, and the release gate reports **66 passed, 0 failed, 5 skipped** for the
+reasons above.

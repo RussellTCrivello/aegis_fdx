@@ -1,6 +1,6 @@
 # AEGIS-FDX source manifest - regenerate with: packaging/make-manifest.sh (or .ps1)
 # Verifies a checkout is complete and self-consistent before building.
-# Generated: 2026-09-08T12:34:12Z
+# Generated: 2026-09-08T12:38:07Z
 16ca465504404df14dea70cbc0c7d490a6b80fb7bd378e4a3b66667ba1d1d91c  app/build.gradle.kts
 a50ba435da72eba0899409746b3dbf616778e46aa3a2c12643c4f41f31595201  app/src/main/java/com/aegis/fdx/Launcher.java
 29dae5158b78f30d122b76fea149bdb9b94c473892cb529459d54b12a7c725c8  app/src/main/java/com/aegis/fdx/ai/agent/AgentActivity.java

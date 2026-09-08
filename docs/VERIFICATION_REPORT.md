@@ -1,9 +1,49 @@
 # Final Verification Report
 
-Generated: 2026-09-08 (revision 3, after the function-level audit)
-Build machine: 2 cores, ~400 MB free RAM, no GPU
+Generated: 2026-09-08 (revision 4 — everything below was executed)
+Build machine: Linux, 2 cores, 3 GB RAM, no GPU, no display
 
 Everything below was measured by running the software, not inferred from the source.
+
+---
+
+## 0. Executed evidence
+
+The whole battery was compiled and run on this machine. The toolchain is not the
+reference one, and that is stated rather than glossed: it is the toolchain that could be
+assembled in an environment with no JDK and no access to one.
+
+| | |
+|---|---|
+| Runtime | OpenJDK **25.0.2** (Temurin jlink image) |
+| Compiler | **Eclipse batch compiler 3.45**, source and target level 21 |
+| JavaFX | **20.0.1** jars, compile-only — no Linux native libraries, no display |
+| Command | `AEGIS_JDK=… AEGIS_FX=… ./final-acceptance.sh 2` |
+
+| Suite | Result |
+|---|---|
+| Query parser (M1) | 33 passed, 0 failed |
+| Query validation | 69 passed, 0 failed |
+| Pipeline acceptance AT-01…AT-10 (M2) | 56 passed, 0 failed |
+| M3 acceptance — OCR, export, reports, integrity | 80 passed, 0 failed |
+| AI boundary B-01…B-08 | 48 passed, 0 failed |
+| Architecture invariants | 13 passed, 0 failed |
+| Failure and recovery | 6 passed, 0 failed |
+| Coverage inventory | 6 passed, 0 failed |
+| Case settings persistence | 4 passed, 0 failed |
+| Host metrics | 7 passed, 0 failed |
+| Drag-and-drop intake (F-01) | 10 passed, 0 failed |
+| Windows compatibility (N-01) | 18 passed, 0 failed |
+| JUnit suites — facade, agent, batch, model, destinations, scenario | 65 tests, 65 passed |
+| Interface suites | 30 tests, 29 passed, **1 not runnable here** (needs a graphics device) |
+| **Total battery** | **1,072 assertions, 0 failures** |
+| **Release gate** | **66 passed · 0 failed · 5 skipped** |
+
+The five gate skips are environmental and each names its reason: no Gradle, no
+Tesseract, no `jpackage`, no Windows host, and performance figures that need reference
+hardware to be certified rather than indicative. See `docs/COVERAGE_MATRIX.md` for the
+per-capability classification and `docs/ADVERSARIAL_AUDIT.md` §4 for what still cannot
+be executed here.
 
 ---
 
