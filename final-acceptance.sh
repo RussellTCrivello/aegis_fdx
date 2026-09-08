@@ -347,6 +347,20 @@ else
     record "Architecture invariants" SKIP "suite not detected in $L"
 fi
 
+# Damage, locks and interrupted copies: a case must survive them, and say so.
+if grep -q "failure and recovery" "$L" 2>/dev/null; then
+    RESBLOCK=$(awk '/== failure and recovery/{f=1} f{print} f&&/^=== [0-9]+ passed/{exit}' "$L")
+    RESFAIL=$(printf '%s' "$RESBLOCK" | grep -oE "^=== [0-9]+ passed, [0-9]+ failed" | grep -oE "[0-9]+ failed" | grep -oE "^[0-9]+")
+    RESPASS=$(printf '%s' "$RESBLOCK" | grep -oE "^=== [0-9]+ passed" | grep -oE "[0-9]+")
+    if [ "${RESFAIL:-1}" = "0" ]; then
+        record "Failure and recovery" PASS "${RESPASS:-0} checks: index rebuilt, case locked, database unreadable"
+    else
+        record "Failure and recovery" FAIL "${RESFAIL} recovery check(s) failed"
+    fi
+else
+    record "Failure and recovery" SKIP "suite not detected in $L"
+fi
+
 # The coverage inventory must resolve: no unclassified row, no invented symbol.
 if grep -q "coverage inventory" "$L" 2>/dev/null; then
     COVBLOCK=$(awk '/== coverage inventory/{f=1} f{print} f&&/^=== [0-9]+ passed/{exit}' "$L")

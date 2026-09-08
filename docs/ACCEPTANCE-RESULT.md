@@ -1,6 +1,6 @@
 # Final Acceptance Result
 
-**Generated:** 2026-09-08 12:28:07 UTC  
+**Generated:** 2026-09-08 12:34:17 UTC  
 **Environment:** Linux 6.1.158+ x86_64 · 2 cores · 3 GB  
 **Runtime:** openjdk version "25.0.2" 2026-01-20 LTS  
 **Compiler:** Eclipse Compiler for Java(TM) v20260224-0835, 3.45.0, Copyright IBM Corp 2000, 2020. All rights reserved.  
@@ -11,7 +11,7 @@
 
 | | Count |
 |---|---:|
-| Passed | **65** |
+| Passed | **66** |
 | Failed | **0** |
 | Skipped / deferred | 5 |
 
@@ -28,7 +28,7 @@
 | Query parser (M1) | **PASS** | 33 passed, 0 failed |
 | Pipeline acceptance AT-01..AT-10 (M2) | **PASS** |  56 passed, 0 failed  |
 | M3 acceptance (OCR/export/reports/integrity) | **PASS** |  80 passed, 0 failed  |
-| Total assertions | **PASS** | 1066 passed, 0 failed |
+| Total assertions | **PASS** | 1072 passed, 0 failed |
 | AT-01 mixed-format ingest | **PASS** | in pipeline suite |
 | Corrupted file handling | **PASS** | errors contained, run continued |
 | Encrypted archive handling | **PASS** | marked Locked, run continued |
@@ -58,9 +58,10 @@
 | AI is manually invoked | **PASS** | Assistant screen and Analyze buttons only |
 | AI boundary suite (B-01..B-08) | **PASS** | 48 checks passed, 0 failed |
 | Architecture invariants | **PASS** | 13 structural rules hold |
-| Coverage inventory | **PASS** | 68 rows classified, every symbol resolves |
-| JUnit suites (facade, agent, batch, model) | **PASS** |  65 tests, 65 passed, 0 failed, 0 skipped (4.2 s)  |
-| Interface suites | **PASS** |  30 tests, 29 passed, 0 failed, 0 skipped, 1 not runnable on this machine (5.6 s)  |
+| Failure and recovery | **PASS** | 6 checks: index rebuilt, case locked, database unreadable |
+| Coverage inventory | **PASS** | 73 rows classified, every symbol resolves |
+| JUnit suites (facade, agent, batch, model) | **PASS** |  65 tests, 65 passed, 0 failed, 0 skipped (4.1 s)  |
+| Interface suites | **PASS** |  30 tests, 29 passed, 0 failed, 0 skipped, 1 not runnable on this machine (5.8 s)  |
 | AI does not load at startup | **PASS** | provider built on first invocation; the window holds no model class |
 | Settings persist with the case | **PASS** | written to settings.properties and reloaded on open |
 | Host meters are measured | **PASS** | CPU, memory and disk read from the OS and the filesystem |
@@ -91,9 +92,9 @@
 | docs/PERFORMANCE.md | **PASS** | 170 lines |
 | docs/DEPENDENCY_REPORT.md | **PASS** | 240 lines |
 | docs/ARCHITECTURE.md | **PASS** | 301 lines |
-| Ingest throughput | **PASS** | 323470 items/h (target 8000) |
-| Search p95 | **PASS** | 5.88 ms (target 2000) |
-| UI responsiveness | **PASS** | 6.578 ms max (target 500) |
+| Ingest throughput | **PASS** | 401925 items/h (target 8000) |
+| Search p95 | **PASS** | 6.20 ms (target 2000) |
+| UI responsiveness | **PASS** | 3.836 ms max (target 500) |
 | Performance certification | **SKIP** | development environment — indicator only |
 
 ## Raw logs
@@ -101,7 +102,7 @@
 ```
 total 72
 drwxr-xr-x 2 user user    60 Sep  8 12:15 .
-drwxr-xr-x 5 user user    60 Sep  8 12:28 ..
--rw-r--r-- 1 user user   294 Sep  8 12:28 package.log
--rw-r--r-- 1 user user 66492 Sep  8 12:28 tests.log
+drwxr-xr-x 5 user user    60 Sep  8 12:34 ..
+-rw-r--r-- 1 user user   294 Sep  8 12:34 package.log
+-rw-r--r-- 1 user user 67832 Sep  8 12:34 tests.log
 ```

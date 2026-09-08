@@ -112,6 +112,18 @@ public final class FasApp extends Application implements Router {
         corpusDao = new CorpusDatabase(liveCase.db());
         agent = AgentService.fromEnvironment(facades, corpusDao);
 
+        // If the case had to be repaired on the way in, that is a fact about the
+        // evidence and belongs in the case, not in a dialog nobody reads twice.
+        String repair = liveCase.indexRepair();
+        if (repair != null) {
+            try {
+                facades.notifications().createNotification("case_repair", "high",
+                        "Search index rebuilt", repair, null, null);
+            } catch (Exception ignored) {
+                // A notification that cannot be stored must not stop the case opening.
+            }
+        }
+
         register(new DashboardScreen(facades));
         register(new AnalysisScreen(facades));
         register(new SearchScreen(facades, agent));

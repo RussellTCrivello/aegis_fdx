@@ -19,6 +19,8 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.document.LongPoint;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -50,14 +52,148 @@ public final class LiveCase implements AutoCloseable {
 
     private volatile IngestPipeline running;
     private volatile IngestPipeline lastPipeline;
+    private volatile String indexRepair;
 
     public LiveCase(Path caseRoot, String name, CaseSettings settings) throws Exception {
         this.settings = settings;
         this.folder = CaseFolder.createOrOpen(caseRoot, name);
-        this.db = new CaseDatabase(folder.database());
-        this.index = new LuceneIndex(folder.index(), settings.indexMemoryMb());
+        try {
+            this.db = new CaseDatabase(folder.database());
+        } catch (Exception e) {
+            // The one file a case cannot do without. Say which file and why, rather
+            // than letting a driver-level message reach the examiner.
+            throw new IllegalStateException("This case's database cannot be read: "
+                    + folder.database() + " — " + e.getMessage()
+                    + ". Restore it from a backup, or open a different case.", e);
+        }
+        this.index = openOrRebuildIndex();
         this.searchPool = Executors.newSingleThreadExecutor(daemon("aegis-search"));
         this.ingestPool = Executors.newSingleThreadExecutor(daemon("aegis-ingest"));
+    }
+
+    /**
+     * Opens the search index, rebuilding it from the database if it cannot be opened.
+     *
+     * <p>The index is derived data: everything in it also exists in {@code case.db} and
+     * the text store. So a corrupt or half-written index — an interrupted copy, a full
+     * disk, a killed process — must never be the reason a case cannot be opened. The
+     * damaged directory is kept, renamed, so that nothing is destroyed on the way to
+     * recovering, and a fresh index is built from the record of authority.
+     */
+    private LuceneIndex openOrRebuildIndex() throws Exception {
+        try {
+            return new LuceneIndex(folder.index(), settings.indexMemoryMb());
+        } catch (Exception failure) {
+            // A lock conflict is not damage: the case is open somewhere else, and the
+            // one thing that must not happen is for this attempt to touch that case's
+            // index. Refuse, and say what is actually wrong.
+            if (isLockConflict(failure)) {
+                throw new IllegalStateException("This case is already open — "
+                        + folder.root() + " is in use by another window or process. "
+                        + "Close it there, then open it here.", failure);
+            }
+
+            // Genuine damage: an interrupted copy, a full disk, a killed process. The
+            // index is derived data, so it can be rebuilt; the damaged copy is kept
+            // rather than deleted, because a forensic tool does not destroy evidence of
+            // what went wrong.
+            Path damaged = folder.logs().resolve(
+                    "index-damaged-" + java.time.Instant.now().toEpochMilli());
+            boolean moved = false;
+            try {
+                Files.createDirectories(folder.logs());
+                Files.move(folder.index(), damaged);
+                moved = true;
+            } catch (Exception cannotMove) {
+                deleteTree(folder.index());
+            }
+
+            LuceneIndex fresh;
+            try {
+                fresh = new LuceneIndex(folder.index(), settings.indexMemoryMb());
+            } catch (Exception cannotCreate) {
+                // Put the case back exactly as it was rather than leaving it worse.
+                if (moved) {
+                    try {
+                        deleteTree(folder.index());
+                        Files.move(damaged, folder.index());
+                    } catch (Exception ignored) {
+                        // Nothing further can be done here; the original failure is
+                        // the one worth reporting.
+                    }
+                }
+                throw cannotCreate;
+            }
+
+            int rebuilt = rebuildInto(fresh);
+            indexRepair = "The search index could not be opened ("
+                    + failure.getClass().getSimpleName()
+                    + ") and was rebuilt from the case database: " + rebuilt + " element(s)."
+                    + (moved ? " The damaged index was kept as logs/" + damaged.getFileName() + "." : "");
+            return fresh;
+        }
+    }
+
+    private static boolean isLockConflict(Throwable t) {
+        for (Throwable c = t; c != null; c = c.getCause() == c ? null : c.getCause()) {
+            if (c instanceof org.apache.lucene.store.LockObtainFailedException) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Rebuilds the search index from the case database and the text store.
+     *
+     * <p>Available as an operation in its own right — the Setup destination offers it —
+     * because an index can also be merely stale or incomplete after an interrupted run,
+     * and rebuilding is cheap next to processing the evidence again.
+     *
+     * @return how many elements were indexed
+     */
+    public int rebuildIndex() throws Exception {
+        int n = rebuildInto(index);
+        indexRepair = "Search index rebuilt from the case database: " + n + " element(s).";
+        return n;
+    }
+
+    private int rebuildInto(LuceneIndex target) throws Exception {
+        List<Item> items = db.allItems(id -> {
+            try {
+                return folder.readText(id);
+            } catch (Exception e) {
+                return "";
+            }
+        });
+        for (Item it : items) {
+            target.put(it);
+        }
+        target.commit();
+        return items.size();
+    }
+
+    private static void deleteTree(Path dir) {
+        if (!Files.exists(dir)) {
+            return;
+        }
+        try (java.util.stream.Stream<Path> s = Files.walk(dir)) {
+            for (Path p : s.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(p);
+            }
+        } catch (IOException ignored) {
+            // Best effort: a fresh index is created either way.
+        }
+    }
+
+    /**
+     * What had to be repaired when this case was opened, or null when nothing did.
+     *
+     * <p>The interface shows this: silent recovery is how a case quietly loses work
+     * without anyone noticing.
+     */
+    public String indexRepair() {
+        return indexRepair;
     }
 
     public CaseFolder folder() { return folder; }

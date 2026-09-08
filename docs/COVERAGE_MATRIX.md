@@ -6,7 +6,7 @@ names Java or a test that does not exist, if a limitation is left unexplained, o
 destination in the interface is missing from the inventory. If this document and the
 code ever disagree, the build says so.
 
-**Generated:** 2026-09-08T12:27:52Z
+**Generated:** 2026-09-08T12:34:12Z
 
 ## How to read it
 
@@ -25,12 +25,12 @@ never as verified.
 
 | Classification | Rows |
 |---|---:|
-| VERIFIED | 54 |
+| VERIFIED | 59 |
 | LIMITED | 3 |
 | ADAPTED | 7 |
 | UNSUPPORTED | 3 |
 | ABSENT | 1 |
-| **Total** | **68** |
+| **Total** | **73** |
 
 
 ## Overview
@@ -145,6 +145,16 @@ never as verified.
 | A05 | nothing loads at startup | **VERIFIED** | `AgentService` | `AgentService#isModelLoaded` | `ArchitectureInvariantsTest#nothingAiLoadsWhileTheApplicationStarts` | B-08: wiring the service builds no provider and contacts no runtime. |
 | A06 | answers from a real local model | **LIMITED** | `HttpLocalModelProvider` | `HttpLocalModelProvider#chat` | `AiAgentTest#wireProtocol` | The client, tool loop, grounding and audit trail are exercised against a scripted runtime that speaks the real protocol. Generating text with an actual 7B model needs hardware this environment does not have; run Ollama locally to validate quality. |
 | A07 | assistant destination | **VERIFIED** | `AgentScreen` | `AgentService#ask` | `AiBoundaryTest` | The only destination that can start the agent. It reports availability on arrival without loading anything, and asks for confirmation before write tools are registered. |
+
+## Failure & recovery
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| F01 | damaged search index | **VERIFIED** | `LiveCase` | `LiveCase#rebuildIndex` | `ResilienceTest#damagedIndexIsRebuilt` | The index is derived, so a case whose index cannot be opened is repaired from the database rather than refused. The damaged copy is kept under logs/ and the repair is recorded as a notification in the case. |
+| F02 | case already open elsewhere | **VERIFIED** | `LiveCase` | `LiveCase#indexRepair` | `ResilienceTest#aCaseOpenElsewhereIsRefused` | A lock conflict is refused in plain words and the open case is left untouched — in particular it is never mistaken for damage and rebuilt underneath the session that holds it. |
+| F03 | unreadable case database | **VERIFIED** | `LiveCase` | `CaseFolder#database` | `ResilienceTest#unreadableDatabaseIsExplained` | The one file a case cannot do without: named, explained, and paired with what to do about it, instead of a driver-level message. |
+| F04 | missing extracted text or metadata | **VERIFIED** | `IntegrityVerifier` | `IntegrityVerifier#verify` | `ResilienceTest#missingTextIsReported` | Search keeps working from the index, the verifier raises findings for the missing evidence text, and a lost case.json is written again. |
+| F05 | interrupted run | **VERIFIED** | `IngestPipeline` | `CaseDatabase#setQueueState` | `M3AcceptanceTest` | An abruptly stopped run resumes without redoing finished work, and the recovered case matches an uninterrupted one. |
 
 ## Architecture
 

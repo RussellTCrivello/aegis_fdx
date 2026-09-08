@@ -80,6 +80,9 @@ echo; echo "== JUnit suites (facade, agent, batch, model, scenario) =="
 echo; echo "== architecture invariants (structural rules the build must not break) =="
 "$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.ArchitectureInvariantsTest "$WORK/arch"
 
+echo; echo "== failure and recovery (damaged index, locked case, unreadable database) =="
+"$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.ResilienceTest "$WORK/resilience"
+
 echo; echo "== coverage inventory (every destination classified, every claim resolvable) =="
 "$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.CoverageMatrixTest
 
