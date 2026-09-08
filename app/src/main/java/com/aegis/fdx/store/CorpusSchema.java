@@ -263,6 +263,47 @@ final class CorpusSchema {
             st.executeUpdate("CREATE INDEX IF NOT EXISTS ix_path_category_cat ON path_category(category_id)");
             st.executeUpdate("CREATE INDEX IF NOT EXISTS ix_word_category_cat ON word_category(category_id)");
             st.executeUpdate("CREATE INDEX IF NOT EXISTS ix_keyword_category ON keyword(category_id)");
+
+            // ---- term semantics, enforced by the schema ----------------------
+            //
+            // A keyword is three or more words; a category word is exactly one. Those
+            // rules were previously enforced only in CorpusDatabase, which is correct
+            // for every production write but leaves the file itself permissive: a
+            // repair script, a migration or a future DAO could write "single" into
+            // keyword.phrase and the relationship model would quietly rot, because a
+            // one-word keyword is indistinguishable from a category word.
+            //
+            // Triggers rather than CHECK constraints, deliberately: CHECK can only be
+            // added by rebuilding the table, which on an existing multi-gigabyte case
+            // means copying every row. Triggers apply to old and new cases alike at
+            // migration time and cost nothing measurable on a term vocabulary, which
+            // is thousands of rows, not millions.
+            //
+            // Word counting must agree with Terms.wordCount: trim, then count
+            // single-space-separated tokens. TRIM plus REPLACE of doubled spaces makes
+            // the SQL agree with the Java for ragged input.
+            for (String op : new String[]{"INSERT", "UPDATE"}) {
+                String when = op.equals("INSERT") ? "" : " OF phrase";
+                st.executeUpdate("""
+                    CREATE TRIGGER IF NOT EXISTS trg_keyword_%s_min_words
+                    BEFORE %s%s ON keyword
+                    FOR EACH ROW
+                    WHEN LENGTH(TRIM(NEW.phrase)) - LENGTH(REPLACE(TRIM(NEW.phrase), ' ', '')) < 2
+                       OR TRIM(NEW.phrase) = ''
+                    BEGIN
+                      SELECT RAISE(ABORT, 'keyword must have at least three words');
+                    END""".formatted(op.toLowerCase(), op, when));
+
+                st.executeUpdate("""
+                    CREATE TRIGGER IF NOT EXISTS trg_word_%s_single_word
+                    BEFORE %s%s ON word
+                    FOR EACH ROW
+                    WHEN TRIM(NEW.word) LIKE '%% %%' OR TRIM(NEW.word) = ''
+                    BEGIN
+                      SELECT RAISE(ABORT, 'a category word must be exactly one word');
+                    END""".formatted(op.toLowerCase(), op,
+                        op.equals("INSERT") ? "" : " OF word"));
+            }
         }
     }
 }

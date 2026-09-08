@@ -6,7 +6,7 @@ names Java or a test that does not exist, if a limitation is left unexplained, o
 destination in the interface is missing from the inventory. If this document and the
 code ever disagree, the build says so.
 
-**Generated:** 2026-09-08T12:34:12Z
+**Generated:** 2026-09-08T16:52:39Z
 
 ## How to read it
 
@@ -25,12 +25,12 @@ never as verified.
 
 | Classification | Rows |
 |---|---:|
-| VERIFIED | 76 |
+| VERIFIED | 88 |
 | LIMITED | 3 |
 | ADAPTED | 8 |
 | UNSUPPORTED | 3 |
 | ABSENT | 1 |
-| **Total** | **91** |
+| **Total** | **103** |
 
 
 ## Overview
@@ -155,8 +155,6 @@ never as verified.
 | F03 | unreadable case database | **VERIFIED** | `LiveCase` | `CaseFolder#database` | `ResilienceTest#unreadableDatabaseIsExplained` | The one file a case cannot do without: named, explained, and paired with what to do about it, instead of a driver-level message. |
 | F04 | missing extracted text or metadata | **VERIFIED** | `IntegrityVerifier` | `IntegrityVerifier#verify` | `ResilienceTest#missingTextIsReported` | Search keeps working from the index, the verifier raises findings for the missing evidence text, and a lost case.json is written again. |
 | F05 | interrupted run | **VERIFIED** | `IngestPipeline` | `CaseDatabase#setQueueState` | `M3AcceptanceTest` | An abruptly stopped run resumes without redoing finished work, and the recovered case matches an uninterrupted one. |
-| F13 | corrupt / unsupported / malformed archive / depth-limited input | **VERIFIED** | `ErrorDashboardScreen` | `AnalyticsFacade#errorReport` | `FailureRecoveryTest#corruptFile` | Each bad input becomes a status with a reason; the run continues; nothing is dropped. |
-| F14 | empty case, empty/malformed query, duplicate relationship, invariant violation, restart, malformed model reply | **VERIFIED** | `SearchScreen` | `SearchFacade#search` | `FailureRecoveryTest#emptyAndMalformedSearch` | Zero answers, validation messages, no double counts, relationships survive reopen, garbage model body is a reported failure. |
 
 ## Architecture
 
@@ -169,8 +167,6 @@ never as verified.
 | X05 | interface controls are wired | **VERIFIED** | `FasApp` | `FasApp#register` | `ArchitectureInvariantsTest#everyControlEndsInAnOperation` | Every control ends in an operation and every destination is reachable. |
 
 ## Relationships
-
-The file ↔ keyword ↔ category ↔ category word model added after the destination matrix. Every count is computed from recorded relationships over the whole case. See `docs/REFERENCE_RELATIONSHIP_MODEL.md` for the reference evidence and `docs/INTERFACE_FUNCTION_MATRIX.md` for the per-control trace.
 
 | # | Reference / capability | Classification | Java | Operation | Test | Notes |
 |---|---|---|---|---|---|---|
@@ -190,6 +186,55 @@ The file ↔ keyword ↔ category ↔ category word model added after the destin
 | L14 | merge duplicate keywords / categories | **VERIFIED** | `KeywordsScreen` | `KeywordFacade#mergeDuplicates` | `RelationshipModelTest#mergeDuplicates` | Case-insensitive duplicates merged into the oldest term; edges re-pointed with INSERT OR IGNORE so counts do not double. |
 | L15 | CSV export of keywords, categories, words | **VERIFIED** | `KeywordsScreen` | `ExportFacade#exportTermsCsv` | `RelationshipModelTest#mergeDuplicates` | Whole-case terms with file counts written as UTF-8 CSV via Fas.saveBytes. |
 | L16 | interface-function matrix policed | **VERIFIED** | `Router` | `Router#open` | `InterfaceFunctionMatrixTest#javaSymbolsResolve` | docs/interface-function-matrix.tsv: every Java symbol, test and screen/button label resolved against the source tree. |
+
+## Failure & recovery
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| F13 | corrupt / unsupported / malformed archive / depth-limited input | **VERIFIED** | `ErrorDashboardScreen` | `AnalyticsFacade#errorReport` | `FailureRecoveryTest#corruptFile` | Each bad input becomes a status with a reason; the run continues; nothing is dropped. |
+| F14 | empty case, empty/malformed query, duplicate relationship, invariant violation, restart, malformed model reply | **VERIFIED** | `SearchScreen` | `SearchFacade#search` | `FailureRecoveryTest#emptyAndMalformedSearch` | Zero answers, validation messages, no double counts, relationships survive reopen, garbage model body is a reported failure. |
+
+## Performance & scale
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| P01 | batched ingest transactions, chosen batch size, crash mid-batch | **VERIFIED** | `Ingest` | `IngestPipeline#run` | `BatchRecoveryTest#interruptedBatchLeavesConsistentState` | Batch of 5,000 chosen from a six-point sweep (6,451 -> 17,128 rows/s); an interrupted batch leaves item and queue rows consistent and the lost work is re-offered as un-started. |
+| P02 | connection pragmas actually in force at runtime | **VERIFIED** | `Store` | `CaseDatabase#configure` | `BatchRecoveryTest#pragmasAreInForce` | WAL, synchronous, foreign keys, busy timeout, 64 MB cache, MEMORY temp store, 256 MB mmap and autocheckpoint read back from a live connection, not assumed from the source. |
+| P03 | derived dashboard statistics, correctness under mutation | **VERIFIED** | `ComprehensiveDashboardScreen` | `DashboardStats#snapshot` | `DashboardStatsTest#countersSurviveMutation` | Counters maintained by triggers stay equal to a direct aggregate across insert, update, delete, status change and rollback; 15,208 ms -> 0.14 ms at 5M items. |
+| P04 | deterministic statistics rebuild | **VERIFIED** | `ComprehensiveDashboardScreen` | `DashboardStats#rebuild` | `DashboardStatsTest#rebuildIsDeterministic` | Rebuild from base tables reproduces the counters exactly, including after planted corruption; verify() reports agreement. |
+| P05 | query plans free of unintended scans | **VERIFIED** | `Store` | `CaseDatabase#schema` | `BatchRecoveryTest#resumeLookupUsesIndex` | EXPLAIN QUERY PLAN over the hot queries; the quadratic resume scan is gone (ix_queue_source); remaining scans are bounded and listed in docs/bench/plans.tsv. |
+
+## Search & retrieval
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| P06 | facet counts over a result set | **VERIFIED** | `SearchScreen` | `SearchFacets#counts` | `SearchFacetsTest#bucketSumsEqualHitCount` | Postings intersection over existing fields; bucket sums equal the hit count, each bucket equals its own filtered query, uncommitted documents are counted (NRT). |
+
+## Relationships
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| P07 | case-wide bidirectional counts | **VERIFIED** | `FileDetailScreen` | `CorpusDatabase#selectCategoryUsage` | `RelationshipCountsTest#categoryUsageMatchesPerPathListing` | Counts are COUNT(DISTINCT path_id) over the whole case, not the loaded page; grouped counts agree with independently computed per-term counts in both directions. |
+
+## Performance & scale
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| P08 | runtime instrumentation of the timed operations | **VERIFIED** | `Store` | `OperationTimings#snapshot` | `OperationTimingsTest#percentilesSeparateFastFromSlow` | Counts, totals, max and bucketed p50/p95/p99 per operation; never under-reports, never over-reports by more than 2x, under 2 microseconds per call, exact under eight concurrent writers. |
+
+## Architecture
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| P09 | CorpusDatabase is a DAO on the one case connection, not a second database | **VERIFIED** | `Store` | `CorpusDatabase#CorpusDatabase` | `CorpusAuthorityTest#corpusSharesTheCaseConnectionRatherThanOpeningItsOwn` | Proven by transaction visibility and rollback, not by inspection: an uncommitted corpus write is visible through CaseDatabase and vanishes on its rollback. Only case.db is ever created; PRAGMA database_list shows main and temp only. |
+| P10 | path is a projection of item, not a rival record of case membership | **VERIFIED** | `Store` | `CorpusSchema#migrate` | `CorpusAuthorityTest#pathIsASatelliteOfItemAndIsDeletedWithIt` | path.element_id REFERENCES item(id) ON DELETE CASCADE; deleting the item removes the path row. Four denormalised columns are recorded as technical debt, not drift that is currently reachable. |
+| P11 | exactly one class opens a database connection | **VERIFIED** | `Store` | `CaseDatabase#connection` | `ArchitectureInvariantsTest#onlyCaseDatabaseOpensAConnection` | Walks every main-tree source file; fails if any class but CaseDatabase opens a connection. Replaces a grep that would not survive a merge, after a second UI connection was found bypassing every configured PRAGMA. |
+
+## Relationships
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| P12 | term semantics enforced by the schema, not only by Java | **VERIFIED** | `Store` | `CorpusSchema#migrate` | `CorpusAuthorityTest#rawSqlCannotBypassTheKeywordThreeWordRule` | Triggers on INSERT and UPDATE reject a keyword under three words and a category word of more than one. Triggers rather than CHECK so existing multi-gigabyte cases gain the rule at migration without a table rebuild. |
 
 ## The three items that needed a decision
 

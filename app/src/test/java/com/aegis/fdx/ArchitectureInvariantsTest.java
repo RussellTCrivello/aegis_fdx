@@ -94,6 +94,36 @@ public final class ArchitectureInvariantsTest {
     }
 
     @Test
+    @DisplayName("Exactly one place in the application opens a database connection")
+    void onlyCaseDatabaseOpensAConnection() throws Exception {
+        // A second connection to case.db is not a hypothetical: one was found in
+        // AegisApp, opened for a single error-report query. It bypassed every tuned
+        // PRAGMA (WAL, busy timeout, cache, foreign keys), took its own lock, and was
+        // never closed. The fix was to use the case's own connection; this test is what
+        // stops the next one being written, because a grep does not survive a merge.
+        Path main = Path.of("app/src/main/java");
+        if (!Files.exists(main)) {
+            return; // not runnable from this working directory
+        }
+        List<String> offenders = new ArrayList<>();
+        try (Stream<Path> s = Files.walk(main)) {
+            for (Path p : s.filter(f -> f.toString().endsWith(".java")).toList()) {
+                String src = Files.readString(p);
+                boolean opens = src.contains("DriverManager.getConnection")
+                        || src.contains("new SQLiteDataSource")
+                        || src.contains("SQLiteConfig().createConnection");
+                if (opens && !p.endsWith(Path.of("store", "CaseDatabase.java"))) {
+                    offenders.add(main.relativize(p).toString().replace('\\', '/'));
+                }
+            }
+        }
+        assertEquals(List.of(), offenders,
+                "these classes open their own database connection instead of using "
+                        + "CaseDatabase.connection(), so they bypass the configured "
+                        + "PRAGMAs and take an independent lock: " + offenders);
+    }
+
+    @Test
     @DisplayName("The database is the record of authority; the index is derived from it")
     void theDatabaseOutlivesTheIndex() throws Exception {
         Path root = caseRoot("derived");

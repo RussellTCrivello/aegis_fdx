@@ -448,6 +448,74 @@ public final class CorpusDatabase {
         return scalar("SELECT COUNT(*) FROM keyword");
     }
 
+    /**
+     * §15: every keyword with the number of <strong>distinct files</strong> it occurs
+     * in and its total occurrence count, case-wide, ordered by file count.
+     *
+     * <p>One grouped query rather than the loop it replaces. The Comprehensive
+     * Dashboard used to ask for the keyword list, then for each keyword ask for its
+     * files, then sum the hits in Java: 1 + N queries returning up to 500 rows each,
+     * for a figure the database can group in a single pass. At two hundred keywords
+     * that was two hundred round trips and up to a hundred thousand rows crossing the
+     * JDBC boundary to produce two hundred integers.
+     *
+     * <p>{@code COUNT(DISTINCT path_id)} is the count that matters: a keyword occurring
+     * forty times in one file relates to one file, not forty, and conflating the two is
+     * how a relationship count stops meaning anything.
+     */
+    public List<Row> selectKeywordUsage(int limit, int offset) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT k.id AS id, k.phrase AS keyword, w.word AS category_word,
+                       COUNT(DISTINCT pk.path_id) AS files,
+                       IFNULL(SUM(pk.hits), 0) AS hits
+                FROM keyword k
+                JOIN category c ON c.id = k.category_id
+                JOIN word w ON w.id = c.word_id
+                LEFT JOIN path_keyword pk ON pk.keyword_id = k.id
+                GROUP BY k.id, k.phrase, w.word
+                ORDER BY files DESC, hits DESC, k.phrase
+                LIMIT ? OFFSET ?""")) {
+            ps.setInt(1, limit);
+            ps.setInt(2, offset);
+            return all(ps);
+        }
+    }
+
+    /**
+     * §15: every category with the number of distinct files related to it, by either
+     * route — a direct {@code path_category} assignment or a file containing one of the
+     * category's words. Unioned so neither route is invisible, and counted distinctly so
+     * a file reached by both is still one file.
+     */
+    public List<Row> selectCategoryUsage(int limit, int offset) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT c.id AS id, w.word AS word, COUNT(DISTINCT r.path_id) AS files
+                FROM category c
+                JOIN word w ON w.id = c.word_id
+                LEFT JOIN (
+                    -- attributed directly by a reviewer or an analysis run
+                    SELECT pc.category_id AS category_id, pc.path_id AS path_id
+                      FROM path_category pc
+                    UNION
+                    -- the file contains one of the category's linked vocabulary words
+                    SELECT wc.category_id AS category_id, pw.path_id AS path_id
+                      FROM path_word pw JOIN word_category wc ON wc.word_id = pw.word_id
+                    UNION
+                    -- the file contains the category's own word, which is a word row
+                    -- in its own right. Omitting this route made the listing disagree
+                    -- with selectCategoriesForPath, which has always counted it.
+                    SELECT c2.id AS category_id, pw2.path_id AS path_id
+                      FROM path_word pw2 JOIN category c2 ON c2.word_id = pw2.word_id
+                ) r ON r.category_id = c.id
+                GROUP BY c.id, w.word
+                ORDER BY files DESC, w.word
+                LIMIT ? OFFSET ?""")) {
+            ps.setInt(1, limit);
+            ps.setInt(2, offset);
+            return all(ps);
+        }
+    }
+
     public boolean updateKeyword(int id, String keyword) throws SQLException {
         keyword = requireKeywordPhrase(keyword);
         try (PreparedStatement ps = conn.prepareStatement("UPDATE keyword SET phrase=? WHERE id=?")) {
@@ -991,6 +1059,23 @@ public final class CorpusDatabase {
             ps.setInt(1, pathId);
             ps.setInt(2, keywordId);
             ps.setInt(3, hits);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /**
+     * Removes a keyword association from a file.
+     *
+     * <p>Present for symmetry with {@link #unlinkPathFromCategory} and
+     * {@link #unlinkPathFromWord}: every relation the model can create, it must be able
+     * to retract, or a mistaken association becomes permanent and the counts in §15
+     * can only ever grow.
+     */
+    public boolean unlinkPathFromKeyword(int pathId, int keywordId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "DELETE FROM path_keyword WHERE path_id=? AND keyword_id=?")) {
+            ps.setInt(1, pathId);
+            ps.setInt(2, keywordId);
             return ps.executeUpdate() > 0;
         }
     }

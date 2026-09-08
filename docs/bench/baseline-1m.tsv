@@ -1,0 +1,50 @@
+pragma	journal_mode	wal
+pragma	synchronous	1
+pragma	foreign_keys	1
+pragma	busy_timeout	5000
+pragma	cache_size	-2000
+pragma	mmap_size	0
+pragma	temp_store	0
+pragma	page_size	4096
+pragma	wal_autocheckpoint	1000
+insert_rows	1000000	1000000
+insert_seconds	total	142.715
+insert_rows_per_sec	total	7007
+insert_items_per_hour	total	25225147
+queue_ops_per_sec	enqueue	34656
+dash_cold_ms	total_items	10.0
+dash_warm_ms	total_items	4.7
+plan	total_items	SCAN item USING COVERING INDEX ix_item_cust; 
+dash_cold_ms	by_status	40.3
+dash_warm_ms	by_status	39.7
+plan	by_status	SCAN item USING COVERING INDEX ix_item_status; 
+dash_cold_ms	by_ext	319.9
+dash_warm_ms	by_ext	311.2
+plan	by_ext	SCAN item; USE TEMP B-TREE FOR GROUP BY; USE TEMP B-TREE FOR ORDER BY; 
+dash_cold_ms	by_custodian	39.0
+dash_warm_ms	by_custodian	37.8
+plan	by_custodian	SCAN item USING COVERING INDEX ix_item_cust; 
+dash_cold_ms	by_media	347.0
+dash_warm_ms	by_media	370.4
+plan	by_media	SCAN item; USE TEMP B-TREE FOR GROUP BY; 
+dash_cold_ms	total_bytes	110.7
+dash_warm_ms	total_bytes	107.2
+plan	total_bytes	SCAN item; 
+dash_cold_ms	ocr_state	289.7
+dash_warm_ms	ocr_state	267.7
+plan	ocr_state	SCAN item; USE TEMP B-TREE FOR GROUP BY; 
+dash_cold_ms	error_state	143.3
+dash_warm_ms	error_state	131.9
+plan	error_state	SCAN item; 
+dash_cold_ms	dupe_clusters	176.0
+dash_warm_ms	dupe_clusters	155.8
+plan	dupe_clusters	CO-ROUTINE (subquery-1); SCAN item USING COVERING INDEX ix_item_sha; SCAN (subquery-1); 
+lookup_by_id_p50_us	lookup	34
+lookup_by_id_p95_us	lookup	55
+lookup_by_id_p99_us	lookup	78
+lookup_by_sha_p50_us	lookup	11
+lookup_by_sha_p95_us	lookup	16
+lookup_by_sha_p99_us	lookup	50
+all_items_seconds	total	9.479
+db_size_bytes	total	575868928
+db_bytes_per_row	total	576

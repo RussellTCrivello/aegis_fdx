@@ -267,6 +267,34 @@ public final class ChartPane {
         return out;
     }
 
+    /**
+     * As {@link #top(Map, int)}, for the {@code long} counters the derived dashboard
+     * statistics produce. Slice values saturate rather than wrap: a chart is a
+     * proportion, and a negative bar from an overflowed int would be a lie about the
+     * data rather than a rendering glitch.
+     */
+    public static List<Slice> topLong(Map<String, Long> data, int n) {
+        List<Map.Entry<String, Long>> entries = new ArrayList<>(data.entrySet());
+        entries.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+        List<Slice> out = new ArrayList<>();
+        long other = 0;
+        for (int i = 0; i < entries.size(); i++) {
+            if (i < n) {
+                out.add(new Slice(entries.get(i).getKey(), saturate(entries.get(i).getValue())));
+            } else {
+                other += entries.get(i).getValue();
+            }
+        }
+        if (other > 0) {
+            out.add(new Slice("Other", saturate(other)));
+        }
+        return out;
+    }
+
+    private static int saturate(long v) {
+        return (int) Math.min(Integer.MAX_VALUE, Math.max(0, v));
+    }
+
     public static Map<String, Integer> emptyMap() {
         return new LinkedHashMap<>();
     }

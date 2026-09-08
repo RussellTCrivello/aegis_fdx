@@ -1,6 +1,6 @@
 # Interface → Function Matrix
 
-Machine-readable source: **`docs/interface-function-matrix.tsv`** (120 rows, 16 audit columns + id). This page is rendered from it by `tools/render_interface_matrix.py`; `InterfaceFunctionMatrixTest` fails the build if the TSV names a Java handler, facade, database operation or test that does not exist, if a screen or button label in the JavaFX interface has no row, or if a non-VERIFIED row lacks an explanation.
+Machine-readable source: **`docs/interface-function-matrix.tsv`** (122 rows, 16 audit columns + id). This page is rendered from it by `tools/render_interface_matrix.py`; `InterfaceFunctionMatrixTest` fails the build if the TSV names a Java handler, facade, database operation or test that does not exist, if a screen or button label in the JavaFX interface has no row, or if a non-VERIFIED row lacks an explanation.
 
 Every interactive element of the reference (`RussellTCrivello/file_analysis`: templates, `static/js/pages/*.js`, `Api/routes`, `Api/services`, `database/`) is traced forward to the Java control that reproduces its observable behaviour, and every Java control is traced back to the reference behaviour it exists for. The reference is a behavioural specification only — no Python, Flask route, template or JavaScript is executed, embedded or called by the Java application (`ArchitectureInvariantsTest#noWebApiOrPythonRuntimeDependency`).
 
@@ -8,8 +8,8 @@ Every interactive element of the reference (`RussellTCrivello/file_analysis`: te
 
 | Status | Meaning | Rows |
 |---|---|---|
-| **VERIFIED** | The Java control performs the same observable operation on the same data (case.db / Lucene) and an executable test named in the row exercises it. | 82 |
-| **ADAPTED** | Same purpose and same stored result, different mechanism appropriate to a desktop (dialog instead of modal, table sort instead of `?sort=` reload, search on the Search destination instead of an inline filter). The note says what differs. | 27 |
+| **VERIFIED** | The Java control performs the same observable operation on the same data (case.db / Lucene) and an executable test named in the row exercises it. | 83 |
+| **ADAPTED** | Same purpose and same stored result, different mechanism appropriate to a desktop (dialog instead of modal, table sort instead of `?sort=` reload, search on the Search destination instead of an inline filter). The note says what differs. | 28 |
 | **LIMITED** | Part of the reference behaviour is reproduced; the missing part and the reason are stated. | 2 |
 | **UNSUPPORTED** | Deliberately not reproduced, with the reason (evidence is never deleted; render-format toggles carry no information; a flag nothing reads). | 5 |
 | **REFERENCE-INERT** | The reference control does nothing observable (no route behind the handler, or a stored flag nothing evaluates). Reproducing it would be a fake feature. | 4 |
@@ -17,13 +17,21 @@ Every interactive element of the reference (`RussellTCrivello/file_analysis`: te
 
 Nothing is ABSENT: every reference element has a Java destination or an explained status.
 
+## What VERIFIED does and does not mean here
+
+**Read this before quoting a status.** Every status in this table is established by *static resolution plus a headless test*: the control exists in the JavaFX source, its handler and facade resolve to real symbols, and the named test exercises the underlying operation against a real `case.db` and a real Lucene index.
+
+What no row in this table establishes is that a human clicked the control in a running application. JavaFX could not be obtained in the build environment used for this pass, so the UI layer has never been compiled or executed. A row therefore means **"the operation behind this control is proven, and the control is wired to it in source"** — not "this button has been observed to work".
+
+The gap is narrow but real, and it is exactly the class of defect static resolution cannot see: a handler attached to the wrong control, a value formatted into the wrong column, a dialog that never opens, a listener that is registered twice. Those require §4 of the acceptance directive — launching the real application — and that step is **NOT RUN**.
+
 ## Columns
 
 `reference_destination`, `reference_template`, `html_element`, `js_handler`, `js_api_operation`, `python_route`, `python_backend_operation` describe the reference. `java_destination`, `java_control`, `java_handler`, `java_facade`, `db_index_operation`, `expected_visible_result`, `test`, `status`, `note` describe the Java application. Java symbols are `Class#method` and are resolved against the source tree by the test.
 
 ## Rows that are not VERIFIED
 
-### ADAPTED (27)
+### ADAPTED (28)
 
 | Id | Reference element | Java destination | Why |
 |---|---|---|---|
@@ -54,6 +62,7 @@ Nothing is ABSENT: every reference element has a Java destination or an explaine
 | DB5 | method selector, analyse file / folder / database | Analysis | The three reference modes collapse into one destination that reads the same relations. |
 | ST1 | branding, theme colours, toggles (autoProcess, autoAnalyze, animations, breadcrumbs, logging), language | Settings | Engine options that change behaviour are exposed; branding and colour theming are presentation-only and deferred to the localisation/theming phase (LOCALIZATION_PREPARATION.md). |
 | G04 | toast notifications | (any) | Dialogs and inline labels instead of toasts. |
+| DB3a | (no reference equivalent) | Comprehensive Dashboard | New control with no reference counterpart. The reference recomputes dashboard figures by scanning on every request, so it needs no repair action; this application maintains derived counters (docs/DATABASE_PERFORMANCE_REPORT.md section 5) and therefore must expose a deterministic rebuild for counters left stale by a restored backup or an interrupted migration. |
 
 ### LIMITED (2)
 

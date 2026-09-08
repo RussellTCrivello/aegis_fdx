@@ -130,3 +130,153 @@ documented, self-contained step: install a local runtime, pull a model, launch w
 Everything else in this repository was executed: **1,101 assertions across the battery,
 124 JUnit tests (123 passed, 1 not runnable without a display), 0 failures**, and the
 release gate reports **66 passed, 0 failed, 5 skipped** for the reasons above.
+
+---
+
+## 5. Database, dashboard and relationship pass — 2026-09-08
+
+A second adversarial pass, aimed specifically at the claims a performance report makes.
+The method was the same: not "is it fast" but "what would I attack if I wanted to prove
+these numbers are decoration". Everything below was measured or executed; the full
+figures are in `docs/DATABASE_PERFORMANCE_REPORT.md`.
+
+### 5.1 Findings
+
+| # | Finding | Severity | How it was found | Fix | Test |
+|---|---|---|---|---|---|
+| A | `completedIdForSource()` had no index and is called **once per file** during intake — `SCAN queue` per file, so total work grew with the square of case size. At 500,000 files this was 114 s of pure lookup overhead per run. | **High** | `EXPLAIN QUERY PLAN` over every hot query, then a benchmark across four case sizes to confirm the curve rather than assume it | Composite `ix_queue_source(source, state)`, covering the whole predicate. Lookup is now flat at ~14 µs. | `PlanAudit`, `ResumeBench` |
+| B | Dashboard aggregation scanned `item` on every refresh: 15.2 s at 5M items, **on the JavaFX thread**. | **High** | Scaling the aggregation benchmark to 5M rather than stopping at a comfortable size | `dashboard_stats`, trigger-maintained; 0.14 ms, 105,741× | `DashboardStatsTest` (12 tests) |
+| C | `DashboardFacade.getStats()` materialised **every item in the case** into Java objects to sum sizes — 9.5 s and ~1 GB heap at 1M, for one number. | **High** | Reading the facade rather than trusting its docstring | Reads derived counters | `DashboardStatsTest` |
+| D | Four PRAGMAs — `cache_size`, `mmap_size`, `temp_store`, `wal_autocheckpoint` — were never set. The code and docs discussed WAL tuning; the runtime was on stock defaults, spilling GROUP BY sorters to disk. | Medium | Reading pragmas back from a live connection instead of reading the source | Set, and every one overridable | `BatchRecoveryTest.pragmasAreInForce` |
+| E | Ingest committed once per element: an fsync per file, 6,451 rows/s. | Medium | Benchmarking the real `save()` path across six batch sizes | Batched at a measured 5,000; 2.7× | `BatchRecoveryTest` (4 tests) |
+| F | Comprehensive Dashboard issued 1 + N queries for keyword counts (up to 200 round trips, ~100,000 rows) **on the FX thread**, to produce 200 integers. | Medium | Tracing the screen's refresh path by hand | One grouped `COUNT(DISTINCT path_id)` query | `RelationshipCountsTest` |
+| G | `AegisApp` opened a **second `DriverManager` connection** to the same `case.db` for the error report: no configured pragmas, its own lock on a database ingest may be writing, and the connection leaked on every report — only the statement was closed. | Medium | Grepping for `DriverManager` while checking the "no second database" invariant | Uses the case's own connection | — (UI, unexecuted here) |
+| H | My own new `selectCategoryUsage` missed the route where a file contains a category's **own** word, so the listing would have disagreed with the detail screen it links to. | Medium | Writing the test to compare grouped counts against per-term counts **before** believing the query | Third UNION branch added | `RelationshipCountsTest.categoryCountsUnionBothRoutes` |
+| I | Nine-statement trigger form cost 5× ingest throughput. | Low | Benchmarking the trigger form itself rather than accepting the first one that worked | Single upsert over a `VALUES` list; 69,003 → 118,834 rows/s | `TriggerBench` |
+
+Finding **H** is worth dwelling on: it was a defect in code written during this pass,
+caught because the test compared two independently-computed numbers instead of asserting
+a constant the implementation happened to produce. A test that had asserted `3` against
+whatever the query returned would have passed and shipped the inconsistency.
+
+### 5.2 Attacks that found nothing
+
+Recorded because a clean result only means something if the attack was real.
+
+- **Counter drift.** Twelve scenarios — status transitions, size changes, OCR
+  completion, error-then-retry, deletion, null and empty fields, rolled-back batches,
+  deliberate corruption of the derived table, reopening the case, 5,000-row mixed case.
+  `verify()` compares every counter against a fresh scan after each. No drift. The
+  corruption case confirms `verify()` actually *detects* disagreement rather than always
+  returning true.
+- **Facets disagreeing with their result set.** Each bucket's count was asserted equal to
+  what filtering by that value actually returns, not to a constant. Also checked: empty
+  result sets, an empty index, and uncommitted (NRT) documents.
+- **Crash consistency under batching.** Interrupted batches were checked for orphaned
+  queue rows and orphaned items in both directions, plus resumability of lost work and
+  survival of committed batches across an abrupt close.
+- **A second authoritative database.** `corpus.db`, `metadata.db` and DuckDB appear
+  nowhere. `CorpusDatabase` shares the single `case.db` connection; finding G was the
+  only second connection and it is gone.
+- **Point-lookup degradation.** 31 µs at 100K versus 34 µs at 1M — no degradation.
+
+### 5.3 What this pass did not establish
+
+- **The UI was not executed.** JavaFX is unavailable here, so `Background`, the rewritten
+  Comprehensive Dashboard and fix G are type-consistent and reasoned but **unrun**. This
+  is the largest gap in the pass and is repeated in the performance report rather than
+  buried here.
+- **10M+ was not measured.** Verified to 5M; beyond that is extrapolation from flat
+  curves, and is labelled as extrapolation.
+- **Extraction, OCR and parsing were not profiled**, so the native-code question is
+  answered "no candidate identified", which is not the same as "no candidate exists".
+- **The hardware is a quarter of the reference machine** and its storage is not NVMe.
+  Ratios transfer; absolute throughput figures are a floor.
+
+---
+
+## 6. Release-acceptance pass — 2026-09-08
+
+Full verdict: **`docs/RELEASE_ACCEPTANCE.md`**. This section records only what attacking
+the code found.
+
+### Finding J — `CorpusDatabase` was suspected of being a second authoritative database
+
+**Severity:** would have been critical; **actual: not a defect.**
+
+**Method.** Rather than reading the class and forming an opinion, I attacked the three
+ways a second persistence layer would betray itself: its own file, its own connection, or
+case state that exists only in it. The connection test is the one that actually settles
+it — an uncommitted write through `CorpusDatabase` is visible through `CaseDatabase`, and
+a rollback on the case connection undoes it. Two connections cannot do that.
+
+**Result.** It is a DAO over `CaseDatabase.connection()`. The corpus tables are in
+`main.sqlite_master` alongside `item`; `PRAGMA database_list` shows only `main` and
+`temp`; `path.element_id` cascades from `item`. **Architecture is sound; the name is
+misleading.**
+
+**Residual.** `path` denormalises four columns from `item` and is written once, never
+refreshed. Drift is not currently reachable (no code updates those fields post-registration
+and they are stable identity fields), but it is latent duplication. Recorded as debt.
+
+### Finding K — term semantics were enforced in Java but not in the schema
+
+**Severity:** medium. **Real defect, fixed.**
+
+**Method.** Having established that every production write goes through `CorpusDatabase`,
+I asked the adversarial version of the question: what if one doesn't? `keyword.phrase` was
+`TEXT NOT NULL UNIQUE` — no constraint. A raw `INSERT INTO keyword VALUES ('single', …)`
+succeeded.
+
+**Why it matters.** A one-word keyword is indistinguishable from a category word. That is
+precisely the rot the `Terms` class was written to prevent, and the schema left the door
+open for any repair script, migration or future DAO.
+
+**Fix.** Four triggers in `CorpusSchema.migrate`, on INSERT and UPDATE, for
+`keyword.phrase` (≥3 words) and `word.word` (exactly 1). Triggers rather than CHECK
+because CHECK requires a table rebuild, which on a multi-gigabyte case means copying every
+row; triggers reach existing cases at migration time.
+
+**Test.** Four tests including UPDATE-degradation (insert something valid, then break it)
+and a DAO/schema agreement test.
+
+### Finding L — a defect in my own agreement test
+
+**Severity:** low, in test code. Caught by the test failing.
+
+`schemaEnforcementAgreesWithTheJavaEnforcement` initially compared "DAO accepted" against
+"raw SQL accepted" and failed on `three word phrase`. The cause was not a disagreement:
+the DAO had just inserted that phrase, so the raw re-insert hit `UNIQUE`, not the trigger.
+The test was conflating *rejected* with *rejected for the reason under test*. Fixed to
+compare on the rejection reason. A test that treats every failure as confirmation is a
+test that has stopped testing.
+
+### Finding M — "VERIFIED" in the interface matrix was over-reading
+
+**Severity:** medium, documentation. **Fixed.**
+
+83 rows read VERIFIED. The definition — "an executable test named in the row exercises
+it" — is true of the *operation*, but a reader sees the matrix and concludes the interface
+works. No control in that matrix has ever been clicked, because JavaFX has never been
+compiled. The renderer now emits an explicit section stating what VERIFIED does and does
+not establish, and naming the defect classes static resolution cannot catch.
+
+### Attacks that found nothing
+
+- **A second database file.** Exercised sources, words, categories and paths; only
+  `case.db` ever appears. No `.sqlite`, no `.duckdb`, no attached schema.
+- **Orphaned `path` rows.** `element_id IS NULL` count stays zero on the production path;
+  the FK cascade removes rows when the item goes.
+- **A second connection.** Exactly one `DriverManager.getConnection` in the entire main
+  tree, and it is now test-enforced rather than grep-verified.
+- **Whitespace smuggling.** `"  offshore    account  "` cannot be passed off as a
+  three-word keyword; normalisation happens before counting, in both layers.
+- **Trigger regressions.** The new schema triggers broke none of the 160 pre-existing
+  tests, so no fixture depended on malformed terms.
+
+### What this pass did not establish
+
+Everything requiring a running application. The UI has not been compiled, so no claim
+about a screen, a click, a rendered value, a dialog or shutdown behaviour is supported by
+execution. `docs/RELEASE_ACCEPTANCE.md` §5 lists all 12 Definition-of-Done items in that
+category as NOT RUN.

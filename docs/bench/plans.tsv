@@ -1,0 +1,40 @@
+query	plan	uses_index
+index	ix_alert_read	alert	is_read
+index	ix_aspect_name	aspect	name
+index	ix_batch_started	batch_run	started_at
+index	ix_batch_state	batch_run	state
+index	ix_content_path	content	path_id
+index	ix_item_cust	item	custodian
+index	ix_item_parent	item	parent_id
+index	ix_item_sha	item	sha256
+index	ix_item_status	item	status
+index	ix_keyword_category	keyword	category_id
+index	ix_path_aspect	path	aspect_id
+index	ix_path_element	path	element_id
+index	ix_path_source	path	source_id
+index	ix_path_type	path	file_type
+index	ix_path_category_cat	path_category	category_id
+index	ix_path_keyword_kw	path_keyword	keyword_id
+index	ix_path_word_path	path_word	path_id
+index	ix_path_word_word	path_word	word_id
+index	ix_queue_source	queue	source, state
+index	ix_queue_state	queue	state
+index	ix_source_name	source	name
+index	ix_word_word	word	word
+index	ix_word_category_cat	word_category	category_id
+dashboard: derived counters	SCAN dashboard_stats	no
+dashboard: one dimension	SEARCH dashboard_stats USING PRIMARY KEY (dimension=?) | USE TEMP B-TREE FOR ORDER BY	yes
+dashboard: status scan (replaced)	SCAN item USING COVERING INDEX ix_item_status	yes
+dashboard: extension scan (replaced)	SCAN item | USE TEMP B-TREE FOR GROUP BY	no
+duplicate clusters	SEARCH item USING INDEX ix_item_sha (sha256=?) | LIST SUBQUERY 1 | SEARCH item USING COVERING INDEX ix_item_sha (sha256>?)	yes
+item by id	SEARCH item USING INDEX sqlite_autoindex_item_1 (id=?)	yes
+item by sha256	SEARCH item USING INDEX ix_item_sha (sha256=?)	yes
+item by status	SEARCH item USING INDEX ix_item_status (status=?)	yes
+item by custodian	SEARCH item USING INDEX ix_item_cust (custodian=?)	yes
+children of an item	SCAN item	no
+queue: pending on resume	SCAN queue	no
+queue: resume lookup by source	SEARCH queue USING INDEX ix_queue_source (source=? AND state=?)	yes
+queue: count by state	SCAN queue USING COVERING INDEX ix_queue_state	yes
+tags of an item	SEARCH item_tag USING COVERING INDEX sqlite_autoindex_item_tag_1 (item_id=?)	yes
+metadata of an item	SEARCH item_meta USING INDEX sqlite_autoindex_item_meta_1 (item_id=?)	yes
+audit tail	SCAN audit	no

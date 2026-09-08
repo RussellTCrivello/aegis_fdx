@@ -89,10 +89,10 @@ public final class ChartsDashboardScreen implements Screen {
 
             var stats = facades.dashboard().getStats();
             var statusMap = ChartPane.emptyMap();
-            statusMap.put("Indexed", stats.indexed());
-            statusMap.put("Errors", stats.errors());
-            statusMap.put("Locked", stats.locked());
-            statusMap.put("Unsupported", stats.unsupported());
+            statusMap.put("Indexed", clamp(stats.indexed()));
+            statusMap.put("Errors", clamp(stats.errors()));
+            statusMap.put("Locked", clamp(stats.locked()));
+            statusMap.put("Unsupported", clamp(stats.unsupported()));
             statusMap.values().removeIf(v -> v == 0);
             statusChart.getChildren().setAll(ChartPane.donut(
                     ChartPane.slices(statusMap), 150, null));
@@ -129,5 +129,14 @@ public final class ChartsDashboardScreen implements Screen {
         } catch (RuntimeException ignored) {
             // a chart click that cannot resolve is a no-op, not an error dialog
         }
+    }
+
+    /**
+     * Chart slices are drawn from an int-keyed map; a case cannot realistically hold
+     * more than two billion items in one status, but saturating is still better than
+     * silently wrapping negative if one ever did.
+     */
+    private static int clamp(long v) {
+        return (int) Math.min(Integer.MAX_VALUE, Math.max(0, v));
     }
 }

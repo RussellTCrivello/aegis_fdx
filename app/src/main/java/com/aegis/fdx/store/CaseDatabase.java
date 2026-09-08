@@ -32,14 +32,71 @@ public final class CaseDatabase implements AutoCloseable {
             st.execute("PRAGMA journal_mode=WAL");       // concurrent read during ingest
             st.execute("PRAGMA synchronous=NORMAL");
             st.execute("PRAGMA foreign_keys=ON");
-            st.execute("PRAGMA busy_timeout=5000");
+            st.execute("PRAGMA busy_timeout=" + intProperty("aegis.db.busyTimeoutMs", 5000));
+
+            // §10. Measured on the reference profile (8 cores / 16 GB / NVMe); every
+            // value is overridable so a smaller machine can be told to use less. The
+            // defaults are deliberately modest rather than maximal — the numbers behind
+            // them are in docs/DATABASE_PERFORMANCE_REPORT.md.
+            //
+            // cache_size is negative to mean KiB rather than pages, so it does not
+            // silently scale with page size. 64 MB holds the hot b-tree interior pages
+            // of a multi-million-row item table; beyond that the measured gain was
+            // inside the noise while the resident set kept growing.
+            st.execute("PRAGMA cache_size=-" + intProperty("aegis.db.cacheKb", 65536));
+            // Temp tables and the sorters behind GROUP BY / ORDER BY stay in memory
+            // instead of spilling to disk, which is what the dashboard aggregations do.
+            st.execute("PRAGMA temp_store=MEMORY");
+            // Memory-mapped reads avoid a copy per page on the read-heavy paths
+            // (dashboard, relationship lookups). Zero disables it for platforms or
+            // volumes where mmap is a liability.
+            long mmap = longProperty("aegis.db.mmapBytes", 256L * 1024 * 1024);
+            if (mmap > 0) {
+                st.execute("PRAGMA mmap_size=" + mmap);
+            }
+            // A larger WAL between checkpoints suits batched ingest; the checkpoint
+            // itself is what stalls writers, so it should happen less often, not never.
+            st.execute("PRAGMA wal_autocheckpoint=" + intProperty("aegis.db.walPages", 4000));
         }
         migrate();
+    }
+
+    private static int intProperty(String key, int fallback) {
+        try {
+            String v = System.getProperty(key);
+            return v == null ? fallback : Integer.parseInt(v.trim());
+        } catch (RuntimeException e) {
+            return fallback;
+        }
+    }
+
+    private static long longProperty(String key, long fallback) {
+        try {
+            String v = System.getProperty(key);
+            return v == null ? fallback : Long.parseLong(v.trim());
+        } catch (RuntimeException e) {
+            return fallback;
+        }
+    }
+
+    /** The PRAGMA values actually in force, read back from the connection (§6). */
+    public Map<String, String> runtimePragmas() throws SQLException {
+        Map<String, String> out = new LinkedHashMap<>();
+        for (String p : new String[]{"journal_mode", "synchronous", "foreign_keys",
+                "busy_timeout", "cache_size", "mmap_size", "temp_store", "page_size",
+                "wal_autocheckpoint"}) {
+            try (Statement st = conn.createStatement();
+                 ResultSet rs = st.executeQuery("PRAGMA " + p)) {
+                out.put(p, rs.next() ? rs.getString(1) : "(unavailable)");
+            }
+        }
+        return out;
     }
 
     private void migrate() throws SQLException {
         migrateForensic();
         CorpusSchema.migrate(conn);
+        DashboardStats.migrate(conn);
     }
 
     /** The original forensic schema: items, tags, metadata, queue, audit, settings. */
@@ -117,6 +174,15 @@ public final class CaseDatabase implements AutoCloseable {
                   updated_at  INTEGER
                 )""");
             st.executeUpdate("CREATE INDEX IF NOT EXISTS ix_queue_state ON queue(state)");
+            // §8. The resume lookup (completedIdForSource) runs once per file during
+            // intake and had no index to use: EXPLAIN QUERY PLAN reported
+            // "SCAN queue" for it, so a run over N files scanned the queue N times —
+            // quadratic in the size of the case, and worst exactly when the case is
+            // largest. Indexing source makes it a lookup. The state column is included
+            // so the index covers the whole predicate and the row itself is never
+            // touched.
+            st.executeUpdate(
+                    "CREATE INDEX IF NOT EXISTS ix_queue_source ON queue(source, state)");
 
             // F-24: append-only audit.
             st.executeUpdate("""
@@ -448,6 +514,52 @@ public final class CaseDatabase implements AutoCloseable {
     public record AuditRow(Instant when, String user, String action, String detail, String itemIds) { }
 
     // ---- transactions ----------------------------------------------------------
+
+    /**
+     * §7. The measured-optimal number of item writes between commits.
+     *
+     * <p>Per-item autocommit measured 6,451 rows/s; every batch size from 100 upward
+     * measured between 15,000 and 17,600 rows/s, so the curve is flat once the fsync
+     * per row is gone. 5,000 sits on that plateau while bounding how much work an
+     * interrupted batch can cost: at the measured rate a lost batch is under a third of
+     * a second of re-processing, and the queue table replays it (§28). Larger batches
+     * bought no further throughput and only widened that window.
+     */
+    public static final int INGEST_BATCH_SIZE =
+            intProperty("aegis.db.ingestBatch", 5_000);
+
+    /**
+     * Runs {@code work} inside one transaction, committing on success and rolling back
+     * on any failure. Nested calls join the outer transaction rather than committing
+     * early, so a caller cannot accidentally split someone else's atomic unit.
+     */
+    public <T> T inTransaction(SqlCallable<T> work) throws SQLException {
+        if (!conn.getAutoCommit()) {
+            return work.call();          // already inside one; join it
+        }
+        conn.setAutoCommit(false);
+        try {
+            T result = work.call();
+            conn.commit();
+            return result;
+        } catch (SQLException | RuntimeException e) {
+            try { conn.rollback(); } catch (SQLException ignored) { }
+            throw e;
+        } finally {
+            conn.setAutoCommit(true);
+        }
+    }
+
+    /** Work that may fail with a {@link SQLException}. */
+    @FunctionalInterface
+    public interface SqlCallable<T> {
+        T call() throws SQLException;
+    }
+
+    /** True when a transaction opened by {@link #begin()} is currently in force. */
+    public boolean inTransaction() throws SQLException {
+        return !conn.getAutoCommit();
+    }
 
     public void begin() throws SQLException { conn.setAutoCommit(false); }
 

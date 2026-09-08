@@ -162,6 +162,38 @@ public final class AnalyticsFacade {
         }
     }
 
+    /**
+     * §15: every keyword with its case-wide count of distinct files, largest first.
+     *
+     * <p>The count is global to the case, not scoped to whatever the caller is looking
+     * at, and it is a count of distinct files rather than of occurrences. This replaces
+     * the pattern of listing keywords and then querying each one's files — see
+     * {@link CorpusDatabase#selectKeywordUsage} for why that mattered.
+     */
+    public List<KeywordUsage> keywordUsage(int limit, int offset) {
+        try {
+            List<KeywordUsage> out = new ArrayList<>();
+            for (CorpusDatabase.Row r : db.selectKeywordUsage(
+                    Validate.limit(limit), Math.max(0, offset))) {
+                out.add(new KeywordUsage(r.i("id"), r.str("keyword"), r.str("category_word"),
+                        r.i("hits"), r.i("files"), List.of()));
+            }
+            return out;
+        } catch (SQLException e) {
+            throw FacadeException.internal("failed to load keyword usage", e);
+        }
+    }
+
+    /** §15: every category with its case-wide count of distinct related files. */
+    public List<CategoryUsage> categoryUsage(int limit, int offset) {
+        try {
+            return toCategoryUsage(db.selectCategoryUsage(
+                    Validate.limit(limit), Math.max(0, offset)));
+        } catch (SQLException e) {
+            throw FacadeException.internal("failed to load category usage", e);
+        }
+    }
+
     private static List<CategoryUsage> toCategoryUsage(List<CorpusDatabase.Row> rows) {
         List<CategoryUsage> out = new ArrayList<>();
         for (CorpusDatabase.Row r : rows) {
