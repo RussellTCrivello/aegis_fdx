@@ -27,6 +27,9 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Python parity: {@code templates/file/files_list.html},
  * {@code file/file_detail.html} and {@code file/full_content.html}.
@@ -47,6 +50,7 @@ public final class FileLibraryScreen implements Screen {
     private Label pageLabel;
     private int offset;
     private int total;
+    private boolean updatingFilters;
 
     public FileLibraryScreen(AegisFacades facades) {
         this.facades = facades;
@@ -67,23 +71,26 @@ public final class FileLibraryScreen implements Screen {
         typeFilter = new ComboBox<>(FXCollections.observableArrayList("Any type"));
         typeFilter.setValue("Any type");
         typeFilter.setOnAction(e -> {
+            if (updatingFilters) return;
             offset = 0;
-            onShow();
+            loadRows();
         });
 
         statusFilter = new ComboBox<>(FXCollections.observableArrayList(
                 "Any status", ContentFacade.STATUS_READ, ContentFacade.STATUS_UNREAD));
         statusFilter.setValue("Any status");
         statusFilter.setOnAction(e -> {
+            if (updatingFilters) return;
             offset = 0;
-            onShow();
+            loadRows();
         });
 
         perPage = new ComboBox<>(FXCollections.observableArrayList(25, 50, 100));
         perPage.setValue(50);
         perPage.setOnAction(e -> {
+            if (updatingFilters) return;
             offset = 0;
-            onShow();
+            loadRows();
         });
 
         Button refresh = Fas.outline("Refresh", Icons.REFRESH);
@@ -145,7 +152,7 @@ public final class FileLibraryScreen implements Screen {
                     facades.contents().setPathStatus(item.id(),
                             ContentFacade.STATUS_READ.equals(item.fileStatus())
                                     ? ContentFacade.STATUS_UNREAD : ContentFacade.STATUS_READ);
-                    onShow();
+                    loadRows();
                 });
                 setGraphic(Fas.row(2, view, content, toggle));
             }
@@ -155,14 +162,16 @@ public final class FileLibraryScreen implements Screen {
         pageLabel = Fas.muted("0 - 0 of 0");
         Button prev = Fas.outline("Previous", null);
         prev.setOnAction(e -> {
-            offset = Math.max(0, offset - perPage.getValue());
-            onShow();
+            int limit = perPage.getValue() == null ? 50 : perPage.getValue();
+            offset = Math.max(0, offset - limit);
+            loadRows();
         });
         Button next = Fas.outline("Next", null);
         next.setOnAction(e -> {
-            if (offset + perPage.getValue() < total) {
-                offset += perPage.getValue();
-                onShow();
+            int limit = perPage.getValue() == null ? 50 : perPage.getValue();
+            if (offset + limit < total) {
+                offset += limit;
+                loadRows();
             }
         });
 
@@ -255,11 +264,37 @@ public final class FileLibraryScreen implements Screen {
 
     @Override
     public void onShow() {
+        refreshTypeFilter();
+        loadRows();
+    }
+
+    private void refreshTypeFilter() {
+        updatingFilters = true;
         try {
-            String type = "Any type".equals(typeFilter.getValue()) ? null : typeFilter.getValue();
-            String status = "Any status".equals(statusFilter.getValue())
+            String keep = typeFilter.getValue();
+            var types = facades.contents().getPaths(null, null, null, null, 10_000, 0)
+                    .results().stream().map(PathDto::fileType)
+                    .filter(t -> t != null && !t.isBlank())
+                    .distinct().sorted().toList();
+            List<String> items = new ArrayList<>();
+            items.add("Any type");
+            items.addAll(types);
+            if (!items.equals(typeFilter.getItems())) {
+                typeFilter.getItems().setAll(items);
+            }
+            typeFilter.setValue(typeFilter.getItems().contains(keep) ? keep : "Any type");
+        } catch (RuntimeException ignored) {
+        } finally {
+            updatingFilters = false;
+        }
+    }
+
+    private void loadRows() {
+        try {
+            String type = (typeFilter == null || "Any type".equals(typeFilter.getValue())) ? null : typeFilter.getValue();
+            String status = (statusFilter == null || "Any status".equals(statusFilter.getValue()))
                     ? null : statusFilter.getValue();
-            int limit = perPage.getValue();
+            int limit = (perPage == null || perPage.getValue() == null) ? 50 : perPage.getValue();
 
             Page<PathDto> page = facades.contents()
                     .getPaths(type, null, null, status, limit, offset);
@@ -269,14 +304,6 @@ public final class FileLibraryScreen implements Screen {
             int from = total == 0 ? 0 : offset + 1;
             pageLabel.setText(from + " - " + Math.min(offset + limit, total)
                     + " of " + String.format("%,d", total));
-
-            // keep the type filter in sync with what is actually registered
-            String keep = typeFilter.getValue();
-            var types = facades.contents().getPaths(null, null, null, null, 10_000, 0)
-                    .results().stream().map(PathDto::fileType).distinct().sorted().toList();
-            typeFilter.getItems().setAll("Any type");
-            typeFilter.getItems().addAll(types);
-            typeFilter.setValue(typeFilter.getItems().contains(keep) ? keep : "Any type");
         } catch (RuntimeException e) {
             rows.clear();
         }
