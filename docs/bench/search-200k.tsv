@@ -1,0 +1,55 @@
+index_docs_per_sec	indexing	12385
+index_size_bytes	indexing	183718215
+nrt_visibility_ms	search	70.4
+nrt_hits	search	1
+term_p50_ms	search	1.32
+term_p95_ms	search	9.38
+term_p99_ms	search	12.33
+term_hits	search	24729
+phrase_p50_ms	search	21.58
+phrase_p95_ms	search	30.02
+phrase_p99_ms	search	42.68
+phrase_hits	search	31877
+boolean_p50_ms	search	3.39
+boolean_p95_ms	search	9.74
+boolean_p99_ms	search	12.14
+boolean_hits	search	2812
+wildcard_p50_ms	search	0.06
+wildcard_p95_ms	search	0.68
+wildcard_p99_ms	search	7.91
+wildcard_hits	search	1001
+fuzzy_p50_ms	search	1.69
+fuzzy_p95_ms	search	9.97
+fuzzy_p99_ms	search	12.58
+fuzzy_hits	search	24729
+proximity_p50_ms	search	37.21
+proximity_p95_ms	search	42.74
+proximity_p99_ms	search	50.95
+proximity_hits	search	151157
+field_p50_ms	search	0.08
+field_p95_ms	search	0.11
+field_p99_ms	search	2.30
+field_hits	search	1325
+prefix_common_p50_ms	search	0.08
+prefix_common_p95_ms	search	0.15
+prefix_common_p99_ms	search	0.26
+prefix_common_hits	search	1001
+range_p50_ms	search	0.31
+range_p95_ms	search	0.82
+range_p99_ms	search	1.06
+facets(term)_p50_ms	facets	4.11
+facets(term)_p95_ms	facets	14.78
+facet_values_ext	facets	txt=19889 msg=19867 pst=19778 png=19751 zip=19748 pdf=19704 jpg=19658 eml=19638 xlsx=19580 docx=19373
+facet_values_custodian	facets	H. Tanaka=24800 D. Reyes=24709 F. Lindqvist=24707 E. Kovac=24673 C. Ibrahim=24610 G. Moreau=24539 A. Farouk=24483 B. Nowak=24465
+facet_values_status	facets	Indexed=196986
+facet_values_tag	facets	
+facet_values_ocrapplied	facets	false=196986
+facet_values_duplicate	facets	false=196986
+facets(boolean)_p50_ms	facets	2.85
+facets(boolean)_p95_ms	facets	12.37
+facet_values_ext	facets	txt=19614 msg=19565 pst=19453 zip=19444 png=19443 pdf=19394 jpg=19381 eml=19340 xlsx=19283 docx=19086
+facet_values_custodian	facets	H. Tanaka=24461 D. Reyes=24362 F. Lindqvist=24329 E. Kovac=24296 C. Ibrahim=24203 G. Moreau=24169 A. Farouk=24093 B. Nowak=24090
+facet_values_status	facets	Indexed=194003
+facet_values_tag	facets	
+facet_values_ocrapplied	facets	false=194003
+facet_values_duplicate	facets	false=194003

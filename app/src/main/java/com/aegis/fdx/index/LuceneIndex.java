@@ -1,6 +1,7 @@
 package com.aegis.fdx.index;
 
 import com.aegis.fdx.model.Item;
+import com.aegis.fdx.store.OperationTimings;
 import com.aegis.fdx.model.ItemStatus;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.core.KeywordAnalyzer;
@@ -132,7 +133,14 @@ public final class LuceneIndex implements Closeable {
 
     /** Upsert by element id, so re-running a stage is idempotent (A-01 replay). */
     public void put(Item it) throws IOException {
-        writer.updateDocument(new Term(F_ID, it.id()), toDocument(it));
+        // §32: instrumented so index-write cost can be checked at runtime rather than
+        // taken on trust from a benchmark run on different hardware.
+        long t0 = System.nanoTime();
+        try {
+            writer.updateDocument(new Term(F_ID, it.id()), toDocument(it));
+        } finally {
+            OperationTimings.record(OperationTimings.INDEX_WRITE, System.nanoTime() - t0);
+        }
     }
 
     public void commit() throws IOException {
@@ -251,6 +259,15 @@ public final class LuceneIndex implements Closeable {
     }
 
     public List<Document> search(Query q, int limit, Sort sort) throws IOException {
+        long t0 = System.nanoTime();
+        try {
+            return doSearch(q, limit, sort);
+        } finally {
+            OperationTimings.record(OperationTimings.SEARCH, System.nanoTime() - t0);
+        }
+    }
+
+    private List<Document> doSearch(Query q, int limit, Sort sort) throws IOException {
         IndexSearcher s = searcher();
         TopDocs td = sort == null ? s.search(q, limit) : s.search(q, limit, sort);
         List<Document> out = new ArrayList<>(td.scoreDocs.length);

@@ -125,7 +125,7 @@ public final class DashboardScreen implements Screen {
         }
     }
 
-    private static Node statusRow(String label, int value, String color) {
+    private static Node statusRow(String label, long value, String color) {
         Label l = new Label(label);
         l.setStyle("-fx-font-size: 12px; -fx-text-fill: " + Fas.TEXT_DARK + ";");
         Label v = new Label(String.format("%,d", value));

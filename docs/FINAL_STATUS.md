@@ -73,12 +73,88 @@ The per-control list with reasons is the "Rows that are not VERIFIED" section of
 ```
 Battery                 1,101 named assertions      0 failures
 JUnit                   124 tests                   123 passed · 0 failed · 1 not runnable (display)
+JUnit (2026-09-08 pass) 160 tests                   160 passed · 0 failed  (headless subset)
 Release gate            66 checks                   0 failures · 5 environmental skips
-Coverage inventory      91 rows                     76 verified · 8 adapted · 3 limited · 3 unsupported · 1 absent (deferred i18n)
-Interface-function      120 rows                    82 verified · 27 adapted · 2 limited · 5 unsupported · 4 reference-inert
+Coverage inventory      99 rows                     84 verified · 8 adapted · 3 limited · 3 unsupported · 1 absent (deferred i18n)
+Interface-function      122 rows                    83 verified · 28 adapted · 2 limited · 5 unsupported · 4 reference-inert
 Relationship integrity  28 traversals both ways     consistent; planted damage detected
 Failure inventory       21 failure classes          each backed by an executed test
 Toolchain               OpenJDK 21.0.4 · ECJ 3.46 · JavaFX 23.0.1 classes (no natives) · no Gradle · no display
 ```
 
 Reproduce with `./run-tests.sh` and `./final-acceptance.sh`; the gate writes `docs/ACCEPTANCE-RESULT.md` with the runtime, compiler and JavaFX build behind the result.
+
+---
+
+## 5. Database / dashboard / relationship pass — 2026-09-08
+
+Full evidence: **`docs/DATABASE_PERFORMANCE_REPORT.md`** · findings:
+**`docs/ADVERSARIAL_AUDIT.md` §5** · raw data: `docs/bench/*.tsv` · harnesses:
+`tools/bench/`.
+
+### 5.1 Directive checklist
+
+| Directive | Status | Evidence |
+|---|---|---|
+| SQLite audited from source | PASS | Report §2, §3, §6 |
+| Transaction boundaries documented | PASS | Report §3 |
+| PRAGMAs verified **at runtime** | PASS | Read back from a live connection; `BatchRecoveryTest.pragmasAreInForce` |
+| Indexes inventoried | PASS | Report §6 — 22 indexes, each mapped to a query |
+| `EXPLAIN QUERY PLAN` for important queries | PASS | `PlanAudit`, `docs/bench/plans.tsv` |
+| Ingest transactions benchmarked | PASS | Six batch sizes; 5,000 chosen from measurement |
+| Batch writes implemented | PASS | 6,451 → 17,128 rows/s |
+| Dashboard queries audited | PASS | Report §5 |
+| Derived statistics implemented | PASS | 15.2 s → 0.14 ms at 5M (105,741×) |
+| Statistics deterministically rebuildable | PASS | `DashboardStats.rebuild()`; **Rebuild Statistics** control |
+| Lucene remains the full-text path | PASS | No `LIKE` scan added; `ArchitectureInvariantsTest` |
+| Facets evaluated/implemented | PASS | `SearchFacets`, ~4 ms over 197K hits, 8 tests |
+| Dashboard values real, not seeded | PASS | All from `dashboard_stats` or indexed queries |
+| Relationship counts real and case-wide | PASS | `COUNT(DISTINCT path_id)`; `RelationshipCountsTest` |
+| Keyword/category/category-word semantics | PASS | Already enforced in `Terms`; unchanged |
+| Crash recovery intact | PASS | `BatchRecoveryTest` (5 tests) |
+| Evidence integrity intact | PASS | No change to originals, hashing or the pipeline |
+| Automated + adversarial tests pass | PASS | **160 JUnit tests, 0 failures** (125 before, 35 added) |
+| P50/P95/P99 recorded | PASS | Report §4, §7, §8 |
+| 100K / 1M / 5M evaluated | PASS | Report §4, §5 |
+| Concurrent ingest + search + dashboard | PASS | Report §8 |
+| Database and Lucene sizes recorded | PASS | 2.92 GB at 5M; 919 bytes/doc |
+| Final database decision documented | PASS | Report §11 — **keep SQLite** |
+| No migration without evidence | PASS | None performed |
+| Dashboard non-blocking to JavaFX | **LIMITED** | Implemented via `Background`; **not executed — no JavaFX here** |
+| Every control audited | PASS (matrix) | 122 rows; `InterfaceFunctionMatrixTest` passes |
+| 10M / 50M / 100M | **NOT RUN** | Time and disk; stated in report §11.14 |
+| Native-code profiling | **NOT DONE** | Extraction/OCR not profiled; report §10 |
+| Instrumentation of timed operations (§32) | PASS | `store/OperationTimings`; report §9; `OperationTimingsTest` 9/9 |
+
+### 5.2 Headline results
+
+```
+Ingest (batched)          6,451  ->  17,128 rows/s          2.7x
+Ingest (with statistics)              6,109 rows/s          = 21,990,924 items/hour
+                                                              vs 8,000/hour required
+Dashboard @ 5M items     15,208  ->    0.14 ms          105,741x
+Resume lookup @ 500K       114 s ->     6.9 s (flat)     quadratic defect removed
+Search worst P99                         53 ms           vs 2,000 ms required
+Dashboard P99 under ingest              4.04 ms          vs 500 ms required
+Derived counters                        verified correct in 12 adversarial scenarios
+```
+
+### 5.3 The decision
+
+> SQLite + WAL remains authoritative. Lucene remains the search engine.
+> Derived dashboard statistics handle large aggregates.
+> **No database migration. No DuckDB. No native code.**
+
+SQLite was never the bottleneck. The dashboard's aggregation strategy was, and a missing
+index made ingest quadratic; both were application-level and both were fixed inside the
+existing architecture.
+
+### 5.4 Honest gaps
+
+- **JavaFX was unavailable in this environment**, so UI changes (`Background`, the
+  rewritten Comprehensive Dashboard, the duplicate-connection fix) are **unrun**. This is
+  the largest gap and must be confirmed on a machine with the JavaFX SDK.
+- **Hardware is 2 cores / 3 GB / non-NVMe**, roughly a quarter of the reference machine.
+  Ratios transfer; absolute throughput is a floor, not a prediction.
+- **Verified to 5M items**, not 10M+.
+- **Extraction, OCR and parsing remain unprofiled.**

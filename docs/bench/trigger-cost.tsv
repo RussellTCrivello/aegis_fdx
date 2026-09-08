@@ -1,0 +1,4 @@
+triggers	rows	seconds	rows_per_sec	items_per_hour	dash_read_ms	correct
+off	100000	5.970	16750	60299659	0.24	true
+on	100000	16.370	6109	21990924	0.08	true
+overhead_percent	100000	63.5

@@ -1216,8 +1216,12 @@ public class AegisApp extends Application {
                 .limit(14)
                 .forEach(e -> proc.getChildren().add(bar(e.getKey().toUpperCase(), e.getValue(), denom)));
         proc.getChildren().add(UiParts.sectionTitle("Errors"));
-        try (var st = java.sql.DriverManager.getConnection(
-                     "jdbc:sqlite:" + liveCase.folder().database()).createStatement();
+        // Uses the case's own connection rather than opening a second one to the same
+        // file. A separate DriverManager connection got none of the configured pragmas
+        // (WAL, busy_timeout, cache), took its own lock on a database an ingest run may
+        // be writing, and was never closed — the statement was closed, the connection
+        // behind it leaked on every report.
+        try (var st = liveCase.db().connection().createStatement();
              var rs = st.executeQuery(
                      "SELECT name, error FROM item WHERE status='ERROR' LIMIT 20")) {
             while (rs.next()) {

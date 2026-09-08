@@ -1,0 +1,9 @@
+idle_dashboard_ms	concurrency	0.13
+idle_search_ms	concurrency	4.64
+conc_dashboard_p50_ms	concurrency	0.19
+conc_dashboard_p95_ms	concurrency	0.90
+conc_dashboard_p99_ms	concurrency	4.04
+conc_search_p50_ms	concurrency	8.74
+conc_search_p95_ms	concurrency	47.73
+conc_search_p99_ms	concurrency	85.19
+conc_ingest_rows_per_sec	concurrency	2400

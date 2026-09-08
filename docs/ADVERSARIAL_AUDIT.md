@@ -130,3 +130,65 @@ documented, self-contained step: install a local runtime, pull a model, launch w
 Everything else in this repository was executed: **1,101 assertions across the battery,
 124 JUnit tests (123 passed, 1 not runnable without a display), 0 failures**, and the
 release gate reports **66 passed, 0 failed, 5 skipped** for the reasons above.
+
+---
+
+## 5. Database, dashboard and relationship pass — 2026-09-08
+
+A second adversarial pass, aimed specifically at the claims a performance report makes.
+The method was the same: not "is it fast" but "what would I attack if I wanted to prove
+these numbers are decoration". Everything below was measured or executed; the full
+figures are in `docs/DATABASE_PERFORMANCE_REPORT.md`.
+
+### 5.1 Findings
+
+| # | Finding | Severity | How it was found | Fix | Test |
+|---|---|---|---|---|---|
+| A | `completedIdForSource()` had no index and is called **once per file** during intake — `SCAN queue` per file, so total work grew with the square of case size. At 500,000 files this was 114 s of pure lookup overhead per run. | **High** | `EXPLAIN QUERY PLAN` over every hot query, then a benchmark across four case sizes to confirm the curve rather than assume it | Composite `ix_queue_source(source, state)`, covering the whole predicate. Lookup is now flat at ~14 µs. | `PlanAudit`, `ResumeBench` |
+| B | Dashboard aggregation scanned `item` on every refresh: 15.2 s at 5M items, **on the JavaFX thread**. | **High** | Scaling the aggregation benchmark to 5M rather than stopping at a comfortable size | `dashboard_stats`, trigger-maintained; 0.14 ms, 105,741× | `DashboardStatsTest` (12 tests) |
+| C | `DashboardFacade.getStats()` materialised **every item in the case** into Java objects to sum sizes — 9.5 s and ~1 GB heap at 1M, for one number. | **High** | Reading the facade rather than trusting its docstring | Reads derived counters | `DashboardStatsTest` |
+| D | Four PRAGMAs — `cache_size`, `mmap_size`, `temp_store`, `wal_autocheckpoint` — were never set. The code and docs discussed WAL tuning; the runtime was on stock defaults, spilling GROUP BY sorters to disk. | Medium | Reading pragmas back from a live connection instead of reading the source | Set, and every one overridable | `BatchRecoveryTest.pragmasAreInForce` |
+| E | Ingest committed once per element: an fsync per file, 6,451 rows/s. | Medium | Benchmarking the real `save()` path across six batch sizes | Batched at a measured 5,000; 2.7× | `BatchRecoveryTest` (4 tests) |
+| F | Comprehensive Dashboard issued 1 + N queries for keyword counts (up to 200 round trips, ~100,000 rows) **on the FX thread**, to produce 200 integers. | Medium | Tracing the screen's refresh path by hand | One grouped `COUNT(DISTINCT path_id)` query | `RelationshipCountsTest` |
+| G | `AegisApp` opened a **second `DriverManager` connection** to the same `case.db` for the error report: no configured pragmas, its own lock on a database ingest may be writing, and the connection leaked on every report — only the statement was closed. | Medium | Grepping for `DriverManager` while checking the "no second database" invariant | Uses the case's own connection | — (UI, unexecuted here) |
+| H | My own new `selectCategoryUsage` missed the route where a file contains a category's **own** word, so the listing would have disagreed with the detail screen it links to. | Medium | Writing the test to compare grouped counts against per-term counts **before** believing the query | Third UNION branch added | `RelationshipCountsTest.categoryCountsUnionBothRoutes` |
+| I | Nine-statement trigger form cost 5× ingest throughput. | Low | Benchmarking the trigger form itself rather than accepting the first one that worked | Single upsert over a `VALUES` list; 69,003 → 118,834 rows/s | `TriggerBench` |
+
+Finding **H** is worth dwelling on: it was a defect in code written during this pass,
+caught because the test compared two independently-computed numbers instead of asserting
+a constant the implementation happened to produce. A test that had asserted `3` against
+whatever the query returned would have passed and shipped the inconsistency.
+
+### 5.2 Attacks that found nothing
+
+Recorded because a clean result only means something if the attack was real.
+
+- **Counter drift.** Twelve scenarios — status transitions, size changes, OCR
+  completion, error-then-retry, deletion, null and empty fields, rolled-back batches,
+  deliberate corruption of the derived table, reopening the case, 5,000-row mixed case.
+  `verify()` compares every counter against a fresh scan after each. No drift. The
+  corruption case confirms `verify()` actually *detects* disagreement rather than always
+  returning true.
+- **Facets disagreeing with their result set.** Each bucket's count was asserted equal to
+  what filtering by that value actually returns, not to a constant. Also checked: empty
+  result sets, an empty index, and uncommitted (NRT) documents.
+- **Crash consistency under batching.** Interrupted batches were checked for orphaned
+  queue rows and orphaned items in both directions, plus resumability of lost work and
+  survival of committed batches across an abrupt close.
+- **A second authoritative database.** `corpus.db`, `metadata.db` and DuckDB appear
+  nowhere. `CorpusDatabase` shares the single `case.db` connection; finding G was the
+  only second connection and it is gone.
+- **Point-lookup degradation.** 31 µs at 100K versus 34 µs at 1M — no degradation.
+
+### 5.3 What this pass did not establish
+
+- **The UI was not executed.** JavaFX is unavailable here, so `Background`, the rewritten
+  Comprehensive Dashboard and fix G are type-consistent and reasoned but **unrun**. This
+  is the largest gap in the pass and is repeated in the performance report rather than
+  buried here.
+- **10M+ was not measured.** Verified to 5M; beyond that is extrapolation from flat
+  curves, and is labelled as extrapolation.
+- **Extraction, OCR and parsing were not profiled**, so the native-code question is
+  answered "no candidate identified", which is not the same as "no candidate exists".
+- **The hardware is a quarter of the reference machine** and its storage is not NVMe.
+  Ratios transfer; absolute throughput figures are a floor.
