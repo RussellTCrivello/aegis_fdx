@@ -312,10 +312,16 @@ before a run, then exact counts (2 and 1) matching the actual text afterwards.
 | Clean case reports clean | `errorReport` | `errorReportClean` | Complete |
 | Storage / index metrics | `PerformanceScreen` | rendered `24` | Complete |
 | Timed query | `PerformanceScreen` | rendered | Complete |
+| Host CPU / memory / disk meters | `HostMetrics.read` | `HostMetricsTest` | Complete (measured; unsupported counters declared) |
+| Unmeasured counter is declared, not defaulted | `HostMetrics.percent` | `unavailableRendersAsText` | Complete |
+| Screen lifecycle (sampling stops off-screen) | `Screen.onHide` / `dispose` | `FasApp` navigation and shutdown | Complete |
 | Live queue and workers | `ProcessingMonitorScreen` | rendered `22` | Complete |
 | Notifications CRUD | `NotificationFacade` | `notificationFacade` | Complete |
 | Upcoming events | `getUpcomingEvents` | `notificationFacade` | Complete |
 | Settings: OCR, dedupe, depth, workers | `CaseSettings` | `UiParityTest` | Complete |
+| Settings survive a restart | `CaseSettings.saveTo` / `loadFrom` | `SettingsPersistenceTest` | Complete |
+| Damaged settings file cannot reset a case | `CaseSettings.loadFrom` | `damagedFileIsIgnoredValueByValue` | Complete |
+| Session passwords are never persisted | `CaseSettings.saveTo` | `passwordsAreNotPersisted` | Complete |
 
 ### AI
 
@@ -332,6 +338,7 @@ before a run, then exact counts (2 and 1) matching the actual text afterwards.
 | Degrades without runtime | `unavailableReason` | `degradesWithoutRuntime` | Complete |
 | **Per-record analyse** | `AnalyzeAction` | wired on 7 destinations | Complete |
 | Semantic retrieval | `EmbeddingProvider` | interface + cosine | Configurable, off by default |
+| No model loads at startup | `AgentService.isModelLoaded` | `AiBoundaryTest` B-08 | Complete |
 | Model generation quality | — | — | **Hardware-limited** |
 
 Contextual analyse actions are wired on: Source Detail, Aspect Detail, File Detail,

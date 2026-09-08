@@ -72,9 +72,36 @@ Source → Reading → Processing → Extraction → Metadata → OCR → Conten
 — contains no AI, and nothing in it can reach the agent: the nine pipeline packages
 carry no reference to `com.aegis.fdx.ai` in source or in compiled bytecode, and the
 agent is invoked only by an operator action. That separation is the normative rule in
-`AI_BOUNDARY.md` and is enforced by the `AiBoundaryTest` suite (B-01…B-07) in the
+`AI_BOUNDARY.md` and is enforced by the `AiBoundaryTest` suite (B-01…B-08) in the
 functional battery and on the release gate. AI is an optional analysis layer over the
 finished application, never part of its processing engine.
+
+It is also an *unloaded* layer until it is used. The window holds an `AgentService`,
+but that object stores only a factory: no model configuration is read, no provider is
+constructed and no runtime is contacted while the application starts or while it works.
+The provider is built on the first explicit invocation, which B-08 measures against a
+runtime that counts every request it serves.
+
+### Screen lifecycle
+
+`Screen` declares `onShow`, `onHide` and `dispose`, and the shell drives all three:
+`onHide` when the operator navigates away, `dispose` on shutdown. Destinations that
+sample something live — the Processing Monitor's queue poller, the Performance
+screen's host meters — stop when they are not on screen and release their animation on
+exit. Before this, the shell reached for a specific screen class by `instanceof`, which
+meant every new polling destination silently leaked a timer and kept the JavaFX toolkit
+alive at shutdown.
+
+### Host metrics
+
+`facade/HostMetrics` reads process CPU, system CPU, installed and free physical memory,
+system load average and the capacity of the volume holding the case. The extended
+`com.sun.management.OperatingSystemMXBean` counters are reached reflectively, because
+that interface is a HotSpot extension rather than a platform guarantee and its method
+names changed between versions; binding to it directly would make a runtime without it
+fail to start over a display feature. Every reading is three-valued — measured,
+`UNAVAILABLE`, or `UNAVAILABLE_BYTES` — so the interface can say "not reported by this
+operating system" instead of drawing a bar it cannot justify.
 
 ### Storage
 

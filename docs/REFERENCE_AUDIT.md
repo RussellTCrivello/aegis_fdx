@@ -326,3 +326,31 @@ Ordered by dependency: shared infrastructure first, then destinations.
 8. Tests per destination, then documentation.
 
 **AI is explicitly deferred** to after the application surface is complete.
+
+---
+
+## 8. Re-audit (revision 3) — controls that exist in the reference but do nothing
+
+Every subsequent pass re-reads the reference rather than the previous pass's notes. This
+one went looking specifically for the opposite of a missing feature: a *decorative*
+feature. The rule applied is the one that governs this project — a control is only worth
+reproducing if it terminates in a real operation — and its corollary: **the reference
+having a control is not, by itself, a reason to build one.**
+
+Read directly from `RussellTCrivello/file_analysis@d2975c2`.
+
+| Reference control | What it actually does there | Decision here |
+|---|---|---|
+| Batch Analysis → **Schedule** dropdown ("Off-Hours", "Custom Time") | `static/js/pages/analysis-batch-page.js` puts `schedule: 'off-hours'` into `ui_settings` and posts it to `POST /analysis/batch/process`, which processes the selection immediately. `Api/routes/analysis.py` never reads the field. No scheduler, queue, timer or schedule table exists in the project. | **Not reproduced.** Building a scheduler would invent a capability the reference does not have. The Java Batch Analysis destination runs the chosen template now, over the records the operator selected, and persists a run history that survives restart — which the reference only *appears* to do. |
+| Batch Analysis → **History** modal | Hard-coded HTML: "Batch #5 — 1,247 files — 98.5% success", "Batch #4 — 892 files", "Batch #3 — 1,523 files". No query, no route. | **Reproduced for real.** History is read from the case database, written by `BatchAnalysisFacade`, and asserted to survive closing and reopening the case (`BatchAnalysisTest`). |
+| Batch Analysis → **Avg Speed / Success Rate** tiles | `avg_processing_time = 2.3` is a literal; `success_rate = 98.5` is the default when the query returns nothing. | **Reproduced for real.** Durations and outcomes come from recorded runs; the Performance destination times a live query against the actual index and reports best/median/worst of five runs. |
+| Batch Analysis → **Resource Optimization** meters | `<div class="resource-fill" style="width: 45%">` — CPU 45%, memory 62%, disk I/O 38% are literals in the template. | **Replaced with measurement.** `HostMetrics` reads process CPU, system CPU, physical memory and the case volume's capacity from the operating system and the filesystem; the Performance destination samples every two seconds while it is open. Anything this platform does not expose is printed as "not reported by this operating system" rather than drawn as a bar. |
+
+### Why this matters to the audit
+
+Three of the four items above would have passed a screenshot review in either project.
+Two of them — the history list and the resource meters — are exactly the kind of thing a
+port reproduces faithfully and thereby imports a lie. The test suites treat this as a
+defect class of its own: `HostMetricsTest` requires an unmeasured counter to be reported
+as unavailable rather than as a plausible number, and the release gate fails if the
+Performance screen stops reading the real counters.

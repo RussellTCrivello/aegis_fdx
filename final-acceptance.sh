@@ -310,12 +310,50 @@ if grep -q "AI boundary" "$L" 2>/dev/null; then
     AIFAIL=$(printf '%s' "$AIBLOCK" | grep -oE "^=== [0-9]+ passed, [0-9]+ failed" | grep -oE "[0-9]+ failed" | grep -oE "^[0-9]+")
     AIPASS=$(printf '%s' "$AIBLOCK" | grep -oE "^=== [0-9]+ passed" | grep -oE "[0-9]+")
     if [ "${AIFAIL:-1}" = "0" ]; then
-        record "AI boundary suite (B-01..B-07)" PASS "${AIPASS:-0} checks passed, 0 failed"
+        record "AI boundary suite (B-01..B-08)" PASS "${AIPASS:-0} checks passed, 0 failed"
     else
-        record "AI boundary suite (B-01..B-07)" FAIL "${AIFAIL} boundary check(s) failed"
+        record "AI boundary suite (B-01..B-08)" FAIL "${AIFAIL} boundary check(s) failed"
     fi
 else
-    record "AI boundary suite (B-01..B-07)" SKIP "suite not detected in $L"
+    record "AI boundary suite (B-01..B-08)" SKIP "suite not detected in $L"
+fi
+
+# Nothing AI-related may load while the application is starting up.
+if grep -q "isModelLoaded" app/src/main/java/com/aegis/fdx/ai/agent/AgentService.java 2>/dev/null \
+   && grep -q "providerFactory" app/src/main/java/com/aegis/fdx/ai/agent/AgentService.java 2>/dev/null \
+   && ! grep -qE "HttpLocalModelProvider|ModelConfig|LocalChatModel" \
+        app/src/main/java/com/aegis/fdx/ui/FasApp.java 2>/dev/null; then
+    record "AI does not load at startup" PASS "provider built on first invocation; the window holds no model class"
+else
+    record "AI does not load at startup" FAIL "the main window can construct a model provider at startup"
+fi
+
+# A setting the operator changed must still be in force after a restart.
+if grep -q "saveTo" app/src/main/java/com/aegis/fdx/engine/CaseSettings.java 2>/dev/null \
+   && grep -q "loadFrom" app/src/main/java/com/aegis/fdx/ui/FasApp.java 2>/dev/null \
+   && grep -q "settings.saveTo" app/src/main/java/com/aegis/fdx/ui/screens/SettingsScreen.java 2>/dev/null; then
+    record "Settings persist with the case" PASS "written to settings.properties and reloaded on open"
+else
+    record "Settings persist with the case" FAIL "settings changes are lost when the application closes"
+fi
+
+# Host resource figures must be measured, never decorative.
+if [ -f app/src/main/java/com/aegis/fdx/facade/HostMetrics.java ] \
+   && grep -q "OperatingSystemMXBean" app/src/main/java/com/aegis/fdx/facade/HostMetrics.java 2>/dev/null \
+   && grep -q "getFileStore" app/src/main/java/com/aegis/fdx/facade/HostMetrics.java 2>/dev/null \
+   && grep -q "HostMetrics" app/src/main/java/com/aegis/fdx/ui/screens/PerformanceScreen.java 2>/dev/null; then
+    record "Host meters are measured" PASS "CPU, memory and disk read from the OS and the filesystem"
+else
+    record "Host meters are measured" FAIL "the Performance screen does not read real host counters"
+fi
+
+# An unavailable counter must say so rather than render a plausible number.
+if grep -q "UNAVAILABLE" app/src/main/java/com/aegis/fdx/facade/HostMetrics.java 2>/dev/null \
+   && grep -q "not reported by this operating system" \
+        app/src/main/java/com/aegis/fdx/ui/screens/PerformanceScreen.java 2>/dev/null; then
+    record "Unmeasured figures are declared" PASS "missing counters render as text, not as 0%"
+else
+    record "Unmeasured figures are declared" FAIL "a missing counter could render as a number"
 fi
 
 # The rule has to be written down, not just enforced.

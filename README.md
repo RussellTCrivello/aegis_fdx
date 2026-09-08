@@ -13,9 +13,11 @@ No cloud services; the application and its assistant run entirely offline.
 ## Status
 
 ```
-82 automated tests            0 failures
-266 battery assertions        0 failures
+82 automated tests            0 failures   (last measured run)
+266 battery assertions        0 failures   (last measured run)
 56 release-gate checks        0 failures · 3 environmental skips
++ 11 JUnit tests, 6 AI-boundary checks and 4 gate checks added since that run,
+  written but not yet executed — see docs/ADVERSARIAL_AUDIT.md
 33/33 audited destinations    33 figures rendered from the running application
 145/148 functions complete    3 explained, none silently missing
 ```
@@ -135,6 +137,7 @@ Diagrams: **[DIAGRAMS.md](docs/DIAGRAMS.md)**
 | [REFERENCE_AUDIT](docs/REFERENCE_AUDIT.md) | Destination-by-destination audit and gap closure |
 | [FUNCTION_INVENTORY](docs/FUNCTION_INVENTORY.md) | Function-level audit and discrepancy report |
 | [VERIFICATION_REPORT](docs/VERIFICATION_REPORT.md) | Final verification and limitations |
+| [ADVERSARIAL_AUDIT](docs/ADVERSARIAL_AUDIT.md) | What was attacked, what was found, what was fixed, what is still unrun |
 | [USER_MANUAL](docs/USER_MANUAL.md) | Task-oriented guide |
 | [BUILD](docs/BUILD.md) | Building, running, regenerating screenshots |
 | [PERFORMANCE](docs/PERFORMANCE.md) | Benchmark methodology and figures |

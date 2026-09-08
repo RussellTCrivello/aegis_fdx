@@ -170,5 +170,5 @@ Recorded honestly rather than omitted.
 | `SideFacade` / `SideDto` retained | Deprecated aliases so earlier callers keep compiling; they delegate to `AspectFacade` |
 | Keyword hit counts are populated by the seed harness | The UI and the `list_keywords` tool read and display them; automatic scoring during ingest is not yet wired |
 | AI generation quality unverified on this machine | ~400 MB free RAM cannot hold a usable model. Protocol, loop, tools, grounding and UI verified against a scripted loopback runtime speaking the real format; see `VERIFICATION_REPORT.md` |
-| Per-row "analyse this" buttons | The Assistant screen carries screen context and suggestions; per-table contextual buttons remain on the AI workstream |
-| Batch Analysis as its own destination | Folded into the Processing Monitor, which shows live queue, workers and outcomes. A separate batch-run history table was not added |
+| Contextual "analyse this" buttons | Present on Search, Source detail, Aspect detail, File detail, Categories, Keywords and Term detail via `AnalyzeAction`; destinations with nothing to analyse (Settings, Notifications, Import/Export) deliberately have none |
+| Instantaneous disk-I/O rate on Performance | The JVM exposes no portable byte-rate counter. Volume capacity, free space and this case's footprint are read from the filesystem instead of a rate being estimated |

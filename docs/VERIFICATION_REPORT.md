@@ -105,7 +105,7 @@ Inference deps     none declared in the build (unused ONNX Runtime removed)
 
 `docs/AI_BOUNDARY.md` states the normative rule — AI is an optional, manually invoked,
 read-only analysis layer over the finished application, never part of ingestion,
-processing, extraction or storage — and `AiBoundaryTest` (B-01…B-07) enforces it in the
+processing, extraction or storage — and `AiBoundaryTest` (B-01…B-08) enforces it in the
 functional battery, the Gradle suite bridge and the release gate. It asserts the
 separation in source *and* compiled bytecode, that a complete ingest/index/analyse/
 search cycle issues zero model calls with a runtime reachable, that a question leaves
@@ -133,8 +133,12 @@ Unit / contract      82 automated tests, 0 failures
   batch analysis                  14   (new this revision)
   end-to-end scenario              1   (new this revision)
 
+  settings persistence             4   (added, not yet executed)
+  host metrics                     7   (added, not yet executed)
+
 Standalone battery   266 assertions, 0 failures across 6 suites
-Release gate         56 passed · 0 failed · 3 skipped
+                     + AI boundary B-01..B-08 and two offline runners, not yet executed
+Release gate         56 passed · 0 failed · 3 skipped (63 checks now defined)
 Destinations         33 rendered from the running application
 Reference corpus     unchanged (49/3/1/5) — proves the engine is intact
 ```
@@ -201,13 +205,13 @@ Stated rather than omitted.
 
 | Limitation | Detail |
 |---|---|
-| **Batch scheduling ("Off-Hours", "Custom Time")** | Not implemented. The reference's schedule control is a mock-up with no backing scheduler; building one would invent a capability rather than reproduce one. |
-| **Host CPU / disk-I/O gauges** | Partial. JVM heap and processor count appear on Performance; per-process CPU and disk I/O are not observable from the JVM without a native agent. |
+| **Batch scheduling ("Off-Hours", "Custom Time")** | Deliberately not reproduced, on evidence. In the reference the schedule dropdown and the "Off-Hours" template only set a string in the request body (`ui.schedule = 'off-hours'` in `static/js/pages/analysis-batch-page.js`), which `POST /analysis/batch/process` runs immediately; there is no scheduler, no queue and no persisted schedule anywhere in the Python backend. Reproducing the control would mean inventing backend behaviour, not reproducing it. What the Java application does instead is real: `BatchAnalysisFacade` runs the selected template now, against selected records, and writes a run history that survives restart (`BatchAnalysisTest`). |
+| **Host CPU / disk gauges** | Implemented, measured. `HostMetrics` reads process CPU, system CPU, installed/free physical memory and the capacity of the volume holding the case, and the Performance screen samples it every two seconds while that page is open. Counters a platform does not expose render as "not reported by this operating system" rather than as a number — the reference's equivalent panel is three literals in the template (45% / 62% / 38%). Instantaneous disk-I/O throughput is the one figure still not read: the JVM exposes no portable byte-rate counter, so the screen reports volume capacity and the case's own footprint instead of inventing a rate. |
 | **Model generation unverified on this machine** | 400 MB free RAM cannot hold a usable model. Protocol, agent loop, tools, grounding and UI were verified against a scripted loopback runtime speaking the real format. Generation quality and latency need a machine with ≥6 GB free RAM. |
-| **AI boundary suite not yet executed** | `AiBoundaryTest` (B-01…B-07) was added after the last measured run, on a machine without a JDK, so its result is not included in the counts above. It is wired into all three runners and gates the release. |
+| **AI boundary suite not yet executed** | `AiBoundaryTest` (B-01…B-08) and `HostMetricsTest` were added on a machine without a JDK, so their results are not included in the counts above. Both are wired into `run-tests.sh`, and the boundary suite gates the release through `final-acceptance.sh`. They must be run once on a JDK machine before the next release is declared. |
 | Semantic retrieval not enabled by default | `EmbeddingProvider` is implemented; keyword, metadata and relationship retrieval are the default path. |
 | Charts are native bar rows | No charting dependency; same series and groupings as a plotted chart. |
-| Contextual "ask" entry points | The Assistant screen carries screen context and per-screen suggestions. Per-row "analyse this" buttons on every table are not yet wired. |
+| Contextual "ask" entry points | Wired on seven destinations — Search, Sources detail, Aspects detail, File detail, Categories, Keywords and Term detail — through `AnalyzeAction`, each passing that screen's context. Tables elsewhere (Import/Export, Settings, Notifications) carry no analyse action because there is nothing there to analyse. |
 | Multi-language catalogues | Language selector present; translation resources are a separate pass. |
 | `SideFacade` / `SideDto` retained | Deprecated aliases delegating to `AspectFacade`, so earlier callers keep compiling. |
 

@@ -126,12 +126,24 @@ the release gate (`./final-acceptance.sh`).
 | B-05 | Ingestion makes no model call | With a reachable runtime present, a full acquire → extract → hash → index → register → batch-analyse → search → report cycle is run: the runtime receives **zero** chat requests and the agent records **zero** runs. One operator question then produces exactly one recorded run. |
 | B-06 | A question changes nothing | A scripted model attempts `classify_file` and `set_review_state` during an ordinary question. Both are refused. A fingerprint of every item (hashes, status, text length, tags, notes), every registry row (review state, category and keyword links), the vocabulary and the case counts is identical afterwards, as are the original files, the stored copies, the extracted text and the Lucene segments. |
 | B-07 | Writes are separate, confirmed and evidence-safe | Write tools are absent from a read-only context and present only after `allowingMutations()`; no contextual builder can escalate its own permission; the system prompt declares read-only mode; a write called without confirmation is refused. A *confirmed* write is then performed and the B-06 fingerprint is required to move — otherwise "nothing changed" would prove nothing — while original material and extracted text stay byte-identical. |
+| B-08 | Nothing AI-related loads at startup | With an enabled, reachable local runtime configured, `AgentService.fromEnvironment` — exactly what the main window calls while it is being built — constructs no provider (`isModelLoaded()` is false) and the runtime, which counts every request it serves including availability probes, receives **zero**. A full working session (search, dashboard, registry, categories, status counts) keeps both at zero. The first request appears only when a person asks a question. Switched off, even `unavailableReason()` builds and contacts nothing. Finally the window's own source is read and required to contain no model class at all. |
 
 The release gate additionally records the boundary as its own set of criteria: AI
 outside the processing pipeline, AI cannot trigger processing, AI is manually invoked,
 the boundary suite passed, and this document exists.
 
-## 7. Optionality and local-only operation
+## 7. Optionality, lazy loading and local-only operation
+
+**Nothing AI-related loads until someone asks for it.** The window holds an
+`AgentService`, but that object is inert: `fromEnvironment` stores *how* to build a
+provider and nothing more. No model configuration is read, no provider is constructed,
+no HTTP client is created and no runtime is contacted while the application starts,
+opens a case, ingests, extracts, indexes, searches or exports. The provider appears on
+the first call that genuinely needs a model — opening the Assistant, or pressing an
+analyse action — and `AgentService.isModelLoaded()` exists so that this can be asserted
+rather than asserted about. B-08 measures it against a runtime that counts every
+request, and the release gate additionally requires that `FasApp` mentions no model
+class in its source.
 
 If no local model is installed the application still starts, and reading, processing,
 extraction, search, database operations and every screen work normally. The AI controls

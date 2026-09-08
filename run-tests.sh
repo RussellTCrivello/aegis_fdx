@@ -49,8 +49,14 @@ echo; echo "== milestone 3 acceptance (OCR / export / reports / integrity) =="
 echo; echo "== query validation (unknown fields / dates / regex) =="
 "$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.QueryValidationTest
 
-echo; echo "== AI boundary (B-01..B-07: agent is optional, manual and read-only) =="
+echo; echo "== AI boundary (B-01..B-08: optional, manual, read-only, absent at startup) =="
 "$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.AiBoundaryTest "$WORK/aiboundary"
+
+echo; echo "== case settings persistence (choices survive a restart) =="
+"$JDK/java" -cp "$OUT:$CP" com.aegis.fdx.SettingsPersistenceTest
+
+echo; echo "== host metrics (measured CPU, memory and disk, or declared missing) =="
+"$JDK/java" -cp "$OUT:$CP" com.aegis.fdx.HostMetricsTest
 
 echo; echo "== drag-and-drop intake (F-01) =="
 "$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.DragDropIngestTest "$WORK/dnd"

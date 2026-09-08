@@ -256,7 +256,7 @@ impossible; declining leaves the control off and the session read-only.
 The agent is also structurally separate from the processing engine: nothing in the
 reading, extraction, metadata, OCR, hashing, indexing or storage path references it,
 and no ingest run can invoke it. That rule, and the suite that enforces it
-(`AiBoundaryTest`, B-01…B-07), are described in **[AI_BOUNDARY.md](AI_BOUNDARY.md)**.
+(`AiBoundaryTest`, B-01…B-08), are described in **[AI_BOUNDARY.md](AI_BOUNDARY.md)**.
 
 ---
 
@@ -396,7 +396,7 @@ Run them:
 
 ### Boundary suite
 
-`AiBoundaryTest` is a separate, architecture-level battery (B-01…B-07) asserting that
+`AiBoundaryTest` is a separate, architecture-level battery (B-01…B-08) asserting that
 the agent stays optional, manually invoked and read-only: no pipeline package
 references it in source or bytecode, a full ingest/index/analyse/search cycle makes
 zero model calls with a runtime reachable, and a question leaves every record, file and

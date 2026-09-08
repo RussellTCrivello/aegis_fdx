@@ -339,6 +339,23 @@ class FacadeParityTest {
 
             assertFalse(f.search().autocomplete("invo").isEmpty());
 
+            // "Did you mean": a near miss must offer documents that really exist here.
+            // The Search destination shows these as clickable chips when a query finds
+            // nothing, so an empty result is never the end of the road.
+            List<String> nearMiss = f.search().getSearchSuggestions("consultng");
+            assertFalse(nearMiss.isEmpty(),
+                    "a one-character typo should still find the consulting documents");
+            for (String suggestion : nearMiss) {
+                assertTrue(List.of("invoice.txt", "memo.txt").contains(suggestion),
+                        "a suggestion must name a document that exists here, not a guess: "
+                                + suggestion);
+            }
+            assertTrue(nearMiss.stream()
+                            .anyMatch(sug -> f.search().search(sug).totalCount() > 0),
+                    "clicking a suggestion must lead somewhere real");
+            assertTrue(f.search().getSearchSuggestions("zzzzzzzzzz").isEmpty(),
+                    "nothing close means no suggestion, rather than an invented one");
+
             // ---- preview ----
             String id = page.results().get(0).id();
             PreviewDto pv = f.preview().getPreview(id);

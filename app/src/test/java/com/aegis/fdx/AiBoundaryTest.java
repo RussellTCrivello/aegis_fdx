@@ -55,6 +55,9 @@ import java.util.TreeSet;
  *   <li><b>B-05 ingestion</b> — a full ingest, index, analyse and search cycle makes
  *       no model call at all, with a runtime present and reachable.</li>
  *   <li><b>B-06 read-only</b> — a question changes no record, no file and no index.</li>
+ *   <li><b>B-08 startup</b> — wiring the agent into the window loads no model, reads
+ *       no model configuration and contacts no runtime; the first load happens on an
+ *       explicit invocation and nowhere else.</li>
  *   <li><b>B-07 writes</b> — state-changing tools exist only as separately defined
  *       operations behind explicit confirmation, and never touch evidence.</li>
  * </ul>
@@ -108,6 +111,9 @@ public final class AiBoundaryTest {
 
         section("B-07  Writes are separate, confirmed, and never touch evidence");
         writesAreSeparateAndConfirmed(work);
+
+        section("B-08  Startup: nothing AI-related loads until the operator asks");
+        nothingLoadsAtStartup(work);
 
         System.out.println();
         System.out.println("=== " + passed + " passed, " + failed + " failed ===");
@@ -611,6 +617,90 @@ public final class AiBoundaryTest {
                             && evidenceBefore.equals(treeDigest(evidence, true)),
                     "the write annotated review classification only: original files, stored "
                             + "copies and extracted text are byte-identical");
+        }
+    }
+
+    // ================================================================== B-08
+
+    /**
+     * The application may hold a reference to the agent; it may not load one.
+     *
+     * <p>The rule being enforced is that an operator who never opens the Assistant runs
+     * an application in which no model provider was ever constructed and no runtime was
+     * ever contacted — even when a runtime is installed, reachable and enabled. The
+     * check is made against a real HTTP runtime that counts every request it serves,
+     * including availability probes, so "nothing happened" is measured rather than
+     * assumed.
+     */
+    private static void nothingLoadsAtStartup(Path work) throws Exception {
+        String savedEnabled = System.getProperty("aegis.ai.enabled");
+        String savedEndpoint = System.getProperty("aegis.ai.endpoint");
+        try (LiveCase c = openCase(work.resolve("startup"));
+             FakeLocalRuntime rt = new FakeLocalRuntime(freePort()).start()) {
+
+            AegisFacades f = seed(c, work.resolve("startup-evidence"));
+            CorpusDatabase dao = new CorpusDatabase(c.db());
+            System.setProperty("aegis.ai.enabled", "true");
+            System.setProperty("aegis.ai.endpoint", rt.endpoint());
+
+            // Exactly what the main window does while it is being built.
+            AgentService svc = AgentService.fromEnvironment(f, dao);
+
+            check("wiring the agent at startup constructs no model provider",
+                    !svc.isModelLoaded(),
+                    "AgentService.fromEnvironment stored a factory, not a provider");
+            check("wiring the agent at startup contacts no runtime",
+                    rt.requestCount() == 0,
+                    "an enabled, reachable runtime served 0 requests during startup");
+
+            // A complete working session by an operator who never opens the Assistant.
+            f.search().search("consulting");
+            f.dashboard().getStats();
+            f.contents().getPaths();
+            f.liveCase().statusCounts();
+            f.categories().listCategories();
+            check("a session that never opens the Assistant loads no model",
+                    !svc.isModelLoaded() && rt.requestCount() == 0,
+                    "search, dashboard, registry and category work: still 0 requests");
+
+            // The first legitimate load: the operator asks a question.
+            rt.reply("{\"tool\": \"get_statistics\", \"arguments\": {}}")
+              .reply("Two documents are indexed on this case.");
+            AgentActivity a = svc.ask("what is on this case?", AgentContext.empty());
+            check("the model loads on the first explicit invocation",
+                    !a.failed() && svc.isModelLoaded() && rt.requestCount() > 0,
+                    "the provider appears only once a person asks for it");
+
+            // Switched off, even asking why must not construct or contact anything.
+            System.setProperty("aegis.ai.enabled", "false");
+            AgentService off = AgentService.fromEnvironment(f, dao);
+            int before = rt.requestCount();
+            String reason = off.unavailableReason();
+            check("a disabled agent never loads a provider",
+                    !off.isModelLoaded() && reason != null,
+                    "unavailableReason() explains the state without building anything");
+            check("a disabled agent contacts no runtime",
+                    rt.requestCount() == before,
+                    "0 further requests after the agent was switched off");
+
+            // The window itself must not be able to load a model: it may only hold the
+            // service. This is a source-level rule, so it is read from the source.
+            Path app = sourceRoot().resolve("com/aegis/fdx/ui/FasApp.java");
+            if (Files.exists(app)) {
+                String text = Files.readString(app, StandardCharsets.UTF_8);
+                boolean clean = !text.contains("HttpLocalModelProvider")
+                        && !text.contains("ModelConfig")
+                        && !text.contains("LocalChatModel");
+                check("the main window contains no model construction",
+                        clean,
+                        "FasApp references AgentService only; model classes appear nowhere in it");
+            } else {
+                skip("the main window contains no model construction",
+                        "FasApp.java not found from " + sourceRoot());
+            }
+        } finally {
+            restore("aegis.ai.enabled", savedEnabled);
+            restore("aegis.ai.endpoint", savedEndpoint);
         }
     }
 
