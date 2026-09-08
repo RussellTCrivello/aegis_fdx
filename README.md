@@ -13,10 +13,13 @@ No cloud services; the application and its assistant run entirely offline.
 ## Status
 
 ```
-1,072 battery assertions      0 failures   (executed on this machine)
+1,101 battery assertions      0 failures   (executed on this machine, 2026-09-08)
+124 JUnit tests               123 passed · 0 failed · 1 not runnable (needs a display)
 66 release-gate checks        0 failures · 5 environmental skips
-73 inventoried capabilities   54 verified · 3 limited · 7 adapted · 3 unsupported
-                              · 1 absent — every one classified and explained
+91 inventoried capabilities   76 verified · 3 limited · 8 adapted · 3 unsupported
+                              · 1 absent (localisation, deferred) — all explained
+120 interface-function rows   82 verified · 27 adapted · 2 limited · 5 unsupported
+                              · 4 reference-inert — every control traced both ways
 33/33 audited destinations    all reachable, all backed by real operations
 48 AI-boundary checks         0 failures
 ```
@@ -26,7 +29,9 @@ release gate. Neither needs Gradle or the network.
 
 Full detail, including honest limitations:
 **[FINAL_STATUS.md](docs/FINAL_STATUS.md)** · **[COVERAGE_MATRIX.md](docs/COVERAGE_MATRIX.md)** ·
-**[VERIFICATION_REPORT.md](docs/VERIFICATION_REPORT.md)** · **[ADVERSARIAL_AUDIT.md](docs/ADVERSARIAL_AUDIT.md)**
+**[VERIFICATION_REPORT.md](docs/VERIFICATION_REPORT.md)** · **[ADVERSARIAL_AUDIT.md](docs/ADVERSARIAL_AUDIT.md)** ·
+**[INTERFACE_FUNCTION_MATRIX.md](docs/INTERFACE_FUNCTION_MATRIX.md)** · **[RELATIONSHIP_INTEGRITY_REPORT.md](docs/RELATIONSHIP_INTEGRITY_REPORT.md)** ·
+**[LOCALIZATION_PREPARATION.md](docs/LOCALIZATION_PREPARATION.md)**
 
 ---
 

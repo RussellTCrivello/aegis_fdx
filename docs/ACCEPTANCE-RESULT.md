@@ -1,10 +1,10 @@
 # Final Acceptance Result
 
-**Generated:** 2026-09-08 12:38:07 UTC  
+**Generated:** 2026-09-08 15:11:47 UTC  
 **Environment:** Linux 6.1.158+ x86_64 · 2 cores · 3 GB  
-**Runtime:** openjdk version "25.0.2" 2026-01-20 LTS  
-**Compiler:** Eclipse Compiler for Java(TM) v20260224-0835, 3.45.0, Copyright IBM Corp 2000, 2020. All rights reserved.  
-**JavaFX:** javafx.base.jar javafx.controls.jar javafx.fxml.jar   
+**Runtime:** openjdk version "21.0.4" 2024-07-16 LTS  
+**Compiler:** no javac at /home/user/.cache/tools/jdk21/bin; Eclipse Compiler for Java(TM) v20260512-0752, 3.46.0, Copyri  
+**JavaFX:** javafx-all.jar   
 **Class:** DEVELOPMENT ENVIRONMENT
 
 ## Summary
@@ -28,7 +28,7 @@
 | Query parser (M1) | **PASS** | 33 passed, 0 failed |
 | Pipeline acceptance AT-01..AT-10 (M2) | **PASS** |  56 passed, 0 failed  |
 | M3 acceptance (OCR/export/reports/integrity) | **PASS** |  80 passed, 0 failed  |
-| Total assertions | **PASS** | 1072 passed, 0 failed |
+| Total assertions | **PASS** | 1101 passed, 0 failed |
 | AT-01 mixed-format ingest | **PASS** | in pipeline suite |
 | Corrupted file handling | **PASS** | errors contained, run continued |
 | Encrypted archive handling | **PASS** | marked Locked, run continued |
@@ -59,9 +59,9 @@
 | AI boundary suite (B-01..B-08) | **PASS** | 48 checks passed, 0 failed |
 | Architecture invariants | **PASS** | 13 structural rules hold |
 | Failure and recovery | **PASS** | 6 checks: index rebuilt, case locked, database unreadable |
-| Coverage inventory | **PASS** | 73 rows classified, every symbol resolves |
-| JUnit suites (facade, agent, batch, model) | **PASS** |  65 tests, 65 passed, 0 failed, 0 skipped (4.0 s)  |
-| Interface suites | **PASS** |  30 tests, 29 passed, 0 failed, 0 skipped, 1 not runnable on this machine (5.4 s)  |
+| Coverage inventory | **PASS** | 91 rows classified, every symbol resolves |
+| JUnit suites (facade, agent, batch, model) | **PASS** |  78 tests, 78 passed, 0 failed, 0 skipped (7.1 s)  |
+| Interface suites | **PASS** |  46 tests, 45 passed, 0 failed, 0 skipped, 1 not runnable on this machine (8.1 s)  |
 | AI does not load at startup | **PASS** | provider built on first invocation; the window holds no model class |
 | Settings persist with the case | **PASS** | written to settings.properties and reloaded on open |
 | Host meters are measured | **PASS** | CPU, memory and disk read from the OS and the filesystem |
@@ -79,7 +79,7 @@
 | Gradle test discovery bridge | **PASS** | main() harnesses bridged into JUnit |
 | Query validation | **PASS** | 69 checks: unknown fields, dates, fuzzy, wildcards, regex |
 | OCR validation | **SKIP** | Tesseract not installed in this environment |
-| Application image build | **SKIP** | no packaging toolchain here — missing: jar jlink jpackage |
+| Application image build | **SKIP** | no packaging toolchain here — missing: javac jar jlink jpackage |
 | Windows MSI installer | **SKIP** | requires a Windows host (N-01 primary target) |
 | Dependency inventory | **PASS** | 43 jars |
 | No licence-blocked components | **PASS** | junrar removed; RAR marked Unsupported |
@@ -91,18 +91,18 @@
 | docs/FORMATS.md | **PASS** | 134 lines |
 | docs/PERFORMANCE.md | **PASS** | 170 lines |
 | docs/DEPENDENCY_REPORT.md | **PASS** | 240 lines |
-| docs/ARCHITECTURE.md | **PASS** | 330 lines |
-| Ingest throughput | **PASS** | 409814 items/h (target 8000) |
-| Search p95 | **PASS** | 4.62 ms (target 2000) |
-| UI responsiveness | **PASS** | 4.549 ms max (target 500) |
+| docs/ARCHITECTURE.md | **PASS** | 344 lines |
+| Ingest throughput | **PASS** | 355102 items/h (target 8000) |
+| Search p95 | **PASS** | 5.72 ms (target 2000) |
+| UI responsiveness | **PASS** | 4.483 ms max (target 500) |
 | Performance certification | **SKIP** | development environment — indicator only |
 
 ## Raw logs
 
 ```
 total 72
-drwxr-xr-x 2 user user    60 Sep  8 12:15 .
-drwxr-xr-x 5 user user    60 Sep  8 12:38 ..
--rw-r--r-- 1 user user   294 Sep  8 12:38 package.log
--rw-r--r-- 1 user user 67829 Sep  8 12:38 tests.log
+drwxr-xr-x 2 user user    60 Sep  8 15:05 .
+drwxr-xr-x 5 user user    60 Sep  8 15:11 ..
+-rw-r--r-- 1 user user   300 Sep  8 15:12 package.log
+-rw-r--r-- 1 user user 66900 Sep  8 15:12 tests.log
 ```

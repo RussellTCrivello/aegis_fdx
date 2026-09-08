@@ -8,6 +8,7 @@ import com.aegis.fdx.store.CorpusDatabase;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Manages categories: named groupings of vocabulary.
@@ -38,6 +39,10 @@ public final class CategoryFacade {
             int wordId = db.insertWord(w);
             return db.insertCategory(wordId);
         } catch (SQLException e) {
+            String m = e.getMessage();
+            if (m != null && m.contains("UNIQUE")) {
+                throw FacadeException.conflict("category \"" + w + "\" already exists");
+            }
             throw FacadeException.internal("failed to create category", e);
         }
     }
@@ -96,10 +101,10 @@ public final class CategoryFacade {
         }
     }
 
-    /** Adds a word to a category, creating the word if needed. */
+    /** Adds a word to a category, creating the word if needed. A category word is one word. */
     public boolean linkWordToCategory(String word, String categoryWord) {
-        String w = Validate.required(word, "word");
-        String cw = Validate.required(categoryWord, "categoryWord");
+        String w = Terms.requireSingleWord(word, "word");
+        String cw = Terms.requireCategory(categoryWord, "categoryWord");
         try {
             int wordId = db.insertWord(w);
             CorpusDatabase.Row cat = db.selectCategoryByWord(cw);
@@ -142,5 +147,38 @@ public final class CategoryFacade {
 
     private static CategoryDto toDto(CorpusDatabase.Row r) {
         return new CategoryDto(r.i("id"), r.i("word_id"), r.str("word"));
+    }
+
+    /** Categories whose word differs only by case, mapped to how many there are. */
+    public Map<String, Integer> findDuplicates() {
+        try {
+            Map<String, Integer> out = new java.util.LinkedHashMap<>();
+            for (CorpusDatabase.Row r : db.findDuplicateCategories()) {
+                out.put(r.str("normalized"), r.i("occurrences"));
+            }
+            return out;
+        } catch (SQLException e) {
+            throw FacadeException.internal("failed to find duplicate categories", e);
+        }
+    }
+
+    /** Merges every duplicate group into its oldest category. Returns categories removed. */
+    public int mergeDuplicates() {
+        try {
+            int removed = 0;
+            for (CorpusDatabase.Row g : db.findDuplicateCategories()) {
+                int keep = g.i("keep_id");
+                for (String id : g.str("ids").split(",")) {
+                    int from = Integer.parseInt(id.trim());
+                    if (from != keep) {
+                        db.mergeCategory(from, keep);
+                        removed++;
+                    }
+                }
+            }
+            return removed;
+        } catch (SQLException e) {
+            throw FacadeException.internal("failed to merge duplicate categories", e);
+        }
     }
 }

@@ -30,6 +30,7 @@ public final class AgentActivity {
     private String failure;
     private long totalMillis;
     private int modelCalls;
+    private final Map<Provenance, Integer> provenance = new java.util.EnumMap<>(Provenance.class);
 
     public AgentActivity(String request) {
         this.request = request;
@@ -95,6 +96,21 @@ public final class AgentActivity {
         return modelCalls;
     }
 
+    void recordProvenance(Map<Provenance, Integer> counts) {
+        provenance.clear();
+        provenance.putAll(counts);
+    }
+
+    /** How many statements of the final answer carry each provenance label. */
+    public Map<Provenance, Integer> provenance() {
+        return Map.copyOf(provenance);
+    }
+
+    /** Statements the answer presents as read from records the tools actually returned. */
+    public int observedStatements() {
+        return provenance.getOrDefault(Provenance.OBSERVED, 0);
+    }
+
     /**
      * True when the answer rests on data actually read from the case.
      *
@@ -139,6 +155,9 @@ public final class AgentActivity {
                 refs.add(e.toString());
             }
             sb.append(String.join(", ", refs)).append('\n');
+        }
+        if (!provenance.isEmpty()) {
+            sb.append("  provenance: ").append(Provenance.summary(provenance)).append('\n');
         }
         sb.append("  model calls: ").append(modelCalls)
                 .append(", total ").append(totalMillis).append(" ms\n");

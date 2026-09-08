@@ -252,6 +252,9 @@ public final class ContentFacade {
                 String text = readText(it.id());
                 if (text != null && !text.isBlank()) {
                     db.insertContent(text, fileDate, pathId);
+                    // The reference derives word and keyword edges while it stores the
+                    // content; doing it here keeps counts real from the first screen on.
+                    new RelationshipAnalyzer(db, this).analyzeFile(pathId);
                 }
                 created++;
             }

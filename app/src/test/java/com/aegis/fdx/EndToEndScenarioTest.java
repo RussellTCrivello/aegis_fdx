@@ -136,8 +136,8 @@ class EndToEndScenarioTest {
             assertTrue(scoped.totalCount() > 0, "source filter must resolve");
 
             // ---------- 7. batch analysis produces real hit counts ----------
-            assertTrue(f.analytics().filesForKeyword(keywordId, 50).isEmpty(),
-                    "no hits before analysis");
+            int hitsAtRegistration = f.analytics().filesForKeyword(keywordId, 50).size();
+            assertTrue(hitsAtRegistration > 0, "registration derives keyword hits from text");
             BatchRun run = f.batch().run(
                     new BatchAnalysisFacade.Request(BatchAnalysisFacade.Template.DEEP), null);
             assertEquals("Completed", run.state());
@@ -145,6 +145,8 @@ class EndToEndScenarioTest {
 
             var keywordHits = f.analytics().filesForKeyword(keywordId, 50);
             assertFalse(keywordHits.isEmpty(), "analysis must produce keyword hits");
+            assertEquals(hitsAtRegistration, keywordHits.size(),
+                    "re-analysis must not duplicate or lose relationships");
             int totalHits = keywordHits.stream()
                     .mapToInt(h -> h.hits()).sum();
             assertTrue(totalHits >= 3, "the phrase occurs at least three times overall");

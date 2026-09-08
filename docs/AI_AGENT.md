@@ -115,7 +115,7 @@ route in.
  model turn with no tool call → final answer
     │
     ▼
- grounding check → caveat appended if nothing was retrieved
+ provenance labelling → every statement tagged; caveat appended if nothing was retrieved
 ```
 
 Bounded by `AgentOrchestrator.DEFAULT_MAX_STEPS` (6). When the budget is reached the
@@ -278,6 +278,25 @@ When nothing was retrieved, the agent appends:
 
 The system prompt instructs the model never to invent file names, identifiers, counts
 or quotations, and to state plainly when evidence is insufficient.
+
+### Provenance labels
+
+Every statement in a final answer carries exactly one label (`Provenance`):
+
+| Label | Meaning | Who may assign it |
+|---|---|---|
+| `[OBSERVED]` | Read from a record a tool returned | The model — **kept only if the line cites an identifier the tools actually returned**; otherwise demoted |
+| `[DERIVED]` | A count or comparison computed from observed records | The model, or the rule when a line cites evidence without a label |
+| `[INFERRED]` | The model's own conclusion | The model, or the rule for unlabelled lines in a run that read data, or a demoted OBSERVED |
+| `[USER-PROVIDED]` | Something the operator said or the screen context supplied | The model |
+| `[UNKNOWN]` | Not supported by anything retrieved | The rule for every unlabelled line in a run where no tool returned data, and for the closing caveat |
+
+The rule only ever demotes: the model cannot promote a guess to an observation, and a
+forged citation (`item:Z-999999`) becomes `[INFERRED]`. Counts per label are kept on the
+`AgentActivity` (`provenance()`, `observedStatements()`) and shown in the trace as
+`provenance: OBSERVED 1 · DERIVED 1 · INFERRED 2`. Labels are a controlled vocabulary,
+not translated text. Tests: `AiAgentTest#provenanceLabels`,
+`#provenanceUnknownWhenNothingRead`.
 
 ---
 
