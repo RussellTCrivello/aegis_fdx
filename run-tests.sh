@@ -91,7 +91,7 @@ echo; echo "== interface suites (need a JavaFX runtime with native libraries) ==
 # "not runnable on this machine" and still fails the battery for anything else.
 "$JDK/java" -Xmx900m --module-path "$FX" --add-modules javafx.controls,javafx.graphics \
     -cp "$OUT:$CP" com.aegis.fdx.JUnitRunner \
-    com.aegis.fdx.UiParityTest com.aegis.fdx.DestinationCoverageTest com.aegis.fdx.SuiteBridgeTest
+    com.aegis.fdx.UiParityTest com.aegis.fdx.DestinationCoverageTest com.aegis.fdx.RelationshipModelTest com.aegis.fdx.SuiteBridgeTest
 
 echo; echo "== benchmark (N-02 / F-18 / N-03) =="
 "$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.Benchmark "$WORK/bench" "${1:-4}"

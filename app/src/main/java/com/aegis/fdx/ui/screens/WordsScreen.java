@@ -6,6 +6,7 @@ import com.aegis.fdx.facade.dto.Page;
 import com.aegis.fdx.facade.dto.WordDto;
 import com.aegis.fdx.ui.Fas;
 import com.aegis.fdx.ui.Icons;
+import com.aegis.fdx.ui.Router;
 import com.aegis.fdx.ui.Screen;
 
 import javafx.collections.FXCollections;
@@ -34,7 +35,9 @@ import java.util.List;
 public final class WordsScreen implements Screen {
 
     private final AegisFacades facades;
+    private final Router router;
     private final ObservableList<WordDto> rows = FXCollections.observableArrayList();
+    private final java.util.Map<Integer, Integer> fileCounts = new java.util.HashMap<>();
     private TableView<WordDto> table;
     private TextField searchField;
     private Label pageLabel;
@@ -43,7 +46,12 @@ public final class WordsScreen implements Screen {
     private int total;
 
     public WordsScreen(AegisFacades facades) {
+        this(facades, null);
+    }
+
+    public WordsScreen(AegisFacades facades, Router router) {
         this.facades = facades;
+        this.router = router == null ? Router.NONE : router;
     }
 
     @Override
@@ -121,8 +129,13 @@ public final class WordsScreen implements Screen {
         cWord.setCellValueFactory(c ->
                 new javafx.beans.property.SimpleStringProperty(c.getValue().word()));
 
+        TableColumn<WordDto, String> cFiles = new TableColumn<>("Files");
+        cFiles.setPrefWidth(80);
+        cFiles.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
+                String.valueOf(fileCounts.getOrDefault(c.getValue().id(), 0))));
+
         TableColumn<WordDto, WordDto> cAct = new TableColumn<>("Actions");
-        cAct.setPrefWidth(140);
+        cAct.setPrefWidth(170);
         cAct.setSortable(false);
         cAct.setCellValueFactory(c ->
                 new javafx.beans.property.SimpleObjectProperty<>(c.getValue()));
@@ -134,6 +147,8 @@ public final class WordsScreen implements Screen {
                     setGraphic(null);
                     return;
                 }
+                Button view = Fas.ghost("", Icons.EYE);
+                view.setOnAction(e -> router.openWord(item.id()));
                 Button edit = Fas.ghost("", Icons.PENCIL);
                 edit.setOnAction(e -> {
                     TextInputDialog d = new TextInputDialog(item.word());
@@ -150,11 +165,20 @@ public final class WordsScreen implements Screen {
                     facades.words().deleteWord(item.id());
                     onShow();
                 });
-                setGraphic(Fas.row(2, edit, del));
+                setGraphic(Fas.row(2, view, edit, del));
             }
         });
 
-        table.getColumns().addAll(cId, cWord, cAct);
+        table.getColumns().addAll(cId, cWord, cFiles, cAct);
+        table.setRowFactory(t -> {
+            javafx.scene.control.TableRow<WordDto> row = new javafx.scene.control.TableRow<>();
+            row.setOnMouseClicked(e -> {
+                if (e.getClickCount() == 2 && !row.isEmpty()) {
+                    router.openWord(row.getItem().id());
+                }
+            });
+            return row;
+        });
 
         pageLabel = Fas.muted("0 - 0 of 0");
         Button prev = Fas.outline("Previous", null);
@@ -188,6 +212,9 @@ public final class WordsScreen implements Screen {
             String q = searchField.getText();
             Page<WordDto> page = facades.words().searchWords(
                     q == null || q.isBlank() ? null : q, limit, offset);
+            // whole-case counts from path_word; a word outside any category has none
+            fileCounts.clear();
+            fileCounts.putAll(facades.relationships().wordFileCounts());
             rows.setAll(page.results());
             total = page.totalCount();
             int from = total == 0 ? 0 : offset + 1;

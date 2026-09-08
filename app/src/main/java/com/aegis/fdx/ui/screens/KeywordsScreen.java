@@ -8,6 +8,7 @@ import com.aegis.fdx.ai.tools.AgentContext;
 import com.aegis.fdx.ui.AnalyzeAction;
 import com.aegis.fdx.ui.Fas;
 import com.aegis.fdx.ui.Icons;
+import com.aegis.fdx.ui.Router;
 import com.aegis.fdx.ui.Screen;
 
 import javafx.collections.FXCollections;
@@ -41,7 +42,9 @@ public final class KeywordsScreen implements Screen {
 
     private final AegisFacades facades;
     private final AgentService agent;
+    private final Router router;
     private final ObservableList<KeywordDto> rows = FXCollections.observableArrayList();
+    private final java.util.Map<Integer, Integer> fileCounts = new java.util.HashMap<>();
     private TableView<KeywordDto> table;
     private Label countLabel;
     private ComboBox<Integer> perPage;
@@ -50,8 +53,13 @@ public final class KeywordsScreen implements Screen {
     private int total;
 
     public KeywordsScreen(AegisFacades facades, AgentService agent) {
+        this(facades, agent, null);
+    }
+
+    public KeywordsScreen(AegisFacades facades, AgentService agent, Router router) {
         this.facades = facades;
         this.agent = agent;
+        this.router = router == null ? Router.NONE : router;
     }
 
     @Override
@@ -136,8 +144,13 @@ public final class KeywordsScreen implements Screen {
         cCat.setCellValueFactory(c ->
                 new javafx.beans.property.SimpleStringProperty(c.getValue().categoryWord()));
 
+        TableColumn<KeywordDto, String> cFiles = new TableColumn<>("Files");
+        cFiles.setPrefWidth(80);
+        cFiles.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
+                String.valueOf(fileCounts.getOrDefault(c.getValue().id(), 0))));
+
         TableColumn<KeywordDto, KeywordDto> cAct = new TableColumn<>("Actions");
-        cAct.setPrefWidth(120);
+        cAct.setPrefWidth(150);
         cAct.setSortable(false);
         cAct.setCellValueFactory(c ->
                 new javafx.beans.property.SimpleObjectProperty<>(c.getValue()));
@@ -149,6 +162,8 @@ public final class KeywordsScreen implements Screen {
                     setGraphic(null);
                     return;
                 }
+                Button view = Fas.ghost("", Icons.EYE);
+                view.setOnAction(e -> router.openKeyword(item.id()));
                 Button edit = Fas.ghost("", Icons.PENCIL);
                 edit.setOnAction(e -> {
                     TextInputDialog d = new TextInputDialog(item.keyword());
@@ -165,11 +180,20 @@ public final class KeywordsScreen implements Screen {
                     facades.keywords().deleteKeyword(item.id());
                     onShow();
                 });
-                setGraphic(Fas.row(2, edit, del));
+                setGraphic(Fas.row(2, view, edit, del));
             }
         });
 
-        table.getColumns().addAll(cId, cKw, cCat, cAct);
+        table.getColumns().addAll(cId, cKw, cCat, cFiles, cAct);
+        table.setRowFactory(t -> {
+            javafx.scene.control.TableRow<KeywordDto> row = new javafx.scene.control.TableRow<>();
+            row.setOnMouseClicked(e -> {
+                if (e.getClickCount() == 2 && !row.isEmpty()) {
+                    router.openKeyword(row.getItem().id());
+                }
+            });
+            return row;
+        });
 
         pageLabel = Fas.muted("0 - 0 of 0");
         Button prev = Fas.outline("Previous", null);
@@ -242,6 +266,9 @@ public final class KeywordsScreen implements Screen {
         try {
             int limit = perPage.getValue();
             var page = facades.keywords().listKeywords(limit, offset);
+            // whole-case counts, computed from path_keyword — not from this page
+            fileCounts.clear();
+            fileCounts.putAll(facades.relationships().keywordFileCounts());
             rows.setAll(page.results());
             total = page.totalCount();
             countLabel.setText(total + (total == 1 ? " keyword" : " keywords"));

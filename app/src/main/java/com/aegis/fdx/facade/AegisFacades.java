@@ -43,6 +43,8 @@ public final class AegisFacades {
     private final ContentFacade contents;
     private final AnalyticsFacade analytics;
     private final BatchAnalysisFacade batch;
+    private final RelationshipFacade relationships;
+    private final RelationshipAnalyzer relationshipAnalyzer;
 
     private AegisFacades(LiveCase liveCase, CorpusDatabase corpus) {
         this.liveCase = liveCase;
@@ -59,6 +61,8 @@ public final class AegisFacades {
         this.contents = new ContentFacade(corpus, liveCase);
         this.analytics = new AnalyticsFacade(corpus, liveCase);
         this.batch = new BatchAnalysisFacade(corpus, contents, keywords, categories);
+        this.relationships = new RelationshipFacade(corpus);
+        this.relationshipAnalyzer = new RelationshipAnalyzer(corpus, contents);
     }
 
     /**
@@ -149,6 +153,16 @@ public final class AegisFacades {
     /** Batch analysis runs and their persisted history. */
     public BatchAnalysisFacade batch() {
         return batch;
+    }
+
+    /** File ↔ keyword ↔ category ↔ category word, with whole-case counts and search. */
+    public RelationshipFacade relationships() {
+        return relationships;
+    }
+
+    /** Re-derives the file ↔ word and file ↔ keyword edges from stored content. */
+    public RelationshipAnalyzer relationshipAnalyzer() {
+        return relationshipAnalyzer;
     }
 
     /**

@@ -96,10 +96,10 @@ public final class CategoryFacade {
         }
     }
 
-    /** Adds a word to a category, creating the word if needed. */
+    /** Adds a word to a category, creating the word if needed. A category word is one word. */
     public boolean linkWordToCategory(String word, String categoryWord) {
-        String w = Validate.required(word, "word");
-        String cw = Validate.required(categoryWord, "categoryWord");
+        String w = Terms.requireSingleWord(word, "word");
+        String cw = Terms.requireCategory(categoryWord, "categoryWord");
         try {
             int wordId = db.insertWord(w);
             CorpusDatabase.Row cat = db.selectCategoryByWord(cw);

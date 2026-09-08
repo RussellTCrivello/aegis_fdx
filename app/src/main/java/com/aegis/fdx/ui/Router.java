@@ -36,9 +36,28 @@ public interface Router {
     /** Opens the file library filtered to one category. */
     void openCategory(int categoryId);
 
+    /** Opens the category's own detail: files, keywords and words reached through it. */
+    void openCategoryDetail(int categoryId);
+
     /** Returns to the previously shown destination, if any. */
     void back();
 
     /** True when {@link #back()} would do something. */
     boolean canGoBack();
+
+    /** A router that goes nowhere, for screens built outside the application shell. */
+    Router NONE = new Router() {
+        @Override public void open(String destination) { }
+        @Override public void openSource(int sourceId) { }
+        @Override public void openAspect(int aspectId) { }
+        @Override public void openWord(int wordId) { }
+        @Override public void openKeyword(int keywordId) { }
+        @Override public void openFile(int pathId) { }
+        @Override public void openContent(int pathId) { }
+        @Override public void openSearch(String query) { }
+        @Override public void openCategory(int categoryId) { }
+        @Override public void openCategoryDetail(int categoryId) { }
+        @Override public void back() { }
+        @Override public boolean canGoBack() { return false; }
+    };
 }

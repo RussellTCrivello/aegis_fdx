@@ -56,6 +56,7 @@ public final class FileDetailScreen implements Detail {
     private GridPane meta;
     private FlowPane categoryChips;
     private FlowPane keywordChips;
+    private FlowPane wordChips;
     private TextArea preview;
     private Button readToggle;
     private Label engineStatus;
@@ -90,6 +91,7 @@ public final class FileDetailScreen implements Detail {
         meta.setVgap(9);
         categoryChips = new FlowPane(6, 6);
         keywordChips = new FlowPane(6, 6);
+        wordChips = new FlowPane(6, 6);
 
         preview = new TextArea();
         preview.setEditable(false);
@@ -132,11 +134,12 @@ public final class FileDetailScreen implements Detail {
         });
 
         VBox left = Fas.cardWithHeader("File Record", null, meta);
-        VBox right = Fas.cardWithHeader("Classification",
-                "Categories and keywords applied to this file",
+        VBox right = Fas.cardWithHeader("Relationships",
+                "Keywords, categories and category words this file is related to; click to open",
                 new VBox(12,
+                        Fas.fieldLabel("KEYWORDS"), keywordChips,
                         Fas.fieldLabel("CATEGORIES"), categoryChips,
-                        Fas.fieldLabel("KEYWORDS"), keywordChips));
+                        Fas.fieldLabel("CATEGORY WORDS"), wordChips));
         HBox.setHgrow(left, Priority.ALWAYS);
         HBox.setHgrow(right, Priority.ALWAYS);
 
@@ -170,56 +173,83 @@ public final class FileDetailScreen implements Detail {
                     Fas.badge(path.fileStatus(), read ? "success" : "muted"));
             readToggle.setText(read ? "Mark Unread" : "Mark Read");
 
-            meta.getChildren().clear();
-            int r = 0;
-            r = row(r, "Type", path.fileType());
-            r = row(r, "Size", DashboardScreen.humanBytes(path.fileSize()));
-            r = row(r, "Source", path.sourceName());
-            r = row(r, "Aspect", path.aspectName());
-            r = row(r, "File Date", String.valueOf(path.fileDate()));
-            r = row(r, "Registered", String.valueOf(path.dateCreation()));
-            r = row(r, "SHA-256", path.hashValue());
-            r = row(r, "Element ID", path.elementId());
-            r = row(r, "Coordinates", path.coordinates());
-            row(r, "Full Path", path.filePath());
-
-            // Engine-side status for the originating element.
+            // Engine-side record for the originating element: the authoritative
+            // hashes, timestamps, media type, processing status and OCR state.
+            com.aegis.fdx.model.Item item = null;
             engineStatus.setText("");
             if (path.elementId() != null) {
                 try {
-                    var item = facades.liveCase().byId(path.elementId());
-                    if (item != null) {
-                        StringBuilder sb = new StringBuilder();
-                        sb.append("Engine status: ").append(item.status());
-                        if (item.md5() != null) {
-                            sb.append("   MD5: ").append(item.md5());
-                        }
-                        if (item.errors() != null && !item.errors().isEmpty()) {
-                            sb.append("   Errors: ").append(String.join("; ", item.errors()));
-                        }
-                        engineStatus.setText(sb.toString());
-                    }
+                    item = facades.liveCase().byId(path.elementId());
                 } catch (Exception ignored) {
                     // engine detail is supplementary; the registry record still stands
                 }
             }
 
+            meta.getChildren().clear();
+            int r = 0;
+            r = row(r, "Full Path", path.filePath());
+            r = row(r, "Name", path.fileName());
+            r = row(r, "Size", DashboardScreen.humanBytes(path.fileSize())
+                    + "  (" + String.format("%,d", path.fileSize()) + " bytes)");
+            r = row(r, "SHA-256", path.hashValue() != null ? path.hashValue()
+                    : item != null ? item.sha256() : null);
+            r = row(r, "MD5", item == null ? null : item.md5());
+            r = row(r, "MIME Type", item == null ? null : item.mediaType());
+            r = row(r, "Type", path.fileType());
+            r = row(r, "Created", item == null || item.created() == null
+                    ? null : item.created().toString());
+            r = row(r, "Modified", item == null || item.modified() == null
+                    ? String.valueOf(path.fileDate()) : item.modified().toString());
+            r = row(r, "Registered", String.valueOf(path.dateCreation()));
+            r = row(r, "Processing Status", item == null ? null : String.valueOf(item.status()));
+            r = row(r, "OCR", item == null ? null
+                    : item.ocrApplied() ? "Applied" : item.needsOcr() ? "Candidate, not applied" : "Not needed");
+            r = row(r, "Review Status", path.fileStatus());
+            r = row(r, "Source", path.sourceName());
+            r = row(r, "Aspect", path.aspectName());
+            r = row(r, "Element ID", path.elementId());
+            row(r, "Coordinates", path.coordinates());
+            if (item != null && item.errors() != null && !item.errors().isEmpty()) {
+                engineStatus.setText("Processing errors: " + String.join("; ", item.errors()));
+            }
+
+            // Relationships: exactly what the case recorded, each chip opens its detail.
+            var rel = facades.relationships().forFile(pathId);
+            keywordChips.getChildren().clear();
+            for (var k : rel.keywords()) {
+                int hits = 0;
+                for (var row : dao.selectPathKeywords(pathId)) {
+                    if (row.i("id") == k.id()) {
+                        hits = row.i("hits");
+                    }
+                }
+                Button chip = Fas.ghost(k.text() + (hits > 0 ? " \u00d7" + hits : "")
+                        + "  (" + k.fileCount() + " files)", Icons.KEY);
+                chip.setOnAction(e -> router.openKeyword(k.id()));
+                keywordChips.getChildren().add(chip);
+            }
+            if (keywordChips.getChildren().isEmpty()) {
+                keywordChips.getChildren().add(Fas.muted("No keyword phrase occurs in this file"));
+            }
+
             categoryChips.getChildren().clear();
-            for (var c : dao.selectPathCategories(pathId)) {
-                Label chip = Fas.badge(c.str("word"), "info");
+            for (var c : rel.categories()) {
+                Button chip = Fas.ghost(c.text() + "  (" + c.fileCount() + " files)", Icons.TAGS);
+                chip.setOnAction(e -> router.openCategoryDetail(c.id()));
                 categoryChips.getChildren().add(chip);
             }
             if (categoryChips.getChildren().isEmpty()) {
-                categoryChips.getChildren().add(Fas.muted("None applied"));
+                categoryChips.getChildren().add(Fas.muted("None applied or reached"));
             }
 
-            keywordChips.getChildren().clear();
-            for (var k : dao.selectPathKeywords(pathId)) {
-                keywordChips.getChildren().add(
-                        Fas.badge(k.str("keyword") + " \u00d7" + k.i("hits"), "warning"));
+            wordChips.getChildren().clear();
+            for (var w : rel.categoryWords()) {
+                Button chip = Fas.ghost(w.text() + "  (" + w.fileCount() + " files)", Icons.BOOK);
+                chip.setOnAction(e -> router.openWord(w.id()));
+                wordChips.getChildren().add(chip);
             }
-            if (keywordChips.getChildren().isEmpty()) {
-                keywordChips.getChildren().add(Fas.muted("None found"));
+            if (wordChips.getChildren().isEmpty()) {
+                wordChips.getChildren().add(Fas.muted("No category word occurs in this file"));
             }
 
             String text = facades.contents().getContentAsText(pathId);

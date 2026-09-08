@@ -126,13 +126,13 @@ public final class FasApp extends Application implements Router {
 
         register(new DashboardScreen(facades));
         register(new AnalysisScreen(facades));
-        register(new SearchScreen(facades, agent));
+        register(new SearchScreen(facades, agent, this));
         register(new SourcesScreen(facades));
         register(new AspectsScreen(facades));
         register(new EmailWordsScreen(facades));
-        register(new KeywordsScreen(facades, agent));
-        register(new WordsScreen(facades));
-        register(new CategoriesScreen(facades, agent));
+        register(new KeywordsScreen(facades, agent, this));
+        register(new WordsScreen(facades, this));
+        register(new CategoriesScreen(facades, agent, this));
         register(new UploadScreen(facades));
         register(new FileLibraryScreen(facades));
         register(new NotificationsScreen(facades));
@@ -160,6 +160,7 @@ public final class FasApp extends Application implements Router {
         register(new RelationshipsScreen(facades, this, false));
         register(new TermDetailScreen(facades, this, TermDetailScreen.Kind.WORD, agent));
         register(new TermDetailScreen(facades, this, TermDetailScreen.Kind.KEYWORD, agent));
+        register(new TermDetailScreen(facades, this, TermDetailScreen.Kind.CATEGORY, agent));
         register(new FileDetailScreen(facades, corpusDao, this, agent));
         register(new FullContentScreen(facades, this));
         // secondary screens, reachable from their parent pages
@@ -416,6 +417,11 @@ public final class FasApp extends Application implements Router {
         if (s instanceof com.aegis.fdx.ui.screens.CategoriesScreen cs) {
             cs.selectCategory(categoryId);
         }
+    }
+
+    @Override
+    public void openCategoryDetail(int categoryId) {
+        openDetail("Category Detail", categoryId);
     }
 
     @Override

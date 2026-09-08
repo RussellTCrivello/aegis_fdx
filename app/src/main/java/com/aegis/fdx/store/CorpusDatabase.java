@@ -1344,6 +1344,121 @@ public final class CorpusDatabase {
         }
     }
 
+    // ---- derived edges: what analysis writes and search reads ----------------
+
+    /** The words that are a category or belong to one — the case's vocabulary. */
+    public List<Row> selectVocabularyWords() throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT w.id AS id, w.word AS word
+                FROM word w
+                WHERE EXISTS (SELECT 1 FROM word_category wc WHERE wc.word_id = w.id)
+                   OR EXISTS (SELECT 1 FROM category c WHERE c.word_id = w.id)
+                ORDER BY w.id""")) {
+            return all(ps);
+        }
+    }
+
+    /**
+     * Removes the edges analysis derives for one file, so a re-run starts clean.
+     *
+     * <p>Only {@code path_word} and {@code path_keyword} are derived from text;
+     * {@code path_category} is an attribution a reviewer made and is left alone.
+     */
+    public void clearDerivedRelations(int pathId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM path_word WHERE path_id=?")) {
+            ps.setInt(1, pathId);
+            ps.executeUpdate();
+        }
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM path_keyword WHERE path_id=?")) {
+            ps.setInt(1, pathId);
+            ps.executeUpdate();
+        }
+    }
+
+    /** Files whose name or path contains the text, with which of the two matched. */
+    public List<Row> selectFilesByNameOrPath(String text, int limit) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(FILE_COLUMNS + """
+                , CASE WHEN LOWER(p.file_name) LIKE '%' || LOWER(?) || '%' THEN 1 ELSE 0 END AS name_match
+                FROM path p
+                LEFT JOIN source s ON s.id = p.source_id
+                LEFT JOIN aspect a ON a.id = p.aspect_id
+                WHERE LOWER(p.file_name) LIKE '%' || LOWER(?) || '%'
+                   OR LOWER(p.file_path) LIKE '%' || LOWER(?) || '%'
+                ORDER BY name_match DESC, p.file_name LIMIT ?""")) {
+            ps.setString(1, text);
+            ps.setString(2, text);
+            ps.setString(3, text);
+            ps.setInt(4, limit);
+            return all(ps);
+        }
+    }
+
+    /**
+     * Files whose registry metadata contains the text: type, status, hash, coordinates,
+     * source name or aspect name. Returns which field matched.
+     */
+    public List<Row> selectFilesByMetadata(String text, int limit) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(FILE_COLUMNS + """
+                , h.hash_value AS hash_value, p.coordinates AS coordinates,
+                  CASE
+                    WHEN LOWER(p.file_type) LIKE '%' || LOWER(?) || '%' THEN 'type'
+                    WHEN LOWER(p.file_status) = LOWER(?) THEN 'status'
+                    WHEN LOWER(IFNULL(h.hash_value,'')) LIKE '%' || LOWER(?) || '%' THEN 'sha-256'
+                    WHEN LOWER(IFNULL(p.coordinates,'')) LIKE '%' || LOWER(?) || '%' THEN 'coordinates'
+                    WHEN LOWER(IFNULL(s.name,'')) LIKE '%' || LOWER(?) || '%' THEN 'source'
+                    WHEN LOWER(IFNULL(a.name,'')) LIKE '%' || LOWER(?) || '%' THEN 'aspect'
+                    ELSE 'metadata' END AS field
+                FROM path p
+                LEFT JOIN hash h ON h.id = p.hash_id
+                LEFT JOIN source s ON s.id = p.source_id
+                LEFT JOIN aspect a ON a.id = p.aspect_id
+                WHERE LOWER(p.file_type) LIKE '%' || LOWER(?) || '%'
+                   OR LOWER(p.file_status) = LOWER(?)
+                   OR LOWER(IFNULL(h.hash_value,'')) LIKE '%' || LOWER(?) || '%'
+                   OR LOWER(IFNULL(p.coordinates,'')) LIKE '%' || LOWER(?) || '%'
+                   OR LOWER(IFNULL(s.name,'')) LIKE '%' || LOWER(?) || '%'
+                   OR LOWER(IFNULL(a.name,'')) LIKE '%' || LOWER(?) || '%'
+                ORDER BY p.file_name LIMIT ?""")) {
+            for (int i = 1; i <= 12; i++) {
+                ps.setString(i, text);
+            }
+            ps.setInt(13, limit);
+            return all(ps);
+        }
+    }
+
+    /** Files whose stored content contains the text, case-insensitively. */
+    public List<Row> selectFilesByContent(String text, int limit) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(FILE_COLUMNS + """
+                , 0 AS hits
+                FROM path p
+                LEFT JOIN source s ON s.id = p.source_id
+                LEFT JOIN aspect a ON a.id = p.aspect_id
+                WHERE EXISTS (SELECT 1 FROM content c WHERE c.path_id = p.id
+                              AND LOWER(IFNULL(c.content_data,'')) LIKE '%' || LOWER(?) || '%')
+                ORDER BY p.file_name LIMIT ?""")) {
+            ps.setString(1, text);
+            ps.setInt(2, limit);
+            return all(ps);
+        }
+    }
+
+    /** Whole-case totals for the relationship checker and the overview tiles. */
+    public Row selectRelationshipTotals() throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT (SELECT COUNT(*) FROM path)                 AS files,
+                       (SELECT COUNT(*) FROM keyword)              AS keywords,
+                       (SELECT COUNT(*) FROM category)             AS categories,
+                       (SELECT COUNT(*) FROM (
+                            SELECT word_id FROM word_category
+                            UNION SELECT word_id FROM category))  AS category_words,
+                       (SELECT COUNT(*) FROM path_keyword)         AS keyword_edges,
+                       (SELECT COUNT(*) FROM path_word)            AS word_edges,
+                       (SELECT COUNT(*) FROM path_category)        AS category_edges""")) {
+            return single(ps);
+        }
+    }
+
     // ============ aggregates for the detail and analytics destinations ============
 
     /** Per-source rollup: file count, total bytes, distinct types, read count. */
