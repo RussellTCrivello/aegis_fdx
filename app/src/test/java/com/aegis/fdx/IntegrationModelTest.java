@@ -52,7 +52,7 @@ class IntegrationModelTest {
         Path ev = tmp.resolve("evidence");
         Files.createDirectories(ev);
         Files.writeString(ev.resolve("invoice.txt"),
-                "Invoice 2024 consulting services, payment due", StandardCharsets.UTF_8);
+                "Invoice 2024 consulting services, payment due in 30 days", StandardCharsets.UTF_8);
         Files.writeString(ev.resolve("memo.txt"),
                 "Memo regarding the consulting agreement", StandardCharsets.UTF_8);
         return ev;
@@ -192,7 +192,7 @@ class IntegrationModelTest {
             int aspectId = f.aspects().createAspect("Plaintiff", 0.9);
             int catId = f.categories().createCategory("finance");
             f.categories().linkWordToCategory("invoice", "finance");
-            f.keywords().createKeyword("payment due", "finance");
+            f.keywords().createKeyword("payment due in 30 days", "finance");
 
             f.processing("Acme Consulting", "Plaintiff").processFolder(ev.toString());
             f.contents().registerIngestedItems(srcId, aspectId);

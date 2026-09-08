@@ -29,6 +29,8 @@ public final class FakeLocalRuntime implements AutoCloseable {
     private final HttpServer server;
     private final Deque<String> scriptedReplies = new ArrayDeque<>();
     private final List<String> receivedBodies = new java.util.ArrayList<>();
+    private final java.util.concurrent.atomic.AtomicInteger requests =
+            new java.util.concurrent.atomic.AtomicInteger();
     private final int port;
     private volatile boolean failNext;
     private volatile int delayMillis;
@@ -78,11 +80,25 @@ public final class FakeLocalRuntime implements AutoCloseable {
         return receivedBodies.size();
     }
 
+    /**
+     * Every HTTP request this runtime has served, including availability probes.
+     *
+     * <p>{@link #callCount()} counts only requests that carried a payload, which is the
+     * right measure for "did anything ask the model to think". This counter is the
+     * stricter one: it answers "did anything touch the runtime at all", which is what
+     * the no-AI-at-startup rule needs.
+     */
+    public int requestCount() {
+        return requests.get();
+    }
+
     private void handleTags(HttpExchange ex) throws IOException {
+        requests.incrementAndGet();
         send(ex, 200, "{\"models\":[{\"name\":\"test-model\"},{\"name\":\"nomic-embed-text\"}]}");
     }
 
     private void handleChat(HttpExchange ex) throws IOException {
+        requests.incrementAndGet();
         String body = read(ex.getRequestBody());
         receivedBodies.add(body);
         if (failNext) {
@@ -105,6 +121,7 @@ public final class FakeLocalRuntime implements AutoCloseable {
     }
 
     private void handleEmbeddings(HttpExchange ex) throws IOException {
+        requests.incrementAndGet();
         receivedBodies.add(read(ex.getRequestBody()));
         StringBuilder sb = new StringBuilder("{\"embedding\":[");
         for (int i = 0; i < 8; i++) {

@@ -32,4 +32,22 @@ public interface Screen {
      */
     default void onShow() {
     }
+
+    /**
+     * Called when the operator navigates away from this screen.
+     *
+     * <p>A destination that samples something live (a poller, an animation) must stop
+     * sampling here: a screen that is not visible must not keep doing work.
+     */
+    default void onHide() {
+    }
+
+    /**
+     * Called once when the application is shutting down.
+     *
+     * <p>An INDEFINITE animation keeps the JavaFX toolkit alive, so anything that owns
+     * one has to release it here or the application will not exit cleanly.
+     */
+    default void dispose() {
+    }
 }

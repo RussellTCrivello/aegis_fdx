@@ -107,6 +107,7 @@ public final class ProcessingMonitorScreen implements Screen {
     }
 
     /** Stops polling when the operator leaves this destination. */
+    @Override
     public void onHide() {
         if (poller != null) {
             poller.pause();
@@ -119,6 +120,7 @@ public final class ProcessingMonitorScreen implements Screen {
      * <p>An INDEFINITE {@link Timeline} keeps the JavaFX toolkit alive, so leaving it
      * running would stop the application from exiting cleanly.
      */
+    @Override
     public void dispose() {
         if (poller != null) {
             poller.stop();

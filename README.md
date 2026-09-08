@@ -13,14 +13,20 @@ No cloud services; the application and its assistant run entirely offline.
 ## Status
 
 ```
-82 automated tests            0 failures
-266 battery assertions        0 failures
-56 release-gate checks        0 failures · 3 environmental skips
-33/33 audited destinations    33 figures rendered from the running application
-145/148 functions complete    3 explained, none silently missing
+1,072 battery assertions      0 failures   (executed on this machine)
+66 release-gate checks        0 failures · 5 environmental skips
+73 inventoried capabilities   54 verified · 3 limited · 7 adapted · 3 unsupported
+                              · 1 absent — every one classified and explained
+33/33 audited destinations    all reachable, all backed by real operations
+48 AI-boundary checks         0 failures
 ```
 
-Full detail, including honest limitations: **[VERIFICATION_REPORT.md](docs/VERIFICATION_REPORT.md)**
+Run it yourself: `./run-tests.sh` for the battery, `./final-acceptance.sh` for the
+release gate. Neither needs Gradle or the network.
+
+Full detail, including honest limitations:
+**[FINAL_STATUS.md](docs/FINAL_STATUS.md)** · **[COVERAGE_MATRIX.md](docs/COVERAGE_MATRIX.md)** ·
+**[VERIFICATION_REPORT.md](docs/VERIFICATION_REPORT.md)** · **[ADVERSARIAL_AUDIT.md](docs/ADVERSARIAL_AUDIT.md)**
 
 ---
 
@@ -112,6 +118,12 @@ The agent is an operator layer, not a second implementation: it reads the same d
 through the same facades a human's clicks would, and has no shell, SQL, filesystem or
 network access.
 
+Processing never calls it. The ingest path — read, extract, metadata, OCR, hash, index,
+store — contains no AI, and the application runs normally with the assistant disabled,
+unavailable or removed. The assistant runs only when you click an AI action, is
+read-only by default, and changes nothing by inspecting it. The rule and its mechanical
+enforcement: **[AI_BOUNDARY.md](docs/AI_BOUNDARY.md)**
+
 Diagrams: **[DIAGRAMS.md](docs/DIAGRAMS.md)**
 
 ---
@@ -122,12 +134,14 @@ Diagrams: **[DIAGRAMS.md](docs/DIAGRAMS.md)**
 |---|---|
 | [UI_GUIDE](docs/UI_GUIDE.md) | Every screen, with rendered figures |
 | [AI_AGENT](docs/AI_AGENT.md) | Local model, agent loop, tools, safety, offline operation |
+| [AI_BOUNDARY](docs/AI_BOUNDARY.md) | The normative rule: AI is optional, manually invoked and read-only |
 | [ARCHITECTURE](docs/ARCHITECTURE.md) | Layering and design decisions |
 | [DIAGRAMS](docs/DIAGRAMS.md) | Architecture, ERD, navigation, data flow, sequences |
 | [INTERFACE_INVENTORY](docs/INTERFACE_INVENTORY.md) | Screen → facade → backend → test |
 | [REFERENCE_AUDIT](docs/REFERENCE_AUDIT.md) | Destination-by-destination audit and gap closure |
 | [FUNCTION_INVENTORY](docs/FUNCTION_INVENTORY.md) | Function-level audit and discrepancy report |
 | [VERIFICATION_REPORT](docs/VERIFICATION_REPORT.md) | Final verification and limitations |
+| [ADVERSARIAL_AUDIT](docs/ADVERSARIAL_AUDIT.md) | What was attacked, what was found, what was fixed, what is still unrun |
 | [USER_MANUAL](docs/USER_MANUAL.md) | Task-oriented guide |
 | [BUILD](docs/BUILD.md) | Building, running, regenerating screenshots |
 | [PERFORMANCE](docs/PERFORMANCE.md) | Benchmark methodology and figures |

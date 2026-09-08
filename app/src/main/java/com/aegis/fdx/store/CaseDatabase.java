@@ -465,6 +465,122 @@ public final class CaseDatabase implements AutoCloseable {
         else ps.setLong(idx, v.toEpochMilli());
     }
 
+    private static Instant instantOf(ResultSet rs, String column) throws SQLException {
+        long v = rs.getLong(column);
+        return rs.wasNull() ? null : Instant.ofEpochMilli(v);
+    }
+
+    /**
+     * Every element in the case, read back from the database.
+     *
+     * <p>This is what makes the database the record of authority rather than merely one
+     * of two copies: the search index can be thrown away and rebuilt from here. Extracted
+     * text is not a column — it lives in the case's text store — so the caller supplies a
+     * reader for it, and an element whose text file is missing still comes back, with the
+     * text it no longer has recorded as empty.
+     *
+     * @param textFor supplies the extracted text for an element id, or null when there is
+     *                none to be had
+     */
+    public List<Item> allItems(java.util.function.Function<String, String> textFor)
+            throws SQLException {
+        List<Item> out = new ArrayList<>();
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("SELECT * FROM item ORDER BY id")) {
+            while (rs.next()) {
+                Item it = new Item(rs.getString("id"), rs.getString("name"));
+                it.extension(rs.getString("ext"));
+                it.mediaType(rs.getString("media_type"));
+                it.size(rs.getLong("size"));
+                it.created(instantOf(rs, "created"));
+                it.modified(instantOf(rs, "modified"));
+                it.accessed(instantOf(rs, "accessed"));
+                it.md5(rs.getString("md5"));
+                it.sha256(rs.getString("sha256"));
+                it.sourcePath(rs.getString("source_path"));
+                it.containerPath(rs.getString("container_path"));
+                it.custodian(rs.getString("custodian"));
+                it.geoLocation(rs.getString("geo"));
+                it.depth(rs.getInt("depth"));
+                it.parentId(rs.getString("parent_id"));
+                it.attachedFrom(rs.getString("attached_from"));
+                it.container(rs.getInt("is_container") == 1);
+                it.status(statusOf(rs.getString("status")));
+                it.from(rs.getString("email_from"));
+                it.to(rs.getString("email_to"));
+                it.cc(rs.getString("email_cc"));
+                it.subject(rs.getString("subject"));
+                it.sentDate(instantOf(rs, "sent_date"));
+                it.messageId(rs.getString("message_id"));
+                it.attachmentCount(rs.getInt("attach_count"));
+                it.needsOcr(rs.getInt("needs_ocr") == 1);
+                it.ocrApplied(rs.getInt("ocr_applied") == 1);
+                it.duplicate(rs.getInt("is_duplicate") == 1);
+                it.duplicateOf(rs.getString("duplicate_of"));
+                it.notes(rs.getString("notes"));
+                String errors = rs.getString("error");
+                if (errors != null && !errors.isBlank()) {
+                    for (String e : errors.split(" \\| ")) {
+                        it.errors().add(e);
+                    }
+                }
+                if (textFor != null) {
+                    it.extractedText(textFor.apply(it.id()));
+                }
+                out.add(it);
+            }
+        }
+        loadTags(out);
+        loadMeta(out);
+        return out;
+    }
+
+    private static ItemStatus statusOf(String name) {
+        try {
+            return ItemStatus.valueOf(name);
+        } catch (Exception e) {
+            return ItemStatus.ERROR;
+        }
+    }
+
+    private void loadTags(List<Item> items) throws SQLException {
+        if (items.isEmpty()) {
+            return;
+        }
+        Map<String, Item> byId = new java.util.HashMap<>();
+        for (Item it : items) {
+            byId.put(it.id(), it);
+        }
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("SELECT item_id, tag FROM item_tag")) {
+            while (rs.next()) {
+                Item it = byId.get(rs.getString(1));
+                if (it != null) {
+                    it.tags().add(rs.getString(2));
+                }
+            }
+        }
+    }
+
+    private void loadMeta(List<Item> items) throws SQLException {
+        if (items.isEmpty()) {
+            return;
+        }
+        Map<String, Item> byId = new java.util.HashMap<>();
+        for (Item it : items) {
+            byId.put(it.id(), it);
+        }
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("SELECT item_id, key, value FROM item_meta")) {
+            while (rs.next()) {
+                Item it = byId.get(rs.getString(1));
+                if (it != null) {
+                    it.metadata().put(rs.getString(2), rs.getString(3));
+                }
+            }
+        }
+    }
+
     /**
      * The case's single JDBC connection.
      *

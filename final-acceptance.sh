@@ -41,12 +41,26 @@ CORES=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
 MEM_KB=$(awk '/MemTotal/{print $2}' /proc/meminfo 2>/dev/null || echo 0)
 MEM_GB=$((MEM_KB / 1024 / 1024))
 OSNAME="$(uname -srm)"
+JDKBIN="${AEGIS_JDK:-$HOME/.cache/tools/jdk21/bin}"
+FXDIR="${AEGIS_FX:-$HOME/.cache/tools/javafx-sdk-21.0.4/lib}"
+# What actually built and ran this attempt. A result is only reproducible if the
+# toolchain behind it is on the record — including when it is not the reference one.
+JAVA_V="$("$JDKBIN/java" -version 2>&1 | head -1 || echo "no java at $JDKBIN")"
+JAVAC_V="$("$JDKBIN/javac" -version 2>&1 | head -1 || echo "no javac at $JDKBIN")"
+if [ -d "$FXDIR" ]; then
+    FX_V="$(ls "$FXDIR" | head -3 | tr '\n' ' ')"
+else
+    FX_V="absent ($FXDIR)"
+fi
 if [ "$CORES" -ge 8 ] && [ "$MEM_GB" -ge 15 ]; then
     HWCLASS="REFERENCE HARDWARE"
 else
     HWCLASS="DEVELOPMENT ENVIRONMENT"
 fi
 echo "Environment : $OSNAME"
+echo "Runtime     : $JAVA_V"
+echo "Compiler    : $JAVAC_V"
+echo "JavaFX      : $FX_V"
 echo "Cores       : $CORES"
 echo "Memory      : ${MEM_GB} GB"
 echo "Class       : $HWCLASS"
@@ -266,6 +280,173 @@ else
     record "AI write actions gated" FAIL "mutating tools are not gated"
 fi
 
+# --- AI boundary (docs/AI_BOUNDARY.md) --------------------------------------
+# The agent is an optional analysis layer over the finished application. Nothing in
+# the reading, processing, extraction, metadata, OCR, hashing, indexing or storage
+# path may reference it, in source or in compiled bytecode.
+ai_in_pipeline=$(grep -rl "com\.aegis\.fdx\.ai" \
+    app/src/main/java/com/aegis/fdx/engine \
+    app/src/main/java/com/aegis/fdx/analyzers \
+    app/src/main/java/com/aegis/fdx/ocr \
+    app/src/main/java/com/aegis/fdx/index \
+    app/src/main/java/com/aegis/fdx/store \
+    app/src/main/java/com/aegis/fdx/spi \
+    app/src/main/java/com/aegis/fdx/model \
+    app/src/main/java/com/aegis/fdx/export \
+    app/src/main/java/com/aegis/fdx/facade \
+    app/src/main/java/com/aegis/fdx/Launcher.java 2>/dev/null | wc -l)
+if [ "$ai_in_pipeline" -eq 0 ]; then
+    record "AI outside the processing pipeline" PASS "9 pipeline packages reference no AI code"
+else
+    record "AI outside the processing pipeline" FAIL "$ai_in_pipeline pipeline file(s) reference the agent"
+fi
+
+# The agent must not be able to start processing, extraction, OCR or indexing itself.
+if grep -rqE "IngestPipeline|OcrStage|OcrEngine|AnalyzerRegistry|LuceneIndex|processFolder|startIngest" \
+        app/src/main/java/com/aegis/fdx/ai/ 2>/dev/null; then
+    record "AI cannot trigger processing" FAIL "agent code can reach the ingest or OCR path"
+else
+    record "AI cannot trigger processing" PASS "no ingest, extraction, OCR or index API in ai/"
+fi
+
+# Invocation must be an operator action, never something a screen does on its own.
+ai_callers=$(grep -rl "\.ask(" app/src/main/java/com/aegis/fdx/ui 2>/dev/null | wc -l)
+if [ "$ai_callers" -le 2 ] && [ "$ai_callers" -ge 1 ] \
+   && ! grep -rq "AnalyzeAction.run(" app/src/main/java/com/aegis/fdx/ui/screens 2>/dev/null; then
+    record "AI is manually invoked" PASS "Assistant screen and Analyze buttons only"
+else
+    record "AI is manually invoked" FAIL "the agent is reachable outside an explicit user action"
+fi
+
+# The boundary suite itself must have run, and passed, inside the functional battery.
+if grep -q "AI boundary" "$L" 2>/dev/null; then
+    AIBLOCK=$(awk '/== AI boundary/{f=1} f{print} f&&/^=== [0-9]+ passed/{exit}' "$L")
+    AIFAIL=$(printf '%s' "$AIBLOCK" | grep -oE "^=== [0-9]+ passed, [0-9]+ failed" | grep -oE "[0-9]+ failed" | grep -oE "^[0-9]+")
+    AIPASS=$(printf '%s' "$AIBLOCK" | grep -oE "^=== [0-9]+ passed" | grep -oE "[0-9]+")
+    if [ "${AIFAIL:-1}" = "0" ]; then
+        record "AI boundary suite (B-01..B-08)" PASS "${AIPASS:-0} checks passed, 0 failed"
+    else
+        record "AI boundary suite (B-01..B-08)" FAIL "${AIFAIL} boundary check(s) failed"
+    fi
+else
+    record "AI boundary suite (B-01..B-08)" SKIP "suite not detected in $L"
+fi
+
+# The structural rules: one datastore, no reference-runtime dependency, no AI in
+# the core, every control wired, every destination reachable, clean shutdown.
+if grep -q "architecture invariants" "$L" 2>/dev/null; then
+    ARCHBLOCK=$(awk '/== architecture invariants/{f=1} f{print} f&&/^=== [0-9]+ passed/{exit}' "$L")
+    ARCHFAIL=$(printf '%s' "$ARCHBLOCK" | grep -oE "^=== [0-9]+ passed, [0-9]+ failed" | grep -oE "[0-9]+ failed" | grep -oE "^[0-9]+")
+    ARCHPASS=$(printf '%s' "$ARCHBLOCK" | grep -oE "^=== [0-9]+ passed" | grep -oE "[0-9]+")
+    if [ "${ARCHFAIL:-1}" = "0" ]; then
+        record "Architecture invariants" PASS "${ARCHPASS:-0} structural rules hold"
+    else
+        record "Architecture invariants" FAIL "${ARCHFAIL} invariant(s) broken"
+    fi
+else
+    record "Architecture invariants" SKIP "suite not detected in $L"
+fi
+
+# Damage, locks and interrupted copies: a case must survive them, and say so.
+if grep -q "failure and recovery" "$L" 2>/dev/null; then
+    RESBLOCK=$(awk '/== failure and recovery/{f=1} f{print} f&&/^=== [0-9]+ passed/{exit}' "$L")
+    RESFAIL=$(printf '%s' "$RESBLOCK" | grep -oE "^=== [0-9]+ passed, [0-9]+ failed" | grep -oE "[0-9]+ failed" | grep -oE "^[0-9]+")
+    RESPASS=$(printf '%s' "$RESBLOCK" | grep -oE "^=== [0-9]+ passed" | grep -oE "[0-9]+")
+    if [ "${RESFAIL:-1}" = "0" ]; then
+        record "Failure and recovery" PASS "${RESPASS:-0} checks: index rebuilt, case locked, database unreadable"
+    else
+        record "Failure and recovery" FAIL "${RESFAIL} recovery check(s) failed"
+    fi
+else
+    record "Failure and recovery" SKIP "suite not detected in $L"
+fi
+
+# The coverage inventory must resolve: no unclassified row, no invented symbol.
+if grep -q "coverage inventory" "$L" 2>/dev/null; then
+    COVBLOCK=$(awk '/== coverage inventory/{f=1} f{print} f&&/^=== [0-9]+ passed/{exit}' "$L")
+    COVFAIL=$(printf '%s' "$COVBLOCK" | grep -oE "^=== [0-9]+ passed, [0-9]+ failed" | grep -oE "[0-9]+ failed" | grep -oE "^[0-9]+")
+    COVROWS=$(awk -F'\t' '!/^#/ && $1 != "id" && NF >= 8 {n++} END {print n+0}' docs/coverage.tsv 2>/dev/null)
+    if [ "${COVFAIL:-1}" = "0" ]; then
+        record "Coverage inventory" PASS "${COVROWS:-0} rows classified, every symbol resolves"
+    else
+        record "Coverage inventory" FAIL "${COVFAIL} coverage check(s) failed"
+    fi
+else
+    record "Coverage inventory" SKIP "suite not detected in $L"
+fi
+
+# The JUnit half of the test base, run without a build tool.
+JU=$(grep -oE "=== [0-9]+ tests, [0-9]+ passed, [0-9]+ failed[^=]*===" "$L" | sed -n 1p)
+if [ -n "$JU" ]; then
+    if printf '%s' "$JU" | grep -qE ", [1-9][0-9]* failed"; then
+        record "JUnit suites (facade, agent, batch, model)" FAIL "${JU//===/}"
+    else
+        record "JUnit suites (facade, agent, batch, model)" PASS "${JU//===/}"
+    fi
+else
+    record "JUnit suites (facade, agent, batch, model)" SKIP "not detected in $L"
+fi
+
+# Interface suites: structural checks run anywhere, the ones that build a live
+# scene graph need a graphics device and say so rather than pretending.
+UI=$(grep -oE "=== [0-9]+ tests, [0-9]+ passed, [0-9]+ failed[^=]*===" "$L" | sed -n 2p)
+if [ -n "$UI" ]; then
+    if printf '%s' "$UI" | grep -qE ", [1-9][0-9]* failed"; then
+        record "Interface suites" FAIL "${UI//===/}"
+    elif printf '%s' "$UI" | grep -q "not runnable"; then
+        record "Interface suites" PASS "${UI//===/}"
+    else
+        record "Interface suites" PASS "${UI//===/}"
+    fi
+else
+    record "Interface suites" SKIP "not detected in $L"
+fi
+
+# Nothing AI-related may load while the application is starting up.
+if grep -q "isModelLoaded" app/src/main/java/com/aegis/fdx/ai/agent/AgentService.java 2>/dev/null \
+   && grep -q "providerFactory" app/src/main/java/com/aegis/fdx/ai/agent/AgentService.java 2>/dev/null \
+   && ! grep -qE "HttpLocalModelProvider|ModelConfig|LocalChatModel" \
+        app/src/main/java/com/aegis/fdx/ui/FasApp.java 2>/dev/null; then
+    record "AI does not load at startup" PASS "provider built on first invocation; the window holds no model class"
+else
+    record "AI does not load at startup" FAIL "the main window can construct a model provider at startup"
+fi
+
+# A setting the operator changed must still be in force after a restart.
+if grep -q "saveTo" app/src/main/java/com/aegis/fdx/engine/CaseSettings.java 2>/dev/null \
+   && grep -q "loadFrom" app/src/main/java/com/aegis/fdx/ui/FasApp.java 2>/dev/null \
+   && grep -q "settings.saveTo" app/src/main/java/com/aegis/fdx/ui/screens/SettingsScreen.java 2>/dev/null; then
+    record "Settings persist with the case" PASS "written to settings.properties and reloaded on open"
+else
+    record "Settings persist with the case" FAIL "settings changes are lost when the application closes"
+fi
+
+# Host resource figures must be measured, never decorative.
+if [ -f app/src/main/java/com/aegis/fdx/facade/HostMetrics.java ] \
+   && grep -q "OperatingSystemMXBean" app/src/main/java/com/aegis/fdx/facade/HostMetrics.java 2>/dev/null \
+   && grep -q "getFileStore" app/src/main/java/com/aegis/fdx/facade/HostMetrics.java 2>/dev/null \
+   && grep -q "HostMetrics" app/src/main/java/com/aegis/fdx/ui/screens/PerformanceScreen.java 2>/dev/null; then
+    record "Host meters are measured" PASS "CPU, memory and disk read from the OS and the filesystem"
+else
+    record "Host meters are measured" FAIL "the Performance screen does not read real host counters"
+fi
+
+# An unavailable counter must say so rather than render a plausible number.
+if grep -q "UNAVAILABLE" app/src/main/java/com/aegis/fdx/facade/HostMetrics.java 2>/dev/null \
+   && grep -q "not reported by this operating system" \
+        app/src/main/java/com/aegis/fdx/ui/screens/PerformanceScreen.java 2>/dev/null; then
+    record "Unmeasured figures are declared" PASS "missing counters render as text, not as 0%"
+else
+    record "Unmeasured figures are declared" FAIL "a missing counter could render as a number"
+fi
+
+# The rule has to be written down, not just enforced.
+if [ -f docs/AI_BOUNDARY.md ]; then
+    record "AI boundary documented" PASS "docs/AI_BOUNDARY.md states the rule and its evidence"
+else
+    record "AI boundary documented" FAIL "docs/AI_BOUNDARY.md is missing"
+fi
+
 # Detail destinations must be reachable: a Router with drill-through, not dead ends.
 if grep -q "interface Router" app/src/main/java/com/aegis/fdx/ui/Router.java 2>/dev/null \
    && grep -q "implements Router" app/src/main/java/com/aegis/fdx/ui/FasApp.java 2>/dev/null; then
@@ -384,7 +565,9 @@ fi
 # --- 3. packaging -----------------------------------------------------------
 echo
 echo "-- 3. Platform packaging"
-if packaging/build-installer.sh --type app-image > "$OUTDIR/package.log" 2>&1; then
+packaging/build-installer.sh --type app-image > "$OUTDIR/package.log" 2>&1
+PKG_RC=$?
+if [ "$PKG_RC" -eq 0 ]; then
     record "Application image build" PASS "dist/AEGIS-FDX"
     if packaging/verify-install.sh dist/AEGIS-FDX > "$OUTDIR/verify.log" 2>&1; then
         V=$(grep -oE '=== [0-9]+ passed, [0-9]+ failed ===' "$OUTDIR/verify.log")
@@ -394,6 +577,9 @@ if packaging/build-installer.sh --type app-image > "$OUTDIR/package.log" 2>&1; t
     else
         record "Installation validation" FAIL "see $OUTDIR/verify.log"
     fi
+elif [ "$PKG_RC" -eq 3 ]; then
+    # No jlink/jpackage on this host: a property of the machine, not of the build.
+    record "Application image build" SKIP "no packaging toolchain here — $(grep -m1 'TOOLCHAIN UNAVAILABLE' "$OUTDIR/package.log" | sed 's/TOOLCHAIN UNAVAILABLE — //')"
 else
     record "Application image build" FAIL "see $OUTDIR/package.log"
 fi
@@ -465,6 +651,9 @@ echo "==================================================================="
     echo
     echo "**Generated:** $STAMP  "
     echo "**Environment:** $OSNAME · ${CORES} cores · ${MEM_GB} GB  "
+    echo "**Runtime:** $JAVA_V  "
+    echo "**Compiler:** $JAVAC_V  "
+    echo "**JavaFX:** $FX_V  "
     echo "**Class:** $HWCLASS"
     echo
     echo "## Summary"

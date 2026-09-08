@@ -13,7 +13,9 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
@@ -90,6 +92,14 @@ public final class AgentScreen implements Screen {
                 "Off by default. When off, the assistant can only read. When on, it may "
                         + "also classify files and set review state \u2014 it can never alter "
                         + "original material."));
+        // Turning writes on is itself an explicit, confirmed operator decision: the two
+        // write tools are named, and declining reverts the control rather than silently
+        // leaving it armed.
+        allowChanges.setOnAction(e -> {
+            if (allowChanges.isSelected() && !confirmWriteAccess()) {
+                allowChanges.setSelected(false);
+            }
+        });
 
         statusLabel = Fas.muted("");
         modelLabel = Fas.muted("");
@@ -169,6 +179,31 @@ public final class AgentScreen implements Screen {
     private AgentContext currentContext() {
         AgentContext ctx = AgentContext.ofScreen("Assistant");
         return allowChanges != null && allowChanges.isSelected() ? ctx.allowingMutations() : ctx;
+    }
+
+    /**
+     * Asks the operator to confirm before any state-changing tool is registered.
+     *
+     * <p>The assistant is read-only by default and by design. Writing is a separate,
+     * explicitly authorised operation, so the dialog names exactly what becomes
+     * possible and what remains impossible; declining leaves the assistant read-only.
+     *
+     * @return true when the operator confirmed
+     */
+    private boolean confirmWriteAccess() {
+        Alert dialog = new Alert(Alert.AlertType.CONFIRMATION);
+        dialog.setTitle("Allow the assistant to change data");
+        dialog.setHeaderText("Enable two review actions for this assistant session?");
+        dialog.getDialogPane().setContent(new Label(
+                "The assistant would additionally be able to:\n"
+                        + "    \u2022 classify a registered file under a category\n"
+                        + "    \u2022 mark a registered file Read or Unread\n\n"
+                        + "It still cannot alter original files, extracted text, metadata, "
+                        + "hashes,\nthe processing pipeline or the search index, and it "
+                        + "cannot run\nanything outside these registered actions.\n\n"
+                        + "Leave this off unless you specifically want those two actions."));
+        dialog.getButtonTypes().setAll(ButtonType.CANCEL, ButtonType.OK);
+        return dialog.showAndWait().filter(b -> b == ButtonType.OK).isPresent();
     }
 
     private void run() {

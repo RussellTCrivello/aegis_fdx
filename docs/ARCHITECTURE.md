@@ -62,6 +62,47 @@ through the same facades a human's clicks would. It has no shell, SQL, filesyste
 network tool, and it is read-only unless the operator explicitly confirms otherwise.
 Full detail in `AI_AGENT.md`.
 
+Note the direction of every arrow above. The ingest path —
+
+```
+Source → Reading → Processing → Extraction → Metadata → OCR → Content
+       → Hashing → Indexing → case.db / Lucene
+```
+
+— contains no AI, and nothing in it can reach the agent: the nine pipeline packages
+carry no reference to `com.aegis.fdx.ai` in source or in compiled bytecode, and the
+agent is invoked only by an operator action. That separation is the normative rule in
+`AI_BOUNDARY.md` and is enforced by the `AiBoundaryTest` suite (B-01…B-08) in the
+functional battery and on the release gate. AI is an optional analysis layer over the
+finished application, never part of its processing engine.
+
+It is also an *unloaded* layer until it is used. The window holds an `AgentService`,
+but that object stores only a factory: no model configuration is read, no provider is
+constructed and no runtime is contacted while the application starts or while it works.
+The provider is built on the first explicit invocation, which B-08 measures against a
+runtime that counts every request it serves.
+
+### Screen lifecycle
+
+`Screen` declares `onShow`, `onHide` and `dispose`, and the shell drives all three:
+`onHide` when the operator navigates away, `dispose` on shutdown. Destinations that
+sample something live — the Processing Monitor's queue poller, the Performance
+screen's host meters — stop when they are not on screen and release their animation on
+exit. Before this, the shell reached for a specific screen class by `instanceof`, which
+meant every new polling destination silently leaked a timer and kept the JavaFX toolkit
+alive at shutdown.
+
+### Host metrics
+
+`facade/HostMetrics` reads process CPU, system CPU, installed and free physical memory,
+system load average and the capacity of the volume holding the case. The extended
+`com.sun.management.OperatingSystemMXBean` counters are reached reflectively, because
+that interface is a HotSpot extension rather than a platform guarantee and its method
+names changed between versions; binding to it directly would make a runtime without it
+fail to start over a display feature. Every reading is three-valued — measured,
+`UNAVAILABLE`, or `UNAVAILABLE_BYTES` — so the interface can say "not reported by this
+operating system" instead of drawing a bar it cannot justify.
+
 ### Storage
 
 The five added concepts share the case's existing database and JDBC connection.
@@ -167,16 +208,45 @@ permanent affordance for that guarantee.
 
 ```
 <case>/
-  data/      extracted binaries (AES-256 optional, default on)
-  index/     Lucene 9.x — one index per case
-  text/      extracted text, one file per element
-  db/        SQLite (WAL) — queue, metadata, tags, notes, audit
-  logs/      Logback rolling
-  exports/   productions + loadfile.csv
-  case.json  settings (F-29)
+  data/               extracted binaries (AES-256 optional, default on)
+  index/              Lucene 9.x — one index per case, derived
+  text/               extracted text, one file per element
+  db/case.db          SQLite (WAL) — the record of authority
+  logs/               Logback rolling, plus any quarantined damaged index
+  exports/            productions + loadfile.csv
+  case.json           case descriptor
+  settings.properties the operator's processing choices (F-29)
 ```
 
 Move or archive a case = copy the folder. No external state.
+
+**One store, and one of them is derived.** `db/case.db` holds every element, its
+metadata, tags, notes, review state, the work queue and the audit log; the Lucene index
+holds a second, searchable copy of the same facts. The database is authoritative and the
+index is derived from it, which has three consequences the code depends on:
+
+- `CaseDatabase#allItems` reads the case back out, so `LiveCase#rebuildIndex` can
+  reconstruct the index from the database and the text store — tags, notes, hashes and
+  extracted text included.
+- A corrupt or half-written index therefore never costs a case. `LiveCase` rebuilds it
+  while opening, keeps the damaged directory under `logs/index-damaged-<time>` rather
+  than deleting it, and records the repair as a notification in the case. Setup offers
+  the same rebuild manually for an index left stale by an interrupted run.
+- A lock conflict is *not* damage. A case already open elsewhere is refused in words,
+  and the running session's index is left exactly as it is.
+
+`ArchitectureInvariantsTest` asserts the rule directly: destroy the index, and every
+element is still readable through the database and the registry.
+
+### Recovering a single element
+
+`IngestPipeline#retry` re-runs one element through the same pipeline that first
+processed it — same stages, same analyzers, same storage — keeping its identifier so the
+registry row and review state stay attached, and carrying the reviewer's notes and tags
+across. Everything derived from the file is recomputed, hashes included. `LiveCase#
+retryElement` runs it off the interface thread; `FileProcessingFacade#retryFile` reports
+the outcome in a result rather than an exception; the Errors destination is where an
+examiner reaches it.
 
 ---
 

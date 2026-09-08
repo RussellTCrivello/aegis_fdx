@@ -61,6 +61,28 @@ echo "   type     : $TYPE"
 echo "   version  : $APP_VERSION"
 echo
 
+# ---- 0. toolchain preflight ------------------------------------------------
+# Packaging needs tools that the test battery does not: jlink and jpackage ship
+# only with a full JDK. Saying so plainly, once, is far more useful than a
+# "No such file or directory" from somewhere in the middle of the build. Exit
+# status 3 means "this host cannot package", which the acceptance suite reports
+# as a skip rather than as a product failure.
+MISSING=""
+for tool in javac jar jlink jpackage; do
+    if [ ! -x "$JDK/$tool" ] && ! command -v "$tool" >/dev/null 2>&1; then
+        MISSING="$MISSING $tool"
+    fi
+done
+if [ ! -d "$FX" ]; then
+    MISSING="$MISSING javafx-sdk($FX)"
+fi
+if [ -n "$MISSING" ]; then
+    echo "TOOLCHAIN UNAVAILABLE — missing:$MISSING" >&2
+    echo "Packaging requires a full JDK 21+ (javac, jar, jlink, jpackage) and the" >&2
+    echo "JavaFX SDK. Set AEGIS_JDK=<jdk>/bin and AEGIS_FX=<javafx-sdk>/lib and retry." >&2
+    exit 3
+fi
+
 # ---- 1. compile ------------------------------------------------------------
 echo "-- compiling"
 rm -rf "$CLASSES" "$JARS" "$RUNTIME" "$IMAGE"

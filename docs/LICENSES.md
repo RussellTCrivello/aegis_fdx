@@ -23,7 +23,6 @@ declared in `app/build.gradle.kts`.
 | SQLite | 3.x | Public Domain | embedded engine |
 | SLF4J API | 2.0.16 | MIT | logging facade |
 | Logback Classic | 1.5.8 | EPL-1.0 **or** LGPL-2.1 (dual) | logging — elect **EPL-1.0** |
-| ONNX Runtime (Java) | 1.19.2 | MIT | local document classification |
 | JUnit Jupiter | 5.11.0 | EPL-2.0 | tests (not distributed) |
 
 ## Notes and actions

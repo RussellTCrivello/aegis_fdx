@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 /**
  * Entry point for the local agent.
@@ -22,42 +23,121 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * activity trail. The application works normally when no local runtime is installed:
  * {@link #isAvailable()} reports false and the interface explains what to install
  * rather than failing.
+ *
+ * <p><b>Nothing AI-related is loaded until someone asks for it.</b> {@link
+ * #fromEnvironment} does not read the model configuration, does not construct a model
+ * provider and does not touch the network; it only remembers how to build one. The
+ * provider is created on the first call that genuinely needs a model — opening the
+ * Assistant, or pressing an analyse action — so starting the application, ingesting,
+ * extracting, indexing, searching and exporting all run with the model classes
+ * untouched. {@link #isModelLoaded()} reports whether that has happened, and the
+ * boundary tests assert it is still false after a full processing cycle.
  */
 public final class AgentService {
 
     private final AegisFacades facades;
     private final CorpusDatabase dao;
-    private final LocalModelProvider provider;
+
+    /** How to build a provider on demand; null when one was supplied directly. */
+    private final Supplier<LocalModelProvider> providerFactory;
+
+    private final Object providerLock = new Object();
+    private volatile boolean resolved;
+    private volatile LocalModelProvider provider;
+    private volatile String resolutionError;
+
     private final List<AgentActivity> history =
             Collections.synchronizedList(new ArrayList<>());
 
+    /**
+     * Builds a service around an already-constructed provider.
+     *
+     * <p>A null provider means "no model", which is a supported, fully functional state:
+     * every AI affordance reports itself unavailable and everything else works.
+     */
     public AgentService(AegisFacades facades, CorpusDatabase dao, LocalModelProvider provider) {
         this.facades = facades;
         this.dao = dao;
+        this.providerFactory = null;
         this.provider = provider;
+        this.resolved = true;
     }
 
-    /** Builds a service from system properties. */
+    private AgentService(AegisFacades facades, CorpusDatabase dao,
+                         Supplier<LocalModelProvider> factory, boolean lazy) {
+        this.facades = facades;
+        this.dao = dao;
+        this.providerFactory = factory;
+        this.resolved = false;
+    }
+
+    /**
+     * Builds a service from system properties, without loading anything yet.
+     *
+     * <p>Deliberately cheap: no configuration is read and no runtime is contacted here,
+     * because this is called while the application window is being built.
+     */
     public static AgentService fromEnvironment(AegisFacades facades, CorpusDatabase dao) {
+        return new AgentService(facades, dao, AgentService::buildFromEnvironment, true);
+    }
+
+    /** Constructs the configured provider, or null when the agent is switched off. */
+    private static LocalModelProvider buildFromEnvironment() {
         ModelConfig cfg = ModelConfig.fromEnvironment();
         if (!cfg.enabled()) {
-            return new AgentService(facades, dao, null);
+            return null;
         }
-        try {
-            return new AgentService(facades, dao, new HttpLocalModelProvider(cfg));
-        } catch (RuntimeException e) {
-            // A misconfigured endpoint must not stop the application from starting.
-            return new AgentService(facades, dao, null);
+        return new HttpLocalModelProvider(cfg);
+    }
+
+    /**
+     * Whether the model provider has actually been constructed.
+     *
+     * <p>Exists so the no-AI-at-startup rule can be asserted rather than asserted about.
+     */
+    public boolean isModelLoaded() {
+        return resolved && provider != null;
+    }
+
+    /**
+     * Resolves the provider on first demand.
+     *
+     * <p>A misconfigured or missing runtime is not an error condition for the
+     * application: it resolves to "no provider" with the reason kept for display.
+     */
+    private LocalModelProvider provider() {
+        if (resolved) {
+            return provider;
+        }
+        synchronized (providerLock) {
+            if (resolved) {
+                return provider;
+            }
+            try {
+                provider = providerFactory == null ? null : providerFactory.get();
+            } catch (RuntimeException e) {
+                // A misconfigured endpoint must not stop the application from working.
+                provider = null;
+                resolutionError = e.getMessage();
+            }
+            resolved = true;
+            return provider;
         }
     }
 
     public boolean isAvailable() {
-        return provider != null && provider.isAvailable();
+        LocalModelProvider p = provider();
+        return p != null && p.isAvailable();
     }
 
     /** Why the agent is unavailable, phrased for an operator; null when available. */
     public String unavailableReason() {
-        if (provider == null) {
+        LocalModelProvider p = provider();
+        if (p == null) {
+            String detail = resolutionError;
+            if (detail != null && !detail.isBlank()) {
+                return "The local AI agent could not be started: " + detail;
+            }
             return "The local AI agent is disabled or no runtime is configured. "
                     + "Start a local model runtime and set -Daegis.ai.endpoint if it is "
                     + "not on the default port.";
@@ -67,11 +147,13 @@ public final class AgentService {
     }
 
     public ModelConfig config() {
-        return provider == null ? ModelConfig.fromEnvironment() : provider.config();
+        LocalModelProvider p = provider();
+        return p == null ? ModelConfig.fromEnvironment() : p.config();
     }
 
     public String modelId() {
-        return provider == null ? "(none)" : provider.chatModel().modelId();
+        LocalModelProvider p = provider();
+        return p == null ? "(none)" : p.chatModel().modelId();
     }
 
     /**
@@ -111,7 +193,7 @@ public final class AgentService {
         if (context.allowMutations()) {
             tools.addAll(new MutatingTools(facades, dao).all());
         }
-        return new AgentOrchestrator(provider, tools);
+        return new AgentOrchestrator(provider(), tools);
     }
 
     /** Suggested questions for the current screen, shown as one-click prompts. */

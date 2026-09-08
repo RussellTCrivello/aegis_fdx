@@ -264,10 +264,17 @@ per row; filter by unread or hide dismissed.
 ### 3.16 Settings
 ![Settings](screens-fas/26-settings.png)
 
-- **System** — application name and language.
+- **System** — the application name, the interface language, the open case and its
+  folder, shown as facts rather than as fields. The reference offers an editable name
+  and a language picker; only the English catalogue is installed here, so presenting a
+  picker would be presenting a control that changes nothing.
 - **Theme Colors** — the live design-token palette with hex values.
 - **Processing** — deduplication scope, max container depth, worker threads and the
-  OCR toggle. These write straight through to the engine's `CaseSettings`.
+  OCR toggle. These write straight through to the engine's `CaseSettings`, and are
+  saved to `settings.properties` in the case folder as you change them: the line under
+  the card names the file and the time it was written. Reopening the case reapplies
+  them before anything can be processed. Container passwords are held for the session
+  only and are never written to disk.
 
 ---
 
@@ -392,6 +399,14 @@ which the engine has always recorded but which no destination previously display
 Storage footprint, index size, heap use, and a query timer that runs a real search
 against the live index five times and reports best, median and worst — measured here
 and now, not quoted from a benchmark.
+
+**Host Resources** sits below the storage cards: process CPU, system CPU, JVM heap,
+system memory and the capacity of the volume holding the case, sampled from the
+operating system every two seconds while the page is open and stopped the moment you
+navigate away. Where a platform does not publish a counter, the row says so — "not
+reported by this operating system" — instead of drawing a bar. The reference
+application shows the same three meters as fixed literals (45%, 62%, 38%); these are
+readings, so on an idle machine they will read low, and during ingestion they move.
 
 ### 4.15 Setup
 

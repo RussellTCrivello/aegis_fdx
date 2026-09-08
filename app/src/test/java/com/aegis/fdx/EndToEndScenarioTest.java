@@ -57,7 +57,7 @@ class EndToEndScenarioTest {
         // ---------- material, including a nested archive ----------
         Files.writeString(evidence.resolve("invoice-2024.txt"),
                 "INVOICE 2024-0417. Acme Consulting BV. Consulting services rendered. "
-                        + "Payment due in 30 days. Payment due on receipt of goods.",
+                        + "Payment due in 30 days. Payment due in 30 days from receipt.",
                 StandardCharsets.UTF_8);
         Files.writeString(evidence.resolve("agreement.txt"),
                 "Master services agreement with Acme Consulting BV covering consulting "
@@ -93,7 +93,7 @@ class EndToEndScenarioTest {
             aspectId = f.aspects().createAspect("Plaintiff", 0.9);
             categoryId = f.categories().createCategory("finance");
             f.categories().linkWordToCategory("invoice", "finance");
-            f.keywords().createKeyword("payment due", "finance");
+            f.keywords().createKeyword("payment due in 30 days", "finance");
             keywordId = f.keywords().listKeywords().results().get(0).id();
             assertTrue(sourceId > 0 && aspectId > 0 && categoryId > 0 && keywordId > 0);
 

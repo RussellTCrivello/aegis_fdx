@@ -284,6 +284,21 @@ before a run, then exact counts (2 and 1) matching the actual text afterwards.
 | Mark read / unread | `setPathStatus` | `registryFilters` | Complete |
 | Container tree | `archiveTree` | `archiveTree` | Complete |
 | Nested containers | engine `parentId`/`depth` | `archiveTree` | Complete |
+| Retry one element | `FileProcessingFacade#retryFile` → `LiveCase#retryElement` → `IngestPipeline#retry` | `DestinationCoverageTest#retryElement` | Complete |
+| Retry: unknown element | `retryFile` returns a failed result | `retryElement` | Complete |
+| Retry: original file gone | reported, nothing changed | `retryElement` | Complete |
+
+### Case integrity and recovery
+
+| Function | Java API | Test | Status |
+|---|---|---|---|
+| Read the case back out of the database | `CaseDatabase#allItems` | `ResilienceTest#rebuildKeepsEverythingTheDatabaseKnows` | Complete |
+| Rebuild the search index | `LiveCase#rebuildIndex`, Setup destination | `rebuildKeepsEverythingTheDatabaseKnows` | Complete |
+| Repair a damaged index on open | `LiveCase#indexRepair` | `ResilienceTest#damagedIndexIsRebuilt` | Complete |
+| Report the repair to the operator | `FasApp` → `NotificationFacade#createNotification` | `damagedIndexIsRebuilt` | Complete |
+| Refuse a case already open elsewhere | `LiveCase` lock detection | `ResilienceTest#aCaseOpenElsewhereIsRefused` | Complete |
+| Explain an unreadable database | `LiveCase` constructor | `ResilienceTest#unreadableDatabaseIsExplained` | Complete |
+| Verify stored evidence | `IntegrityVerifier#verify` | `ResilienceTest#missingTextIsReported`, `M3AcceptanceTest` | Complete |
 
 ### Import / export
 
@@ -312,10 +327,16 @@ before a run, then exact counts (2 and 1) matching the actual text afterwards.
 | Clean case reports clean | `errorReport` | `errorReportClean` | Complete |
 | Storage / index metrics | `PerformanceScreen` | rendered `24` | Complete |
 | Timed query | `PerformanceScreen` | rendered | Complete |
+| Host CPU / memory / disk meters | `HostMetrics.read` | `HostMetricsTest` | Complete (measured; unsupported counters declared) |
+| Unmeasured counter is declared, not defaulted | `HostMetrics.percent` | `unavailableRendersAsText` | Complete |
+| Screen lifecycle (sampling stops off-screen) | `Screen.onHide` / `dispose` | `FasApp` navigation and shutdown | Complete |
 | Live queue and workers | `ProcessingMonitorScreen` | rendered `22` | Complete |
 | Notifications CRUD | `NotificationFacade` | `notificationFacade` | Complete |
 | Upcoming events | `getUpcomingEvents` | `notificationFacade` | Complete |
 | Settings: OCR, dedupe, depth, workers | `CaseSettings` | `UiParityTest` | Complete |
+| Settings survive a restart | `CaseSettings.saveTo` / `loadFrom` | `SettingsPersistenceTest` | Complete |
+| Damaged settings file cannot reset a case | `CaseSettings.loadFrom` | `damagedFileIsIgnoredValueByValue` | Complete |
+| Session passwords are never persisted | `CaseSettings.saveTo` | `passwordsAreNotPersisted` | Complete |
 
 ### AI
 
@@ -332,6 +353,7 @@ before a run, then exact counts (2 and 1) matching the actual text afterwards.
 | Degrades without runtime | `unavailableReason` | `degradesWithoutRuntime` | Complete |
 | **Per-record analyse** | `AnalyzeAction` | wired on 7 destinations | Complete |
 | Semantic retrieval | `EmbeddingProvider` | interface + cosine | Configurable, off by default |
+| No model loads at startup | `AgentService.isModelLoaded` | `AiBoundaryTest` B-08 | Complete |
 | Model generation quality | — | — | **Hardware-limited** |
 
 Contextual analyse actions are wired on: Source Detail, Aspect Detail, File Detail,

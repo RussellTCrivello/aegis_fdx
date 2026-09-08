@@ -68,8 +68,9 @@ public final class WordFacade {
      * <p>Idempotent by design: the table has a UNIQUE constraint and callers routinely
      * submit terms that already exist.
      */
+    /** Adds a word to the vocabulary. A word is one word; a phrase is a keyword. */
     public int createWord(String word) {
-        String w = Validate.required(word, "word");
+        String w = Terms.requireSingleWord(word, "word");
         try {
             return db.insertWord(w);
         } catch (SQLException e) {
@@ -80,7 +81,7 @@ public final class WordFacade {
     /** @return true if the row was updated */
     public boolean updateWord(int wordId, String word) {
         Validate.positiveId(wordId, "wordId");
-        String w = Validate.required(word, "word");
+        String w = Terms.requireSingleWord(word, "word");
         try {
             return db.updateWord(wordId, w);
         } catch (SQLException e) {

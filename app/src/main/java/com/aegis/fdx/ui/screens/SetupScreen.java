@@ -40,6 +40,7 @@ public final class SetupScreen implements Screen {
     private TextArea verifyOutput;
     private ProgressIndicator spinner;
     private Button verifyButton;
+    private Button rebuildButton;
     private Label statusLabel;
 
     public SetupScreen(AegisFacades facades, CorpusDatabase dao, Router router) {
@@ -73,6 +74,12 @@ public final class SetupScreen implements Screen {
         verifyButton = Fas.primary("Verify Integrity", Icons.SHIELD);
         verifyButton.setOnAction(e -> verify());
 
+        // The index is derived from the case database, so it can always be rebuilt.
+        // Worth offering: an index left incomplete by an interrupted run is otherwise
+        // indistinguishable from evidence that was never there.
+        rebuildButton = Fas.outline("Rebuild Search Index", Icons.REFRESH);
+        rebuildButton.setOnAction(e -> rebuildIndex());
+
         Button refresh = Fas.outline("Refresh", Icons.REFRESH);
         refresh.setOnAction(e -> onShow());
 
@@ -84,7 +91,7 @@ public final class SetupScreen implements Screen {
                         tables),
                 Fas.cardWithHeader("Integrity Verification",
                         "Re-hashes stored evidence and compares against the recorded values",
-                        new VBox(10, Fas.row(10, verifyButton, spinner, statusLabel),
+                        new VBox(10, Fas.row(10, verifyButton, rebuildButton, spinner, statusLabel),
                                 verifyOutput)));
         content.setPadding(new Insets(20));
         ScrollPane sp = new ScrollPane(content);
@@ -155,6 +162,39 @@ public final class SetupScreen implements Screen {
         } catch (Exception e) {
             return 0;
         }
+    }
+
+    /** Rebuilds the search index from the case database, off the UI thread. */
+    private void rebuildIndex() {
+        rebuildButton.setDisable(true);
+        verifyButton.setDisable(true);
+        spinner.setVisible(true);
+        statusLabel.setText("Rebuilding the search index\u2026");
+
+        Thread worker = new Thread(() -> {
+            try {
+                int n = facades.liveCase().rebuildIndex();
+                Platform.runLater(() -> {
+                    statusLabel.setText("Search index rebuilt from the case database: "
+                            + String.format("%,d", n) + " element(s).");
+                    finishRebuild();
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    statusLabel.setText("Rebuild failed: " + e.getMessage());
+                    finishRebuild();
+                });
+            }
+        }, "fas-rebuild-index");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    private void finishRebuild() {
+        spinner.setVisible(false);
+        rebuildButton.setDisable(false);
+        verifyButton.setDisable(false);
+        onShow();
     }
 
     /** Runs the engine's verifier off the UI thread. */

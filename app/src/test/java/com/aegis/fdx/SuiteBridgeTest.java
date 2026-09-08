@@ -69,6 +69,15 @@ class SuiteBridgeTest {
 
     @Test
     @Order(3)
+    @DisplayName("AI boundary (B-01..B-07: optional, manually invoked, read-only agent)")
+    void aiBoundary() throws Exception {
+        Path w = work.resolve("ai-boundary");
+        runSuite("AiBoundaryTest",
+                () -> AiBoundaryTest.main(new String[]{w.toString()}));
+    }
+
+    @Test
+    @Order(4)
     @DisplayName("drag-and-drop intake (F-01)")
     void dragAndDrop() throws Exception {
         Path w = work.resolve("dnd");
@@ -77,7 +86,7 @@ class SuiteBridgeTest {
     }
 
     @Test
-    @Order(4)
+    @Order(5)
     @DisplayName("windows compatibility (N-01)")
     void windowsCompatibility() throws Exception {
         Path w = work.resolve("win");
@@ -86,7 +95,7 @@ class SuiteBridgeTest {
     }
 
     @Test
-    @Order(5)
+    @Order(6)
     @DisplayName("pipeline acceptance AT-01..AT-10 (M2)")
     void pipelineAcceptance() throws Exception {
         Path ds = work.resolve("dataset");
@@ -97,7 +106,7 @@ class SuiteBridgeTest {
     }
 
     @Test
-    @Order(6)
+    @Order(7)
     @DisplayName("milestone 3 acceptance (OCR / export / reports / integrity)")
     void milestone3() throws Exception {
         Path w = work.resolve("m3");

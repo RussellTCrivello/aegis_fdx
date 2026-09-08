@@ -31,6 +31,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -63,6 +64,7 @@ public final class SearchScreen implements Screen {
     private ComboBox<SortOrder> sortOrder;
     private ComboBox<Integer> perPage;
     private Label resultLabel;
+    private FlowPane suggestions;
     private Label pageLabel;
     private TextArea snippetArea;
     private TableView<SearchResultDto> table;
@@ -168,8 +170,13 @@ public final class SearchScreen implements Screen {
             }
         });
 
+        suggestions = new FlowPane(8, 8);
+        suggestions.setVisible(false);
+        suggestions.setManaged(false);
+
         VBox resultsCard = Fas.cardWithHeader("Results", null,
-                new VBox(10, Fas.row(8, resultLabel, Fas.spacer(), pageLabel, prev, next), table));
+                new VBox(10, Fas.row(8, resultLabel, Fas.spacer(), pageLabel, prev, next),
+                        suggestions, table));
         VBox previewCard = Fas.cardWithHeader("Preview", "Matching text and metadata", snippetArea);
         previewCard.setPrefHeight(220);
 
@@ -259,12 +266,55 @@ public final class SearchScreen implements Screen {
             pageLabel.setText(from + " - " + Math.min(offset + perPage.getValue(), total)
                     + " of " + String.format("%,d", total));
 
+            offerSuggestions(q, total);
+
             // Python records every executed search in its history table.
             facades.history().addSearch(q, total);
         } catch (FacadeException ex) {
             rows.clear();
             resultLabel.setText(ex.getMessage());
+            offerSuggestions(q, 0);
         }
+    }
+
+    /**
+     * Offers the closest matches when a query finds nothing.
+     *
+     * <p>A query that returns no rows is the moment an examiner is most likely to
+     * conclude the material is not there. `SearchFacade.getSearchSuggestions` runs the
+     * same query fuzzily against the same index; each suggestion here is therefore a
+     * document that genuinely exists on this case, and clicking one runs a real search
+     * for it. Nothing is offered when the index has nothing close.
+     */
+    private void offerSuggestions(String query, int found) {
+        if (suggestions == null) {
+            return;
+        }
+        suggestions.getChildren().clear();
+        List<String> ideas = List.of();
+        if (found == 0 && query != null && !query.isBlank()) {
+            try {
+                ideas = facades.search().getSearchSuggestions(query);
+            } catch (RuntimeException e) {
+                ideas = List.of();
+            }
+        }
+        if (ideas.isEmpty()) {
+            suggestions.setVisible(false);
+            suggestions.setManaged(false);
+            return;
+        }
+        suggestions.getChildren().add(Fas.muted("Closest matches on this case:"));
+        for (String idea : ideas) {
+            Button chip = Fas.ghost(idea, null);
+            chip.setOnAction(e -> {
+                queryField.setText(idea);
+                runSearch(true);
+            });
+            suggestions.getChildren().add(chip);
+        }
+        suggestions.setVisible(true);
+        suggestions.setManaged(true);
     }
 
     private Integer resolveId(String display, String anyLabel, boolean source) {

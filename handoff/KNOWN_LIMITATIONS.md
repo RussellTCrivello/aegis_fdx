@@ -6,6 +6,22 @@ findings during Windows validation.** Anything not on this list that deviates fr
 
 ---
 
+## 0. Environment-bound validation
+
+These are limits of the machine a build runs on, not of the product. Each one is
+reported as a skip with its reason, never as a pass.
+
+| Limit | Effect | How to clear it |
+|---|---|---|
+| No graphics device | One interface check (`UiParityTest#iconSet`) builds a live scene graph and cannot run; the runner reports it as "not runnable on this machine" | Run the battery on a desktop with JDK 21 and the JavaFX SDK |
+| Tesseract absent | OCR assertions report as skipped; the "OCR not installed" path is itself tested | Install Tesseract, or set `aegis.tesseract` |
+| No `jlink` / `jpackage` | `packaging/build-installer.sh` exits 3 with the missing tools named; the gate records a skip | Run packaging on a full JDK 21+ |
+| Not a Windows host | The MSI is not built; 18 portable Windows-compatibility checks still run | Run `run-tests.ps1` and the installer on Windows |
+| Development-class hardware | Performance figures are indicators, not certified | Re-run on 8-core / 16 GB / NVMe |
+| Not enough memory for a 7B model | Model *answer quality* is unvalidated; the protocol, tool loop, grounding and audit trail are verified against a scripted runtime | Install a local runtime, pull a model, launch with `-Daegis.ai.enabled=true` |
+
+---
+
 ## 1. Format support
 
 ### RAR archives are not extracted

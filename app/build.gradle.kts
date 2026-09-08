@@ -60,8 +60,12 @@ dependencies {
     implementation("org.slf4j:slf4j-api:2.0.16")                // MIT
     implementation("ch.qos.logback:logback-classic:1.5.8")      // EPL-1.0 / LGPL-2.1
 
-    // --- Local ML classification (Apache-2.0 / MIT) -------------------------
-    implementation("com.microsoft.onnxruntime:onnxruntime:1.19.2")
+    // No AI/ML runtime is declared here on purpose. The local agent is an optional
+    // analysis layer that talks to a separately installed local model runtime over
+    // loopback HTTP (see docs/AI_BOUNDARY.md); the processing engine must build, run
+    // and ship without any inference dependency. An ONNX Runtime dependency for
+    // in-pipeline "AI classification" was declared but never used, and was removed:
+    // File → Java processing engine → database/index is the only ingest path.
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

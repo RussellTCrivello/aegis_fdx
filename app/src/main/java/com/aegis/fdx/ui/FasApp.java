@@ -95,6 +95,7 @@ public final class FasApp extends Application implements Router {
     private String currentKey;
     private final java.util.Deque<String> historyStack = new java.util.ArrayDeque<>();
     private CorpusDatabase corpusDao;
+    private Path settingsFile;
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -103,9 +104,25 @@ public final class FasApp extends Application implements Router {
         Path root = Path.of(System.getProperty("user.home"), ".file-analysis", "workspace");
         Files.createDirectories(root);
         liveCase = new LiveCase(root, "workspace", settings);
+        // Settings belong to the case: anything the operator changed last time is
+        // reapplied here, before any processing can read them.
+        settingsFile = liveCase.folder().root().resolve(CaseSettings.FILE_NAME);
+        settings.loadFrom(settingsFile);
         facades = AegisFacades.open(liveCase);
         corpusDao = new CorpusDatabase(liveCase.db());
         agent = AgentService.fromEnvironment(facades, corpusDao);
+
+        // If the case had to be repaired on the way in, that is a fact about the
+        // evidence and belongs in the case, not in a dialog nobody reads twice.
+        String repair = liveCase.indexRepair();
+        if (repair != null) {
+            try {
+                facades.notifications().createNotification("case_repair", "high",
+                        "Search index rebuilt", repair, null, null);
+            } catch (Exception ignored) {
+                // A notification that cannot be stored must not stop the case opening.
+            }
+        }
 
         register(new DashboardScreen(facades));
         register(new AnalysisScreen(facades));
@@ -119,7 +136,7 @@ public final class FasApp extends Application implements Router {
         register(new UploadScreen(facades));
         register(new FileLibraryScreen(facades));
         register(new NotificationsScreen(facades));
-        register(new SettingsScreen(facades, settings));
+        register(new SettingsScreen(facades, settings, settingsFile));
         register(new AgentScreen(facades, agent));
 
         // analytics destinations
@@ -316,8 +333,12 @@ public final class FasApp extends Application implements Router {
         }
         // Let a polling destination stop before it is swapped out.
         Screen previous = currentKey == null ? null : screens.get(currentKey);
-        if (previous instanceof ProcessingMonitorScreen pm) {
-            pm.onHide();
+        if (previous != null && previous != s) {
+            try {
+                previous.onHide();
+            } catch (RuntimeException ignored) {
+                // leaving a screen must never block navigation
+            }
         }
         if (currentKey != null && !currentKey.equals(key)) {
             historyStack.push(currentKey);
@@ -439,8 +460,10 @@ public final class FasApp extends Application implements Router {
     private void shutdown() {
         // Stop any destination holding a running animation, or the toolkit will not exit.
         for (Screen s : screens.values()) {
-            if (s instanceof ProcessingMonitorScreen pm) {
-                pm.dispose();
+            try {
+                s.dispose();
+            } catch (RuntimeException ignored) {
+                // shutdown is best effort
             }
         }
         try {
