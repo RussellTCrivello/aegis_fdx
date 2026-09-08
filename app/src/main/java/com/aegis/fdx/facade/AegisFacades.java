@@ -45,6 +45,7 @@ public final class AegisFacades {
     private final BatchAnalysisFacade batch;
     private final RelationshipFacade relationships;
     private final RelationshipAnalyzer relationshipAnalyzer;
+    private final RelationshipIntegrity relationshipIntegrity;
 
     private AegisFacades(LiveCase liveCase, CorpusDatabase corpus) {
         this.liveCase = liveCase;
@@ -63,6 +64,7 @@ public final class AegisFacades {
         this.batch = new BatchAnalysisFacade(corpus, contents, keywords, categories);
         this.relationships = new RelationshipFacade(corpus);
         this.relationshipAnalyzer = new RelationshipAnalyzer(corpus, contents);
+        this.relationshipIntegrity = new RelationshipIntegrity(corpus, relationships);
     }
 
     /**
@@ -158,6 +160,11 @@ public final class AegisFacades {
     /** File ↔ keyword ↔ category ↔ category word, with whole-case counts and search. */
     public RelationshipFacade relationships() {
         return relationships;
+    }
+
+    /** Walks the graph from both ends and reports any disagreement. */
+    public RelationshipIntegrity relationshipIntegrity() {
+        return relationshipIntegrity;
     }
 
     /** Re-derives the file ↔ word and file ↔ keyword edges from stored content. */

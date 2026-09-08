@@ -203,12 +203,14 @@ public final class SearchScreen implements Screen {
         goRel.setOnAction(e -> runRelationshipSearch());
         Button update = Fas.outline("Update associations", Icons.REFRESH);
         update.setOnAction(e -> updateAssociations());
+        Button check = Fas.outline("Check relationships", Icons.CHECK_CIRCLE);
+        check.setOnAction(e -> checkRelationships());
         matchLabel = Fas.muted("Reports where each file matched: name, path, metadata, "
                 + "content, keyword, category or category word");
         matchTable = buildMatchTable();
         matchTable.setPrefHeight(220);
         VBox relCard = Fas.cardWithHeader("Search Everywhere", null,
-                new VBox(10, Fas.row(8, Fas.fieldLabel("Scope"), scopeBox, goRel, update,
+                new VBox(10, Fas.row(8, Fas.fieldLabel("Scope"), scopeBox, goRel, update, check,
                         Fas.spacer(), matchLabel), matchTable));
 
         SplitPane split = new SplitPane(resultsCard, relCard, previewCard);
@@ -322,6 +324,22 @@ public final class SearchScreen implements Screen {
         } catch (FacadeException e) {
             matchRows.clear();
             matchLabel.setText(e.getMessage());
+        }
+    }
+
+    /** Walks the relationship graph from both ends and shows the report. */
+    private void checkRelationships() {
+        try {
+            var report = facades.relationshipIntegrity().check();
+            matchLabel.setText(report.summary());
+            snippetArea.setText(com.aegis.fdx.facade.RelationshipIntegrity.render(report));
+            Alert a = new Alert(report.consistent() ? Alert.AlertType.INFORMATION
+                    : Alert.AlertType.WARNING, report.summary(), ButtonType.OK);
+            a.setHeaderText(report.consistent() ? "Relationships are consistent"
+                    : report.findings().size() + " inconsistency(ies) found — see the preview pane");
+            a.showAndWait();
+        } catch (FacadeException e) {
+            matchLabel.setText("Could not check relationships: " + e.getMessage());
         }
     }
 

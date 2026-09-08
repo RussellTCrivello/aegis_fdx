@@ -67,6 +67,32 @@ public final class ExportFacade {
     }
 
     /** Results as a JSON document. */
+    /**
+     * A vocabulary list — keywords, categories or category words — with whole-case
+     * file counts, as CSV. The reference's list pages export their visible rows
+     * client-side; this exports the whole case.
+     */
+    public static byte[] exportTermsCsv(List<com.aegis.fdx.facade.dto.TermSummary> terms) {
+        StringBuilder sb = new StringBuilder("id,kind,text,normalized,word_count,file_count,hits\r\n");
+        for (com.aegis.fdx.facade.dto.TermSummary t : terms) {
+            sb.append(t.id()).append(',').append(t.kind().label()).append(',')
+              .append(csvCell(t.text())).append(',').append(csvCell(t.normalized())).append(',')
+              .append(t.wordCount()).append(',').append(t.fileCount()).append(',')
+              .append(t.hits()).append("\r\n");
+        }
+        return sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private static String csvCell(String v) {
+        if (v == null) {
+            return "";
+        }
+        if (v.contains(",") || v.contains("\"") || v.contains("\n")) {
+            return "\"" + v.replace("\"", "\"\"") + "\"";
+        }
+        return v;
+    }
+
     public static byte[] exportSearchResultsJson(List<SearchResultDto> results) {
         return exportSearchResultsJson(results, null);
     }

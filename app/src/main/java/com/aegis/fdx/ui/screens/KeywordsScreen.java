@@ -80,15 +80,35 @@ public final class KeywordsScreen implements Screen {
         Button dupes = Fas.outline("Find Duplicates", Icons.FUNNEL);
         dupes.setOnAction(e -> {
             Map<String, Integer> d = facades.keywords().findDuplicates();
-            Alert a = new Alert(Alert.AlertType.INFORMATION);
-            a.setHeaderText(d.isEmpty() ? "No duplicates found"
-                    : d.size() + " duplicated keyword phrase(s)");
-            a.setContentText(d.isEmpty() ? "Every keyword phrase is unique."
-                    : d.entrySet().stream()
-                    .map(x -> x.getKey() + "  \u00d7" + x.getValue())
-                    .reduce((x, y) -> x + "\n" + y).orElse(""));
-            a.showAndWait();
+            if (d.isEmpty()) {
+                Alert a = new Alert(Alert.AlertType.INFORMATION, "Every keyword phrase is unique.",
+                        ButtonType.OK);
+                a.setHeaderText("No duplicates found");
+                a.showAndWait();
+                return;
+            }
+            Alert a = new Alert(Alert.AlertType.CONFIRMATION,
+                    d.entrySet().stream()
+                            .map(x -> x.getKey() + "  \u00d7" + x.getValue())
+                            .reduce((x, y) -> x + "\n" + y).orElse("")
+                            + "\n\nMerge each group into its oldest keyword? File links move across;"
+                            + " nothing is lost.",
+                    ButtonType.CANCEL, ButtonType.OK);
+            a.setHeaderText(d.size() + " duplicated keyword phrase(s)");
+            a.showAndWait().filter(b -> b == ButtonType.OK).ifPresent(b -> {
+                int removed = facades.keywords().mergeDuplicates();
+                onShow();
+                Alert done = new Alert(Alert.AlertType.INFORMATION,
+                        removed + " duplicate keyword(s) merged.", ButtonType.OK);
+                done.setHeaderText("Merge complete");
+                done.showAndWait();
+            });
         });
+
+        Button export = Fas.outline("Export CSV", Icons.DOWNLOAD);
+        export.setOnAction(e -> Fas.saveBytes(table, "Export Keywords", "keywords.csv",
+                com.aegis.fdx.facade.ExportFacade.exportTermsCsv(
+                        facades.relationships().keywords(null, 100_000, 0).results())));
 
         Button bulk = Fas.danger("Delete Selected", Icons.TRASH);
         bulk.setOnAction(e -> {
@@ -214,7 +234,7 @@ public final class KeywordsScreen implements Screen {
                         pageLabel, prev, next));
 
         VBox content = new VBox(16,
-                Fas.pageHeader("Keywords", "Home / Keywords", analyze, dupes, bulk, add),
+                Fas.pageHeader("Keywords", "Home / Keywords", analyze, dupes, export, bulk, add),
                 Fas.cardWithHeader("Keyword List", null, body));
         content.setPadding(new Insets(20));
         return content;

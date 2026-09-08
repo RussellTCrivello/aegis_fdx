@@ -22,15 +22,28 @@ else
     echo "OCR: not installed — OCR assertions will report as skipped"
 fi
 
+# Compiler: javac from the JDK, or — on a machine that only has a JRE — the Eclipse
+# compiler jar (AEGIS_ECJ). Both produce the same class files; the runtime record in
+# docs/VERIFICATION_REPORT.md names which one was used.
+ECJ="${AEGIS_ECJ:-$HOME/.cache/tools/ecj/ecj.jar}"
+FXJAR="$(ls "$FX"/javafx-all.jar 2>/dev/null || echo "$FX"/javafx.base.jar:"$FX"/javafx.graphics.jar:"$FX"/javafx.controls.jar)"
+compile() { # compile <classpath> <sources...>
+    local cp="$1"; shift
+    if [ -x "$JDK/javac" ]; then
+        "$JDK/javac" -nowarn --module-path "$FX" --add-modules javafx.controls -cp "$cp" -d "$OUT" "$@"
+    else
+        echo "   (javac not present; compiling with ECJ $(basename "$ECJ"))"
+        "$JDK/java" -jar "$ECJ" -21 -nowarn -proc:none -encoding UTF-8 -cp "$cp:$FXJAR" -d "$OUT" "$@"
+    fi
+}
+
 echo "== compiling main =="
 mkdir -p "$OUT"
-"$JDK/javac" -nowarn --module-path "$FX" --add-modules javafx.controls \
-    -cp "$CP" -d "$OUT" $(find app/src/main/java -name '*.java')
+compile "$CP" $(find app/src/main/java -name '*.java')
 cp -r app/src/main/resources/* "$OUT/" 2>/dev/null || true
 
 echo "== compiling tests =="
-"$JDK/javac" -nowarn --module-path "$FX" --add-modules javafx.controls \
-    -cp "$OUT:$CP" -d "$OUT" $(find app/src/test -name '*.java')
+compile "$OUT:$CP" $(find app/src/test -name '*.java')
 
 rm -rf "$WORK"; mkdir -p "$WORK"
 
@@ -75,7 +88,8 @@ echo; echo "== JUnit suites (facade, agent, batch, model, scenario) =="
     com.aegis.fdx.IntegrationModelTest \
     com.aegis.fdx.EndToEndScenarioTest \
     com.aegis.fdx.SettingsPersistenceTest \
-    com.aegis.fdx.HostMetricsTest
+    com.aegis.fdx.HostMetricsTest \
+    com.aegis.fdx.FailureRecoveryTest
 
 echo; echo "== architecture invariants (structural rules the build must not break) =="
 "$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.ArchitectureInvariantsTest "$WORK/arch"
@@ -85,12 +99,17 @@ echo; echo "== failure and recovery (damaged index, locked case, unreadable data
 
 echo; echo "== coverage inventory (every destination classified, every claim resolvable) =="
 "$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.CoverageMatrixTest
+"$JDK/java" -Xmx900m -cp "$OUT:$CP" com.aegis.fdx.InterfaceFunctionMatrixTest
 
 echo; echo "== interface suites (need a JavaFX runtime with native libraries) =="
 # The runner reports checks that cannot run for want of a graphics device as
 # "not runnable on this machine" and still fails the battery for anything else.
-"$JDK/java" -Xmx900m --module-path "$FX" --add-modules javafx.controls,javafx.graphics \
-    -cp "$OUT:$CP" com.aegis.fdx.JUnitRunner \
+if [ -f "$FX/javafx.controls.jar" ]; then
+    FXRUN="--module-path $FX --add-modules javafx.controls,javafx.graphics -cp $OUT:$CP"
+else
+    FXRUN="-cp $OUT:$CP:$FXJAR"   # shaded JavaFX classes, no natives: compile-level checks only
+fi
+"$JDK/java" -Xmx900m $FXRUN com.aegis.fdx.JUnitRunner \
     com.aegis.fdx.UiParityTest com.aegis.fdx.DestinationCoverageTest com.aegis.fdx.RelationshipModelTest com.aegis.fdx.SuiteBridgeTest
 
 echo; echo "== benchmark (N-02 / F-18 / N-03) =="

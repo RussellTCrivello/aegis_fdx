@@ -441,4 +441,106 @@ class RelationshipModelTest {
             assertTrue(plain.categoryWords().isEmpty());
         }
     }
+
+    // ============================================================= integrity
+
+    @Test
+    @DisplayName("Integrity checker traverses every edge both ways and finds no disagreement")
+    void integrityConsistent(@TempDir Path tmp) throws Exception {
+        try (LiveCase c = openCase(tmp)) {
+            Seeded s = seed(c, tmp);
+            var report = s.f().relationshipIntegrity().check();
+            assertTrue(report.consistent(), com.aegis.fdx.facade.RelationshipIntegrity.render(report));
+            System.out.println(com.aegis.fdx.facade.RelationshipIntegrity.render(report));
+            assertEquals(4, report.files());
+            assertEquals(1, report.keywords());
+            assertEquals(2, report.categories());
+            assertEquals(5, report.categoryWords(), "finance, legal, invoice, payment, agreement");
+            assertEquals(2, report.keywordEdges());
+            assertTrue(report.traversalsChecked() > 10);
+            // analysing three more times changes nothing
+            for (int i = 0; i < 3; i++) {
+                s.f().relationshipAnalyzer().analyzeAll(null);
+            }
+            var again = s.f().relationshipIntegrity().check();
+            assertTrue(again.consistent());
+            assertEquals(report.keywordEdges(), again.keywordEdges());
+            assertEquals(report.wordEdges(), again.wordEdges());
+        }
+    }
+
+    @Test
+    @DisplayName("Integrity checker reports a planted inconsistency instead of hiding it")
+    void integrityDetectsDamage(@TempDir Path tmp) throws Exception {
+        try (LiveCase c = openCase(tmp)) {
+            Seeded s = seed(c, tmp);
+            // plant an edge to a keyword that does not exist, bypassing the facade
+            try (var st = c.db().connection().createStatement()) {
+                st.execute("PRAGMA foreign_keys=OFF");
+                st.execute("INSERT INTO path_keyword (path_id, keyword_id, hits) VALUES ("
+                        + s.pathOf("plain.txt") + ", 9999, 1)");
+            }
+            var report = s.f().relationshipIntegrity().check();
+            System.out.println(com.aegis.fdx.facade.RelationshipIntegrity.render(report));
+            assertFalse(report.consistent());
+            assertTrue(report.findings().stream().anyMatch(f -> f.rule().equals("orphan-edge")),
+                    com.aegis.fdx.facade.RelationshipIntegrity.render(report));
+        }
+    }
+
+    // ===================================================== storage-level invariants
+
+    @Test
+    @DisplayName("The database layer refuses invalid terms even when the facade is bypassed")
+    void storageInvariants(@TempDir Path tmp) throws Exception {
+        try (LiveCase c = openCase(tmp)) {
+            Seeded s = seed(c, tmp);
+            assertThrows(java.sql.SQLException.class, () -> s.dao().insertWord("two words"));
+            assertThrows(java.sql.SQLException.class, () -> s.dao().updateWord(s.wordId("payment"), "a b"));
+            assertThrows(java.sql.SQLException.class,
+                    () -> s.dao().insertKeyword("only two", s.financeId()));
+            assertThrows(java.sql.SQLException.class,
+                    () -> s.dao().updateKeyword(s.keywordId(), "too short"));
+            // and the valid forms still work
+            assertTrue(s.dao().insertWord("ledger") > 0);
+            assertTrue(s.dao().insertKeyword("three word phrase", s.financeId()) > 0);
+        }
+    }
+
+    // ============================================================ duplicates
+
+    @Test
+    @DisplayName("Duplicate keywords and categories are found by normalised text and merged without losing edges")
+    void mergeDuplicates(@TempDir Path tmp) throws Exception {
+        try (LiveCase c = openCase(tmp)) {
+            Seeded s = seed(c, tmp);
+            // a case-variant duplicate keyword, with its own edge to the memo
+            s.f().keywords().createKeyword("Payment Due In 30 Days", "finance");
+            int dup = s.f().keywords().listKeywords().results().stream()
+                    .filter(k -> k.keyword().equals("Payment Due In 30 Days")).findFirst().orElseThrow().id();
+            s.dao().linkPathToKeyword(s.pathOf("memo.txt"), dup, 1);
+            assertEquals(1, s.f().keywords().findDuplicates().size());
+
+            int removed = s.f().keywords().mergeDuplicates();
+            assertEquals(1, removed);
+            assertTrue(s.f().keywords().findDuplicates().isEmpty());
+            // the survivor now reaches all three files; hits preserved
+            assertEquals(Set.of("invoice.txt", "ledger.txt", "memo.txt"),
+                    names(s.rel().keyword(s.keywordId()).files()));
+            assertTrue(s.f().relationshipIntegrity().check().consistent());
+
+            // duplicate category
+            s.f().categories().createCategory("Finance");
+            assertEquals(1, s.f().categories().findDuplicates().size());
+            s.f().categories().linkWordToCategory("ledger", "Finance");
+            assertEquals(1, s.f().categories().mergeDuplicates());
+            assertTrue(s.f().categories().findDuplicates().isEmpty());
+            Set<String> words = new TreeSet<>();
+            for (var w : s.rel().category(s.financeId()).categoryWords()) {
+                words.add(w.text());
+            }
+            assertTrue(words.contains("ledger"), "merged category keeps the moved word");
+            assertTrue(s.f().relationshipIntegrity().check().consistent());
+        }
+    }
 }

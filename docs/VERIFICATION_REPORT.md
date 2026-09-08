@@ -1,49 +1,85 @@
 # Final Verification Report
 
-Generated: 2026-09-08 (revision 4 — everything below was executed)
-Build machine: Linux, 2 cores, 3 GB RAM, no GPU, no display
+Generated: 2026-09-08 (revision 5 — relationship model, interface-function matrix,
+failure-recovery inventory; everything below was executed)
+Build machine: Linux 6.1 x86_64, 2 cores, 3.9 GB RAM, no GPU, no display, no network
 
 Everything below was measured by running the software, not inferred from the source.
 
 ---
 
-## 0. Executed evidence
+## 0. Executed evidence — runtime record
 
-The whole battery was compiled and run on this machine. The toolchain is not the
-reference one, and that is stated rather than glossed: it is the toolchain that could be
-assembled in an environment with no JDK and no access to one.
+The whole battery was compiled and run on this machine with `./run-tests.sh 2`
+(gate total 1,101 assertions, exit status 0, ends `ALL SUITES COMPLETED`). The toolchain is not the
+reference one and that is stated rather than glossed: it is the toolchain that could be
+assembled in a sandbox with no JDK download and no Maven access.
 
 | | |
 |---|---|
-| Runtime | OpenJDK **25.0.2** (Temurin jlink image) |
-| Compiler | **Eclipse batch compiler 3.45**, source and target level 21 |
-| JavaFX | **20.0.1** jars, compile-only — no Linux native libraries, no display |
-| Command | `AEGIS_JDK=… AEGIS_FX=… ./final-acceptance.sh 2` |
+| Operating system | Linux 6.1.158 x86_64 (container), 2 cores, 3.9 GB RAM |
+| Java runtime | OpenJDK **21.0.4** (Temurin 21.0.4+7-LTS) |
+| Compiler | **Eclipse Compiler for Java 3.46.0** (`ecj`), `-21`, invoked by `run-tests.sh` because `javac` is absent (the script uses `javac` when a full JDK is present) |
+| JavaFX | **23.0.1** classes (shaded `javafx-all.jar`), compile-time and class-loading only — **no Linux native libraries and no display**, so no scene can be rendered |
+| Gradle | **not available** (no network); `run-tests.sh` drives the same sources and jars in `lib/` through the JUnit Platform launcher |
+| Tesseract | not installed — OCR checks report "skipped/absent" by design |
+| Local model runtime | none — agent tests use the scripted loopback `FakeLocalRuntime` speaking the real protocol |
 
-| Suite | Result |
+| Suite (order in `run-tests.sh`) | Result |
 |---|---|
 | Query parser (M1) | 33 passed, 0 failed |
-| Query validation | 69 passed, 0 failed |
 | Pipeline acceptance AT-01…AT-10 (M2) | 56 passed, 0 failed |
-| M3 acceptance — OCR, export, reports, integrity | 80 passed, 0 failed |
+| M3 acceptance — OCR, export, reports, integrity, crash recovery | 80 passed, 0 failed |
+| Query validation | 69 passed, 0 failed |
 | AI boundary B-01…B-08 | 48 passed, 0 failed |
-| Architecture invariants | 13 passed, 0 failed |
-| Failure and recovery | 6 passed, 0 failed |
-| Coverage inventory | 6 passed, 0 failed |
 | Case settings persistence | 4 passed, 0 failed |
 | Host metrics | 7 passed, 0 failed |
 | Drag-and-drop intake (F-01) | 10 passed, 0 failed |
 | Windows compatibility (N-01) | 18 passed, 0 failed |
-| JUnit suites — facade, agent, batch, model, destinations, scenario | 65 tests, 65 passed |
-| Interface suites | 30 tests, 29 passed, **1 not runnable here** (needs a graphics device) |
-| **Total battery** | **1,072 assertions, 0 failures** |
-| **Release gate** | **66 passed · 0 failed · 5 skipped** |
+| JUnit: FacadeParity, AiAgent (incl. **provenance labels**), BatchAnalysis, IntegrationModel, EndToEndScenario, SettingsPersistence, HostMetrics, **FailureRecovery** | **78 tests, 78 passed, 0 failed, 0 skipped** |
+| Architecture invariants | 13 passed, 0 failed |
+| Failure and recovery (Resilience) | 6 passed, 0 failed |
+| Coverage inventory (`coverage.tsv`, 91 rows) | 6 passed, 0 failed |
+| **Interface-function matrix** (`interface-function-matrix.tsv`, 120 rows) | 7 passed, 0 failed |
+| JUnit interface suites: UiParity, DestinationCoverage, **RelationshipModel (16)**, SuiteBridge | **46 tests, 45 passed, 0 failed, 0 skipped, 1 not runnable here** |
+| Benchmark | ran; classified DEVELOPMENT ENVIRONMENT (indicative only) |
+| **Total** | **≈ 481 named checks + 124 JUnit tests; 0 failures; 1 ENVIRONMENT-LIMITED** |
 
-The five gate skips are environmental and each names its reason: no Gradle, no
-Tesseract, no `jpackage`, no Windows host, and performance figures that need reference
-hardware to be certified rather than indicative. See `docs/COVERAGE_MATRIX.md` for the
-per-capability classification and `docs/ADVERSARIAL_AUDIT.md` §4 for what still cannot
-be executed here.
+The single "not runnable" item is `UiParityTest` "Icon set covers every Bootstrap Icon the
+Python sidebar uses", which needs a JavaFX graphics pipeline (`QuantumRenderer: no suitable
+pipeline found`). Every other UI check runs against screen classes and the Router without
+a scene. **No GUI click-through was performed** in this environment; that remains
+ENVIRONMENT-LIMITED until the battery is run on a machine with a display.
+
+What is *not* claimed: Gradle build, `jpackage` image, Windows host run, Tesseract OCR
+output, real model generation. Each is an environment limitation, not a code defect, and
+each has its own gate line in `final-acceptance.sh`.
+
+### Failure and recovery inventory (directive item 18)
+
+| Failure | Test that ran | Observed behaviour |
+|---|---|---|
+| Corrupt file (PDF, DOCX) | `FailureRecoveryTest#corruptFile`, `PipelineAcceptanceTest` AT-01 | ERROR with reason; run continues; good files indexed |
+| Unsupported file type | `FailureRecoveryTest#unsupportedFile`, AT-01 | stored, hashed, UNSUPPORTED/indexed by name; never dropped |
+| Locked (encrypted) file | `PipelineAcceptanceTest` AT-03 | LOCKED; run continues past it |
+| Malformed archive (truncated, fake header) | `FailureRecoveryTest#malformedArchive` | decision on that item; sibling archive fully expanded |
+| Oversized nesting (bomb shape) | `FailureRecoveryTest#oversizedNesting` | stops at `maxArchiveDepth`, annotates `Depth-Limit`, nothing below the limit is searchable |
+| Interrupted processing | `PipelineAcceptanceTest` AT-05 | cancel mid-run; fresh pipeline resumes without duplicates |
+| Interrupted indexing / crash | `M3AcceptanceTest#testCrashRecovery` | queue drained after resume; audit log survives |
+| Corrupt index | `ResilienceTest#damagedIndexIsRebuilt`, `#rebuildRestoresEverything` | rebuilt from case.db; damaged copy kept under logs/ |
+| Application restart | `FailureRecoveryTest#restartKeepsRelationships`, `EndToEndScenarioTest`, `BatchAnalysisTest#historySurvivesRestart` | relationships, counts, history identical after reopen |
+| Corrupt settings | `SettingsPersistenceTest` "A damaged settings file cannot reset or break a case" | defaults, case opens |
+| Case locked by another process | `ResilienceTest#aCaseOpenElsewhereIsRefused` | refused in words; not rebuilt |
+| Unreadable database | `ResilienceTest#unreadableDatabaseIsExplained` | named, explained |
+| Missing / unreachable model | `AiAgentTest` "With no runtime installed…", "Runtime failures…" | `RUNTIME_UNAVAILABLE`, application unaffected |
+| Model HTTP error / timeout | `AiAgentTest` "Runtime failures…", "A slow runtime produces a timeout" | `BAD_RESPONSE` / `TIMEOUT` |
+| Malformed model response (garbage body, empty content) | `FailureRecoveryTest#malformedModelResponse`, `#emptyModelContent` | reported failure with message; next question works |
+| Failed / unknown / malformed AI tool call | `AiAgentTest` "An unknown tool name is corrected", "Malformed arguments are rejected", "A tool reports 'no data' distinctly from 'failed'" | corrected or refused; loop bounded |
+| Empty search / malformed query | `FailureRecoveryTest#emptyAndMalformedSearch`, `QueryValidationTest` | blank refused with "query is required"; syntax errors refused with a fix hint; index intact |
+| Empty case | `FailureRecoveryTest#emptyCase` | every count zero; integrity consistent |
+| Duplicate relationship / duplicate term | `FailureRecoveryTest#duplicateRelationship`, `RelationshipModelTest#mergeDuplicates` | second link no-op; duplicate keyword refused; edge PK prevents double count; re-analysis idempotent |
+| Invariant violation (2-word keyword, 2-word category) | `FailureRecoveryTest#invariantViolations`, `RelationshipModelTest#storageInvariants` | `FacadeException` at facade, `SQLException` at DAO; case unchanged |
+| Planted orphan edge | `RelationshipModelTest#integrityDetectsDamage` | reported as `orphan-edge`, not hidden |
 
 ---
 
@@ -248,11 +284,11 @@ Stated rather than omitted.
 | **Batch scheduling ("Off-Hours", "Custom Time")** | Deliberately not reproduced, on evidence. In the reference the schedule dropdown and the "Off-Hours" template only set a string in the request body (`ui.schedule = 'off-hours'` in `static/js/pages/analysis-batch-page.js`), which `POST /analysis/batch/process` runs immediately; there is no scheduler, no queue and no persisted schedule anywhere in the Python backend. Reproducing the control would mean inventing backend behaviour, not reproducing it. What the Java application does instead is real: `BatchAnalysisFacade` runs the selected template now, against selected records, and writes a run history that survives restart (`BatchAnalysisTest`). |
 | **Host CPU / disk gauges** | Implemented, measured. `HostMetrics` reads process CPU, system CPU, installed/free physical memory and the capacity of the volume holding the case, and the Performance screen samples it every two seconds while that page is open. Counters a platform does not expose render as "not reported by this operating system" rather than as a number — the reference's equivalent panel is three literals in the template (45% / 62% / 38%). Instantaneous disk-I/O throughput is the one figure still not read: the JVM exposes no portable byte-rate counter, so the screen reports volume capacity and the case's own footprint instead of inventing a rate. |
 | **Model generation unverified on this machine** | 400 MB free RAM cannot hold a usable model. Protocol, agent loop, tools, grounding and UI were verified against a scripted loopback runtime speaking the real format. Generation quality and latency need a machine with ≥6 GB free RAM. |
-| **AI boundary suite not yet executed** | `AiBoundaryTest` (B-01…B-08) and `HostMetricsTest` were added on a machine without a JDK, so their results are not included in the counts above. Both are wired into `run-tests.sh`, and the boundary suite gates the release through `final-acceptance.sh`. They must be run once on a JDK machine before the next release is declared. |
+| **GUI click-through** | Not performed here: no display and no JavaFX natives. Screen construction, routing, control inventory and every handler's facade call are tested without a scene; rendering and pointer interaction are ENVIRONMENT-LIMITED until run on a desktop. |
 | Semantic retrieval not enabled by default | `EmbeddingProvider` is implemented; keyword, metadata and relationship retrieval are the default path. |
 | Charts are native bar rows | No charting dependency; same series and groupings as a plotted chart. |
 | Contextual "ask" entry points | Wired on seven destinations — Search, Sources detail, Aspects detail, File detail, Categories, Keywords and Term detail — through `AnalyzeAction`, each passing that screen's context. Tables elsewhere (Import/Export, Settings, Notifications) carry no analyse action because there is nothing there to analyse. |
-| Multi-language catalogues | Language selector present; translation resources are a separate pass. |
+| Multi-language catalogues | Deliberately deferred; inventory, resource architecture and frozen vocabulary in `LOCALIZATION_PREPARATION.md`. No string has been translated. |
 | `SideFacade` / `SideDto` retained | Deprecated aliases delegating to `AspectFacade`, so earlier callers keep compiling. |
 
 ---
@@ -267,11 +303,15 @@ Database ................... PASS   one database, FK-linked to the engine, trans
 Existing backend ........... PASS   preserved; two justified additions to CaseDatabase
 AI agent ................... PASS   architecture complete, local-only, tested end to end
                                     (generation quality unverified on this hardware)
-Testing .................... PASS   82 tests, 266 assertions, 56 gate checks, 0 failures
+Relationships .............. PASS   bidirectional, whole-case counts, integrity traversal proven
+Interface-function matrix .. PASS   120 rows policed; 82 VERIFIED / 27 ADAPTED / 2 LIMITED / 5 UNSUPPORTED / 4 REFERENCE-INERT
+Failure recovery ........... PASS   21-line inventory, each line an executed test
+Testing .................... PASS   124 JUnit tests + ~481 named checks, 0 failures, 1 not runnable (display)
+Localization preparation ... PASS   inventory + architecture + frozen vocabulary; no translation
 End-to-end ................. PASS   full scenario incl. restart and agent citation check
 Documentation .............. PASS   FUNCTION_INVENTORY created; 5 updated this revision
 
-OVERALL .................... PASS with one documented environmental caveat
+OVERALL .................... PASS with documented environmental caveats (display, model hardware)
 ```
 
 The caveat is the AI hardware limit above. It is a property of this build machine, not

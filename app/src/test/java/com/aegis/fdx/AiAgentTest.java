@@ -624,6 +624,64 @@ class AiAgentTest {
         org.junit.jupiter.api.Assertions.assertNull(o);
     }
 
+    // ============================================================ provenance labels
+
+    @Test
+    @DisplayName("Every statement of an answer carries a provenance label; unsupported observations are demoted")
+    void provenanceLabels(@TempDir Path tmp) throws Exception {
+        try (LiveCase c = openCase(tmp); FakeLocalRuntime rt = new FakeLocalRuntime(port()).start()) {
+            AegisFacades f = seeded(c, tmp);
+            rt.reply("{\"tool\": \"search_items\", \"arguments\": {\"query\": \"consulting\"}}")
+              .reply("[OBSERVED] item:E-000001 mentions consulting.\n"
+                   + "[DERIVED] Two documents match in total.\n"
+                   + "[OBSERVED] item:Z-999999 is a forged citation.\n"
+                   + "The custodian is probably the CFO.\n"
+                   + "[USER-PROVIDED] You asked about consulting material.");
+            AgentService svc = new AgentService(f, new CorpusDatabase(c.db()), new HttpLocalModelProvider(
+                    ModelConfig.defaults().withEndpoint(rt.endpoint()).withChatModel("test-model")));
+            AgentActivity a = svc.ask("What consulting material is on the case?", AgentContext.ofScreen("Dashboard"));
+            assertFalse(a.failed(), a.failure());
+            String[] lines = a.finalAnswer().split("\n");
+            for (String line : lines) {
+                if (!line.isBlank()) {
+                    assertNotNull(com.aegis.fdx.ai.agent.Provenance.leading(line), "unlabelled: " + line);
+                }
+            }
+            // the model's honest label on a real id survives
+            assertTrue(lines[0].startsWith("[OBSERVED]"), lines[0]);
+            assertTrue(lines[1].startsWith("[DERIVED]"), lines[1]);
+            // an "observation" that cites nothing the tools returned is demoted
+            assertTrue(lines[2].startsWith("[INFERRED]"), lines[2]);
+            // unlabelled prose in a run that read data is INFERRED, never OBSERVED
+            assertTrue(lines[3].startsWith("[INFERRED]"), lines[3]);
+            assertTrue(lines[4].startsWith("[USER-PROVIDED]"), lines[4]);
+            assertEquals(1, a.observedStatements());
+            assertEquals(2, a.provenance().get(com.aegis.fdx.ai.agent.Provenance.INFERRED));
+            assertTrue(a.toTrace().contains("provenance: OBSERVED 1"), a.toTrace());
+            String prompt = new AgentOrchestrator(null, List.of()).systemPrompt(AgentContext.ofScreen("Dashboard"));
+            for (String label : List.of("[OBSERVED]", "[DERIVED]", "[INFERRED]", "[USER-PROVIDED]", "[UNKNOWN]")) {
+                assertTrue(prompt.contains(label), "prompt must define " + label);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("When nothing was retrieved every statement is UNKNOWN")
+    void provenanceUnknownWhenNothingRead(@TempDir Path tmp) throws Exception {
+        try (LiveCase c = openCase(tmp); FakeLocalRuntime rt = new FakeLocalRuntime(port()).start()) {
+            AegisFacades f = AegisFacades.open(c);
+            rt.reply("{\"tool\": \"search_items\", \"arguments\": {\"query\": \"unicorn\"}}")
+              .reply("[OBSERVED] There are three unicorn contracts.");
+            AgentService svc = new AgentService(f, new CorpusDatabase(c.db()), new HttpLocalModelProvider(
+                    ModelConfig.defaults().withEndpoint(rt.endpoint()).withChatModel("test-model")));
+            AgentActivity a = svc.ask("Unicorn contracts?", AgentContext.ofScreen("Search"));
+            assertFalse(a.failed(), a.failure());
+            assertTrue(a.finalAnswer().startsWith("[UNKNOWN]"), a.finalAnswer());
+            assertEquals(0, a.observedStatements());
+            assertFalse(a.isGrounded());
+        }
+    }
+
     private static void assertNotEquals(Object a, Object b) {
         org.junit.jupiter.api.Assertions.assertNotEquals(a, b);
     }

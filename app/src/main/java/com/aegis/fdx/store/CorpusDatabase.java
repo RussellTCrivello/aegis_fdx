@@ -204,10 +204,46 @@ public final class CorpusDatabase {
         return exists("SELECT 1 FROM aspect WHERE name=?", name);
     }
 
+    // ==================== term invariants (enforced below the facade) ====================
+
+    /** Words in a term, on whitespace, ignoring empties. */
+    static int termWordCount(String term) {
+        if (term == null) {
+            return 0;
+        }
+        int n = 0;
+        for (String t : term.trim().split("\\s+")) {
+            if (!t.isEmpty()) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** A {@code word} row is exactly one word. Categories and category words live here. */
+    private static String requireOneWord(String word, String what) throws SQLException {
+        int n = termWordCount(word);
+        if (n != 1) {
+            throw new SQLException(what + " must be exactly one word; \"" + word + "\" has " + n);
+        }
+        return word.trim();
+    }
+
+    /** A keyword phrase has at least three words. */
+    private static String requireKeywordPhrase(String phrase) throws SQLException {
+        int n = termWordCount(phrase);
+        if (n < 3) {
+            throw new SQLException("keyword must have at least three words; \"" + phrase
+                    + "\" has " + n);
+        }
+        return phrase.trim().replaceAll("\\s+", " ");
+    }
+
     // ==================== words ====================
 
     /** Idempotent: Python relies on the UNIQUE constraint and returns the existing id. */
     public int insertWord(String word) throws SQLException {
+        word = requireOneWord(word, "word");
         Integer existing = findWordId(word);
         if (existing != null) {
             return existing;
@@ -266,6 +302,7 @@ public final class CorpusDatabase {
     }
 
     public boolean updateWord(int id, String word) throws SQLException {
+        word = requireOneWord(word, "word");
         try (PreparedStatement ps = conn.prepareStatement("UPDATE word SET word=? WHERE id=?")) {
             ps.setString(1, word);
             ps.setInt(2, id);
@@ -369,6 +406,7 @@ public final class CorpusDatabase {
     // ==================== keywords ====================
 
     public int insertKeyword(String keyword, int categoryId) throws SQLException {
+        keyword = requireKeywordPhrase(keyword);
         try (PreparedStatement ps = conn.prepareStatement(
                 "INSERT INTO keyword (phrase, category_id) VALUES (?,?)",
                 Statement.RETURN_GENERATED_KEYS)) {
@@ -411,6 +449,7 @@ public final class CorpusDatabase {
     }
 
     public boolean updateKeyword(int id, String keyword) throws SQLException {
+        keyword = requireKeywordPhrase(keyword);
         try (PreparedStatement ps = conn.prepareStatement("UPDATE keyword SET phrase=? WHERE id=?")) {
             ps.setString(1, keyword);
             ps.setInt(2, id);
@@ -422,12 +461,103 @@ public final class CorpusDatabase {
         return executeUpdate("DELETE FROM keyword WHERE id=?", id) > 0;
     }
 
-    /** Python {@code find_duplicates} across keyword phrases. */
+    /**
+     * Python {@code find_duplicates} across keyword phrases: the same phrase ignoring case
+     * and surrounding space. The UNIQUE constraint only catches byte-identical text.
+     */
     public List<Row> findDuplicateKeywords() throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement("""
-                SELECT phrase AS keyword, COUNT(*) AS occurrences
-                FROM keyword GROUP BY phrase HAVING COUNT(*) > 1""")) {
+                SELECT MIN(phrase) AS keyword, LOWER(TRIM(phrase)) AS normalized,
+                       COUNT(*) AS occurrences, MIN(id) AS keep_id
+                FROM keyword GROUP BY LOWER(TRIM(phrase)) HAVING COUNT(*) > 1
+                ORDER BY normalized""")) {
             return all(ps);
+        }
+    }
+
+    /** Ids of every keyword in a case-insensitive duplicate group, lowest first. */
+    public List<Row> selectKeywordsByNormalizedPhrase(String normalized) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT id, phrase, category_id FROM keyword
+                WHERE LOWER(TRIM(phrase)) = ? ORDER BY id""")) {
+            ps.setString(1, normalized);
+            return all(ps);
+        }
+    }
+
+    /**
+     * Folds {@code fromId} into {@code intoId}: every file edge moves across (keeping the
+     * larger hit count where both exist) and the duplicate row is removed. One transaction.
+     */
+    public int mergeKeyword(int fromId, int intoId) throws SQLException {
+        boolean auto = conn.getAutoCommit();
+        conn.setAutoCommit(false);
+        try {
+            int moved;
+            try (PreparedStatement ps = conn.prepareStatement("""
+                    INSERT INTO path_keyword (path_id, keyword_id, hits)
+                    SELECT path_id, ?, hits FROM path_keyword WHERE keyword_id = ?
+                    ON CONFLICT(path_id, keyword_id) DO UPDATE SET
+                        hits = MAX(hits, excluded.hits)""")) {
+                ps.setInt(1, intoId);
+                ps.setInt(2, fromId);
+                moved = ps.executeUpdate();
+            }
+            executeUpdate("DELETE FROM path_keyword WHERE keyword_id=?", fromId);
+            executeUpdate("DELETE FROM keyword WHERE id=?", fromId);
+            conn.commit();
+            return moved;
+        } catch (SQLException e) {
+            conn.rollback();
+            throw e;
+        } finally {
+            conn.setAutoCommit(auto);
+        }
+    }
+
+    /** Categories whose word is the same ignoring case — the reference's find-duplicates. */
+    public List<Row> findDuplicateCategories() throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT LOWER(TRIM(w.word)) AS normalized, COUNT(*) AS occurrences,
+                       MIN(c.id) AS keep_id, GROUP_CONCAT(c.id) AS ids
+                FROM category c JOIN word w ON w.id = c.word_id
+                GROUP BY LOWER(TRIM(w.word)) HAVING COUNT(*) > 1 ORDER BY normalized""")) {
+            return all(ps);
+        }
+    }
+
+    /**
+     * Folds category {@code fromId} into {@code intoId}: its words, keywords and file
+     * attributions move across; the duplicate category (not its word) is removed.
+     */
+    public void mergeCategory(int fromId, int intoId) throws SQLException {
+        boolean auto = conn.getAutoCommit();
+        conn.setAutoCommit(false);
+        try {
+            try (PreparedStatement ps = conn.prepareStatement("""
+                    INSERT OR IGNORE INTO word_category (word_id, category_id)
+                    SELECT word_id, ? FROM word_category WHERE category_id = ?""")) {
+                ps.setInt(1, intoId);
+                ps.setInt(2, fromId);
+                ps.executeUpdate();
+            }
+            try (PreparedStatement ps = conn.prepareStatement("""
+                    INSERT OR IGNORE INTO path_category (path_id, category_id)
+                    SELECT path_id, ? FROM path_category WHERE category_id = ?""")) {
+                ps.setInt(1, intoId);
+                ps.setInt(2, fromId);
+                ps.executeUpdate();
+            }
+            executeUpdate("UPDATE keyword SET category_id=? WHERE category_id=?", intoId, fromId);
+            executeUpdate("DELETE FROM word_category WHERE category_id=?", fromId);
+            executeUpdate("DELETE FROM path_category WHERE category_id=?", fromId);
+            executeUpdate("DELETE FROM category WHERE id=?", fromId);
+            conn.commit();
+        } catch (SQLException e) {
+            conn.rollback();
+            throw e;
+        } finally {
+            conn.setAutoCommit(auto);
         }
     }
 
@@ -1443,6 +1573,40 @@ public final class CorpusDatabase {
         }
     }
 
+    /**
+     * Edges whose endpoints no longer exist, or keywords whose category is gone.
+     * Foreign keys should make this empty; the checker verifies rather than assumes.
+     */
+    public List<Row> selectOrphanEdges() throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("""
+                SELECT 'path_keyword' AS edge_table, pk.path_id AS a, pk.keyword_id AS b,
+                       'keyword or path missing' AS problem
+                FROM path_keyword pk
+                WHERE NOT EXISTS (SELECT 1 FROM keyword k WHERE k.id = pk.keyword_id)
+                   OR NOT EXISTS (SELECT 1 FROM path p WHERE p.id = pk.path_id)
+                UNION ALL
+                SELECT 'path_word', pw.path_id, pw.word_id, 'word or path missing'
+                FROM path_word pw
+                WHERE NOT EXISTS (SELECT 1 FROM word w WHERE w.id = pw.word_id)
+                   OR NOT EXISTS (SELECT 1 FROM path p WHERE p.id = pw.path_id)
+                UNION ALL
+                SELECT 'path_category', pc.path_id, pc.category_id, 'category or path missing'
+                FROM path_category pc
+                WHERE NOT EXISTS (SELECT 1 FROM category c WHERE c.id = pc.category_id)
+                   OR NOT EXISTS (SELECT 1 FROM path p WHERE p.id = pc.path_id)
+                UNION ALL
+                SELECT 'word_category', wc.word_id, wc.category_id, 'word or category missing'
+                FROM word_category wc
+                WHERE NOT EXISTS (SELECT 1 FROM word w WHERE w.id = wc.word_id)
+                   OR NOT EXISTS (SELECT 1 FROM category c WHERE c.id = wc.category_id)
+                UNION ALL
+                SELECT 'keyword', k.id, k.category_id, 'keyword category missing'
+                FROM keyword k
+                WHERE NOT EXISTS (SELECT 1 FROM category c WHERE c.id = k.category_id)""")) {
+            return all(ps);
+        }
+    }
+
     /** Whole-case totals for the relationship checker and the overview tiles. */
     public Row selectRelationshipTotals() throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement("""
@@ -1574,13 +1738,17 @@ public final class CorpusDatabase {
 
     /** Categories a word belongs to, for the word detail destination. */
     public List<Row> selectCategoriesForWord(int wordId) throws SQLException {
+        // Symmetric with WORDS_OF_CATEGORY: a category's naming word is one of its words.
         try (PreparedStatement ps = conn.prepareStatement("""
                 SELECT c.id AS id, w.word AS word
-                FROM word_category wc
-                JOIN category c ON c.id = wc.category_id
+                FROM category c
                 JOIN word w ON w.id = c.word_id
-                WHERE wc.word_id = ? ORDER BY w.word""")) {
+                WHERE c.word_id = ?
+                   OR EXISTS (SELECT 1 FROM word_category wc
+                              WHERE wc.category_id = c.id AND wc.word_id = ?)
+                ORDER BY w.word""")) {
             ps.setInt(1, wordId);
+            ps.setInt(2, wordId);
             return all(ps);
         }
     }
@@ -1859,6 +2027,14 @@ public final class CorpusDatabase {
     private int executeUpdate(String sql, int id) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, id);
+            return ps.executeUpdate();
+        }
+    }
+
+    private int executeUpdate(String sql, int a, int b) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, a);
+            ps.setInt(2, b);
             return ps.executeUpdate();
         }
     }

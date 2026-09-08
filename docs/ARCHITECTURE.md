@@ -36,8 +36,22 @@ The project exposes two user interfaces over a single unchanged back end.
               ONE database, ONE connection:
                 engine: item, queue, audit, ...
                 added:  source, aspect, word, category,
-                        keyword, hash, path, content, alert
+                        keyword, hash, path, content, alert,
+                        path_keyword, path_word, path_category,
+                        word_category   (the relationship graph)
 ```
+
+**Relationship graph.** File ↔ Keyword, File ↔ Category Word, File ↔ Category (reviewer
+attribution) and Category Word ↔ Category are stored as edge tables with composite primary
+keys, derived by `RelationshipAnalyzer` from stored content (idempotent), read by
+`RelationshipFacade` with `COUNT(DISTINCT path_id)` over the whole case, and audited by
+`RelationshipIntegrity`, which walks every edge in both directions and reports any count
+that disagrees (`docs/RELATIONSHIP_INTEGRITY_REPORT.md`). Invariants — keyword ≥ 3 words,
+category and category word exactly 1 word — are enforced in `Terms`, in the facades, in
+`CorpusDatabase` and in the UI. The Lucene index remains derived and rebuildable; `case.db`
+is the sole authority. The mapping from every reference control to its Java handler,
+facade and query is `docs/interface-function-matrix.tsv`, policed by
+`InterfaceFunctionMatrixTest`.
 
 **Rule applied throughout:** a change was made only where it was required for the
 interface to function. No engine internals were rewritten.

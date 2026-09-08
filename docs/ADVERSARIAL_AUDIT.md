@@ -18,8 +18,8 @@ below come from those runs. Where a check still cannot be executed here, the rea
 named and the check is recorded as not run, never as passing.
 
 The toolchain differs from the reference one and that is part of the result: the runtime
-is a Temurin **25.0.2** image, the compiler is the **Eclipse batch compiler 3.45** rather
-than `javac`, and the JavaFX jars are a **20.0.1** build without Linux native libraries.
+is a Temurin **21.0.4** JRE, the compiler is the **Eclipse batch compiler 3.46** rather
+than `javac`, and the JavaFX jars are a **23.0.1** shaded build without Linux native libraries.
 Source and target level are held at 21. One check — the icon-set test, which builds a
 live scene graph — cannot run without a graphics device and reports itself as not
 runnable rather than as a failure.
@@ -43,6 +43,12 @@ runnable rather than as a failure.
 | A-11 | **A lock conflict would have been treated as damage.** While adding index recovery, opening a case that was already open threw a Lucene lock error, which the new repair path read as corruption: it moved the healthy index of the live session aside and rebuilt underneath it. Found by probing, before it ever shipped. | High — data loss in the recovery path itself | **Fixed.** Lock conflicts are recognised and refused in words; the repair path restores the case unchanged if a rebuild cannot start; `ResilienceTest` asserts the open session's index is untouched. |
 | A-12 | **The reference's per-file retry had no counterpart.** `/api/analysis/retry/<file_id>` genuinely reprocesses a file there. Here, a file that failed once could only be dealt with by re-running the case. | Medium — a real reference capability, missing | **Implemented.** `IngestPipeline#retry` re-runs one element through the same pipeline, keeping its identifier, notes and tags; the Errors destination offers it; `DestinationCoverageTest#retryElement` covers success, an unknown element and a missing original. |
 | A-13 | **A corrupt index made a case unopenable.** Even though the database holds everything the index does, a half-written index refused the whole case. | Medium — recoverable data presented as lost | **Fixed.** `CaseDatabase#allItems` reads the case back out; `LiveCase` rebuilds the index on open, keeps the damaged copy under `logs/`, records the repair as a notification, and Setup offers a manual rebuild. |
+| A-14 | **Category ↔ word traversal was asymmetric.** `CorpusDatabase#selectCategoriesForWord` walked `word_category` only, while the category → words direction also counted the category's naming word. A category listed a word that did not list the category back. Found by the new `RelationshipIntegrity` checker on its first run against the fixture, before it reached any user. | Medium — a count that differed by direction | Fixed: both queries use the same rule; `RelationshipModelTest#integrityConsistent` walks 28 traversals both ways. |
+| A-15 | **A duplicate keyword surfaced as an internal error.** Creating a phrase that already existed threw `FacadeException.internal("failed to create keyword")` wrapping a SQLite UNIQUE violation — a stack trace for an operator decision. Found while writing `FailureRecoveryTest#duplicateRelationship`. | Low — wrong message, right outcome | Fixed: `KeywordFacade#createKeyword` returns `false`; `CategoryFacade#createCategory` raises a `conflict` with the word named. |
+| A-16 | **The interface-function matrix named code that did not exist.** The first hand-written draft cited `CorpusDatabase#selectSearchHistory`, `SourceForm#build` and `HostMetrics#sample` — none real — and left `RelationshipsScreen` without a row. Caught by `InterfaceFunctionMatrixTest` on its first run. | Low — documentation only, but exactly the kind of drift the directive forbids | Fixed in the generator (`tools/gen_interface_matrix.py`); the test now polices every symbol, test reference, screen and button label. |
+| A-17 | **`run-tests.sh` assumed `javac`.** On a machine with only a JRE the documented entry point died at line 27 and the "1,072 assertions" figure could not be reproduced from the script. | Medium — the evidence path was not reproducible | Fixed: the script compiles with `javac` when present and with ECJ otherwise, and records which; `final-acceptance.sh` prints the compiler actually used. |
+| A-19 | **Provenance labels were documented but not implemented.** The directive requires OBSERVED / DERIVED / INFERRED / USER-PROVIDED / UNKNOWN on agent statements; the first draft of `LOCALIZATION_PREPARATION.md` described them as existing while no class produced them. Caught during the doc-sync pass by grepping the source for the labels. | High — a claimed behaviour with no code | Implemented: `Provenance` labels every line, only ever demoting (a forged `[OBSERVED]` citation becomes `[INFERRED]`, nothing-read runs are `[UNKNOWN]`); counts on `AgentActivity`; `AiAgentTest#provenanceLabels`, `#provenanceUnknownWhenNothingRead`. |
+| A-18 | **Old matrix vocabulary contradicted the directive.** `INTERFACE_FUNCTION_MATRIX.md` still used DONE / INERT-IN-REF / NOT-BUILT and said keyword merge was "not built" after it was. | Low | Replaced by a document rendered from the TSV (`tools/render_interface_matrix.py`) with the six agreed statuses; the test checks the document names its source and every status. |
 
 ---
 
@@ -121,6 +127,6 @@ documented, self-contained step: install a local runtime, pull a model, launch w
 | Real-model answer quality | A machine with enough memory for a 7B model | Hardware. The protocol, tool loop, grounding and audit trail are verified against a scripted runtime; no test fakes generation. |
 | Certified performance figures | 8-core / 16 GB / NVMe reference hardware | This environment has 2 cores and 3 GB; its figures are indicators only. |
 
-Everything else in this repository was executed: **1,072 assertions across the battery,
-0 failures**, and the release gate reports **66 passed, 0 failed, 5 skipped** for the
-reasons above.
+Everything else in this repository was executed: **1,101 assertions across the battery,
+124 JUnit tests (123 passed, 1 not runnable without a display), 0 failures**, and the
+release gate reports **66 passed, 0 failed, 5 skipped** for the reasons above.

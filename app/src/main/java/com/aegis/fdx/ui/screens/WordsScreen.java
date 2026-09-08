@@ -198,8 +198,13 @@ public final class WordsScreen implements Screen {
                 Fas.row(8, Fas.muted("Per Page:"), perPage, Fas.spacer(),
                         pageLabel, prev, next));
 
+        Button export = Fas.outline("Export CSV", Icons.DOWNLOAD);
+        export.setOnAction(e -> Fas.saveBytes(table, "Export Category Words", "category-words.csv",
+                com.aegis.fdx.facade.ExportFacade.exportTermsCsv(
+                        facades.relationships().categoryWords(null, 100_000, 0).results())));
+
         VBox content = new VBox(16,
-                Fas.pageHeader("Words", "Home / Words", searchField, bulkDelete, add),
+                Fas.pageHeader("Words", "Home / Words", searchField, export, bulkDelete, add),
                 Fas.cardWithHeader("Word List", null, body));
         content.setPadding(new Insets(20));
         return content;

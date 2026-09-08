@@ -239,4 +239,36 @@ public final class Fas {
     private static String tint(String hex) {
         return hex + "1f";
     }
+
+    /**
+     * Asks where to save, writes the bytes, and tells the operator what happened.
+     * Returns the file written, or null if the operator cancelled.
+     */
+    public static java.io.File saveBytes(javafx.scene.Node owner, String title,
+                                         String suggestedName, byte[] bytes) {
+        javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+        fc.setTitle(title);
+        fc.setInitialFileName(suggestedName);
+        java.io.File f = fc.showSaveDialog(owner == null || owner.getScene() == null
+                ? null : owner.getScene().getWindow());
+        if (f == null) {
+            return null;
+        }
+        try {
+            java.nio.file.Files.write(f.toPath(), bytes);
+            javafx.scene.control.Alert a = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.INFORMATION,
+                    "Written to\n" + f.getAbsolutePath(), javafx.scene.control.ButtonType.OK);
+            a.setHeaderText("Export complete");
+            a.showAndWait();
+            return f;
+        } catch (java.io.IOException ex) {
+            javafx.scene.control.Alert a = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.ERROR, String.valueOf(ex.getMessage()),
+                    javafx.scene.control.ButtonType.OK);
+            a.setHeaderText("Export failed");
+            a.showAndWait();
+            return null;
+        }
+    }
 }

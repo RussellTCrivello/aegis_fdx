@@ -228,8 +228,42 @@ public final class CategoriesScreen implements Screen {
         HBox split = new HBox(14, left, right);
         VBox.setVgrow(split, Priority.ALWAYS);
 
+        Button dupes = Fas.outline("Find Duplicates", Icons.FUNNEL);
+        dupes.setOnAction(e -> {
+            java.util.Map<String, Integer> d = facades.categories().findDuplicates();
+            if (d.isEmpty()) {
+                Alert a = new Alert(Alert.AlertType.INFORMATION, "Every category is unique.",
+                        ButtonType.OK);
+                a.setHeaderText("No duplicates found");
+                a.showAndWait();
+                return;
+            }
+            Alert a = new Alert(Alert.AlertType.CONFIRMATION,
+                    d.entrySet().stream().map(x -> x.getKey() + "  \u00d7" + x.getValue())
+                            .reduce((x, y) -> x + "\n" + y).orElse("")
+                            + "\n\nMerge each group into its oldest category? Words, keywords and"
+                            + " file attributions move across.",
+                    ButtonType.CANCEL, ButtonType.OK);
+            a.setHeaderText(d.size() + " duplicated categor" + (d.size() == 1 ? "y" : "ies"));
+            a.showAndWait().filter(b -> b == ButtonType.OK).ifPresent(b -> {
+                int removed = facades.categories().mergeDuplicates();
+                onShow();
+                Alert done = new Alert(Alert.AlertType.INFORMATION,
+                        removed + " duplicate categor" + (removed == 1 ? "y" : "ies") + " merged.",
+                        ButtonType.OK);
+                done.setHeaderText("Merge complete");
+                done.showAndWait();
+            });
+        });
+
+        Button export = Fas.outline("Export CSV", Icons.DOWNLOAD);
+        export.setOnAction(e -> Fas.saveBytes(table, "Export Categories", "categories.csv",
+                com.aegis.fdx.facade.ExportFacade.exportTermsCsv(
+                        facades.relationships().categories(null, 100_000, 0).results())));
+
         VBox content = new VBox(16,
-                Fas.pageHeader("Categories", "Home / Categories", analyze, refresh, add), split);
+                Fas.pageHeader("Categories", "Home / Categories", analyze, dupes, export, refresh, add),
+                split);
         content.setPadding(new Insets(20));
         return content;
     }
