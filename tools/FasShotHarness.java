@@ -172,19 +172,28 @@ public class FasShotHarness {
                     Thread.sleep(1500);
                     System.out.println("SEARCH DIAG: field now reads <"
                             + q.getText() + ">");
-                    int shown = 0;
-                    for (javafx.scene.Node n : allNodes(scene.getRoot())) {
-                        if (shown >= 6) {
+                    // Dump the labels inside the Results card: whatever the query
+                    // reported (counts, empty states, backend messages) is printed
+                    // verbatim instead of guessed at by keyword.
+                    java.util.List<javafx.scene.Node> again = allNodes(scene.getRoot());
+                    int card = -1;
+                    for (int i = 0; i < again.size(); i++) {
+                        if (again.get(i) instanceof javafx.scene.control.Label l
+                                && "Results".equals(l.getText())) {
+                            card = i;
                             break;
                         }
-                        if (n instanceof javafx.scene.control.Label l
-                                && l.getText() != null
-                                && l.getText().matches(
-                                        "(?is).*((result|begin|match|error|fail)|\\d+\\s*ms).*")) {
-                            String t = l.getText().replaceAll("\\s+", " ").trim();
-                            System.out.println("SEARCH DIAG: label <"
-                                    + t.substring(0, Math.min(160, t.length())) + ">");
-                            shown++;
+                    }
+                    int shown = 0;
+                    if (card >= 0) {
+                        for (int i = card + 1; i < again.size() && shown < 6; i++) {
+                            if (again.get(i) instanceof javafx.scene.control.Label l
+                                    && l.getText() != null && !l.getText().isBlank()) {
+                                String t = l.getText().replaceAll("\\s+", " ").trim();
+                                System.out.println("SEARCH DIAG: result <"
+                                        + t.substring(0, Math.min(160, t.length())) + ">");
+                                shown++;
+                            }
                         }
                     }
                     int rows = 0;
