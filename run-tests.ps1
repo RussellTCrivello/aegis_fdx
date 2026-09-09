@@ -144,9 +144,16 @@ $suiteCount  = 0
 function Invoke-Suite($title, $class, [string[]]$suiteArgs) {
     Write-Host ''
     Write-Host "== $title ==" -ForegroundColor Cyan
-    $out = & $javaExe -Xmx900m -cp $runCp $class @suiteArgs 2>&1
+    $errFile = Join-Path $env:TEMP 'aegis-suite-err.txt'
+    if (Test-Path $errFile) { Remove-Item -LiteralPath $errFile -Force }
+    $out = & $javaExe -Xmx900m -cp $runCp $class @suiteArgs 2> $errFile
+    $code = $LASTEXITCODE
     $out | ForEach-Object { Write-Host $_ }
-    if ($LASTEXITCODE -ne 0) { Fail "$title failed (exit $LASTEXITCODE)." }
+    if (Test-Path $errFile) {
+        Get-Content -LiteralPath $errFile | ForEach-Object { Write-Host $_ }
+        Remove-Item -LiteralPath $errFile -Force
+    }
+    if ($code -ne 0) { Fail "$title failed (exit $code)." }
     foreach ($line in $out) {
         if ("$line" -match '^\s*(?:===\s*)?(\d+)\s+passed,\s*(\d+)\s+failed(?:\s*===)?\s*$') {
             $script:totalPassed += [int]$Matches[1]
