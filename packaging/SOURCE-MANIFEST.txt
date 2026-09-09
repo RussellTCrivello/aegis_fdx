@@ -186,8 +186,8 @@ f81fcacfc95c714a3ccb2a87b6ac3155fd071edf6fdff1228200871cf138e530  app/src/test/j
 1e651d71e32312e531cc0b20329ffb38613aabc7602975eb12b1aede3747f672  app/src/test/java/com/aegis/fdx/DragDropIngestTest.java
 5f6a3b85d2c30bfd98b22c88dbc2bb903e9a078d76434d9b9593c0dea6d77a05  app/src/test/java/com/aegis/fdx/EmlAttachmentNamesTest.java
 9bd7146bd2178571bbf5e927cf5341f5b73f1df71ecdfd90d169e9b2d150b557  app/src/test/java/com/aegis/fdx/EndToEndScenarioTest.java
-ef38a7c50c449a280dd33dfb99f20f10df7e51bac3db3c01508e5aafbfb56f78  app/src/test/java/com/aegis/fdx/FacadeErrorSummaryTest.java
-afd66a1c5609c3567268503dde3bd0bce5e8e84454239aa29bcd1cc730fd47e4  app/src/test/java/com/aegis/fdx/FacadeInventoryTest.java
+44c1b9b1a07368b3363f65f66c4f3dc92f4bc405bbb2a30c728d5f80acb0f7f8  app/src/test/java/com/aegis/fdx/FacadeErrorSummaryTest.java
+03059564c46afd68eee612dd5a66ec898d5f1a114ecf6035508907647a58b4b7  app/src/test/java/com/aegis/fdx/FacadeInventoryTest.java
 7d474dd33c0cd9494781814b1521edc54e54e98beba760cd961f42fa7c9c89ba  app/src/test/java/com/aegis/fdx/FacadeParityTest.java
 90f7523babd1b5781535789042d793558cac637116d8af26a39a51a2f087532e  app/src/test/java/com/aegis/fdx/FailureRecoveryTest.java
 b84a23197a71ab6286a0a7db2c97ffc6eb368ceb0afc38bbae4a76699590c5fd  app/src/test/java/com/aegis/fdx/FakeLocalRuntime.java

@@ -5,6 +5,7 @@ import com.aegis.fdx.facade.FileProcessingFacade;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,7 +25,7 @@ class FacadeErrorSummaryTest {
         assertEquals("processing reported 2 error(s)",
                 FileProcessingFacade.errorSummary(2, null));
         assertEquals("processing reported 1 error(s)",
-                FileProcessingFacade.errorSummary(1, List.of("  ", null)));
+                FileProcessingFacade.errorSummary(1, Arrays.asList("  ", null)));
     }
 
     @Test
