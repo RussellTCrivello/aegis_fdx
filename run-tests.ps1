@@ -135,6 +135,24 @@ $testList = Join-Path $env:TEMP 'aegis-test-sources.txt'
     -cp "$outMain;$cp" -d $outTest "@$testList"
 if ($LASTEXITCODE -ne 0) { Fail 'Test compilation failed.' }
 
+# ---- java invocation -------------------------------------------------------
+# All JVM launches go through Start-Process with file redirection. A bare or
+# merged (2>&1) native call turns every stderr line into an ErrorRecord, which
+# under $ErrorActionPreference='Stop' aborts the battery the moment Lucene or
+# the JVM logs anything. File redirection bypasses that wrapping entirely.
+function Invoke-Java([string[]]$JvmArgs) {
+    $stdoutFile = Join-Path $env:TEMP 'aegis-java-out.txt'
+    $stderrFile = Join-Path $env:TEMP 'aegis-java-err.txt'
+    foreach ($f in @($stdoutFile, $stderrFile)) { if (Test-Path $f) { Remove-Item -LiteralPath $f -Force } }
+    $allArgs = @('-Dfile.encoding=UTF-8') + $JvmArgs
+    $proc = Start-Process -FilePath $javaExe -ArgumentList $allArgs -NoNewWindow -Wait -PassThru `
+        -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile
+    $lines = @(Get-Content -LiteralPath $stdoutFile -Encoding UTF8)
+    $lines | ForEach-Object { Write-Host $_ }
+    Get-Content -LiteralPath $stderrFile -Encoding UTF8 | ForEach-Object { Write-Host $_ }
+    return @{ Lines = $lines; Code = $proc.ExitCode }
+}
+
 # ---- suites ----------------------------------------------------------------
 $runCp = "$outTest;$outMain;$cp"
 $totalPassed = 0
@@ -144,16 +162,9 @@ $suiteCount  = 0
 function Invoke-Suite($title, $class, [string[]]$suiteArgs) {
     Write-Host ''
     Write-Host "== $title ==" -ForegroundColor Cyan
-    $errFile = Join-Path $env:TEMP 'aegis-suite-err.txt'
-    if (Test-Path $errFile) { Remove-Item -LiteralPath $errFile -Force }
-    $out = & $javaExe -Xmx900m -cp $runCp $class @suiteArgs 2> $errFile
-    $code = $LASTEXITCODE
-    $out | ForEach-Object { Write-Host $_ }
-    if (Test-Path $errFile) {
-        Get-Content -LiteralPath $errFile | ForEach-Object { Write-Host $_ }
-        Remove-Item -LiteralPath $errFile -Force
-    }
-    if ($code -ne 0) { Fail "$title failed (exit $code)." }
+    $r = Invoke-Java (@('-Xmx900m', '-cp', $runCp, $class) + $suiteArgs)
+    $out = $r.Lines
+    if ($r.Code -ne 0) { Fail "$title failed (exit $($r.Code))." }
     foreach ($line in $out) {
         if ("$line" -match '^\s*(?:===\s*)?(\d+)\s+passed,\s*(\d+)\s+failed(?:\s*===)?\s*$') {
             $script:totalPassed += [int]$Matches[1]
@@ -168,7 +179,8 @@ Invoke-Suite 'query validation (unknown fields / dates / regex)' 'com.aegis.fdx.
 
 Write-Host ''
 Write-Host '== generating test dataset (D-04) ==' -ForegroundColor Cyan
-& $javaExe -Xmx900m -cp $runCp com.aegis.fdx.TestDataset (Join-Path $work 'testdata')
+$r = Invoke-Java @('-Xmx900m', '-cp', $runCp, 'com.aegis.fdx.TestDataset', (Join-Path $work 'testdata'))
+if ($r.Code -ne 0) { Fail "generating test dataset failed (exit $($r.Code))." }
 
 Invoke-Suite 'drag-and-drop intake (F-01)' 'com.aegis.fdx.DragDropIngestTest' @((Join-Path $work 'dnd'))
 Invoke-Suite 'AI boundary (B-01..B-07)' 'com.aegis.fdx.AiBoundaryTest' @((Join-Path $work 'aiboundary'))
@@ -182,8 +194,8 @@ Invoke-Suite 'host metrics' 'com.aegis.fdx.HostMetricsTest' @()
 function Invoke-JUnit($title, [string[]]$classes, [string[]]$jvmArgs) {
     Write-Host ''
     Write-Host "== $title ==" -ForegroundColor Cyan
-    & $javaExe @jvmArgs com.aegis.fdx.JUnitRunner @classes
-    if ($LASTEXITCODE -ne 0) { Fail "$title failed (exit $LASTEXITCODE)." }
+    $r = Invoke-Java (@jvmArgs + @('com.aegis.fdx.JUnitRunner') + $classes)
+    if ($r.Code -ne 0) { Fail "$title failed (exit $($r.Code))." }
 }
 
 Invoke-JUnit 'JUnit suites (facade, agent, batch, model, scenario, resolver)' @(
@@ -219,7 +231,8 @@ Invoke-JUnit 'interface suites (parity, destinations, relationships, bridge)' @(
 
 Write-Host ''
 Write-Host '== benchmark (N-02 / F-18 / N-03) ==' -ForegroundColor Cyan
-& $javaExe -Xmx900m -cp $runCp com.aegis.fdx.Benchmark (Join-Path $work 'bench') $Multiplier
+$r = Invoke-Java @('-Xmx900m', '-cp', $runCp, 'com.aegis.fdx.Benchmark', (Join-Path $work 'bench'), $Multiplier)
+if ($r.Code -ne 0) { Fail "benchmark failed (exit $($r.Code))." }
 
 # ---- summary ---------------------------------------------------------------
 Write-Host ''
