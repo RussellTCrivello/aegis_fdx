@@ -42,6 +42,9 @@ public final class WordsScreen implements Screen {
     private TextField searchField;
     private Label pageLabel;
     private ComboBox<Integer> perPage;
+    private VBox tileTotal;
+    private VBox tileInFiles;
+    private VBox tileUnused;
     private int offset;
     private int total;
 
@@ -60,12 +63,22 @@ public final class WordsScreen implements Screen {
     }
 
     @Override
+    public String breadcrumb() {
+        return "Home / Analysis / Words";
+    }
+
+    @Override
     public String icon() {
         return Icons.BOOK;
     }
 
     @Override
     public Node build() {
+        tileTotal = Fas.summaryTile("0", "Total Words");
+        tileInFiles = Fas.summaryTile("0", "In Files");
+        tileUnused = Fas.summaryTile("0", "Unused");
+        VBox tiles = new VBox(Fas.statsGrid(tileTotal, tileInFiles, tileUnused));
+
         searchField = Fas.field("Search words...");
         searchField.setPrefWidth(230);
         searchField.textProperty().addListener((o, a, b) -> {
@@ -204,8 +217,10 @@ public final class WordsScreen implements Screen {
                         facades.relationships().categoryWords(null, 100_000, 0).results())));
 
         VBox content = new VBox(16,
-                Fas.pageHeader("Words", "Home / Words", searchField, export, bulkDelete, add),
-                Fas.cardWithHeader("Word List", null, body));
+                Fas.pageHeader("Words", breadcrumb(), searchField, export, bulkDelete, add),
+                tiles,
+                Fas.cardWithHeader("Word List",
+                        "Double-click to open the word detail", body));
         content.setPadding(new Insets(20));
         return content;
     }
@@ -222,6 +237,12 @@ public final class WordsScreen implements Screen {
             fileCounts.putAll(facades.relationships().wordFileCounts());
             rows.setAll(page.results());
             total = page.totalCount();
+
+            int allWords = facades.words().searchWords(null, 1, 0).totalCount();
+            int inFiles = (int) fileCounts.values().stream().filter(n -> n > 0).count();
+            Fas.setSummary(tileTotal, String.format("%,d", allWords));
+            Fas.setSummary(tileInFiles, String.format("%,d", inFiles));
+            Fas.setSummary(tileUnused, String.format("%,d", Math.max(0, allWords - inFiles)));
             int from = total == 0 ? 0 : offset + 1;
             int to = Math.min(offset + limit, total);
             pageLabel.setText(from + " - " + to + " of " + String.format("%,d", total));

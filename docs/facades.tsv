@@ -1,0 +1,43 @@
+id	ref_group	ref_shots	java_screen	variant	gate	status
+F01	main	dashboard overview + setup.png	Dashboard	populated demo case	GUI-GATE	NOT RUN
+F02	comprehensive	7 tabs (files/categories/keywords/sources/sides/words/similar)	Comprehensive	ADAPTED: single combined-filter view; no per-tab views	GUI-GATE+JOURNEY	NOT RUN
+F03	main	charts	Charts	chart rendering	GUI-GATE	NOT RUN
+F04	main	files.png (14 files)	File Library	populated table + filters	GUI-GATE+JOURNEY	NOT RUN
+F05	file-detail	14 mains + 42 Content/Analysis/Metadata tabs	File Detail	Content+Analysis+Metadata; per-type states; empty vs failed	GUI-GATE+JOURNEY	NOT RUN
+F06	entity	file-1-full-content	Full Content	paged extracted text	GUI-GATE	NOT RUN
+F07	main	analysis	Analysis	—	GUI-GATE	NOT RUN
+F08	analysis	path	Path Analysis	path listing	GUI-GATE	NOT RUN
+F09	analysis	batch	Batch Analysis	real run fired by harness	GUI-GATE	NOT RUN
+F10	analysis	archives	Archives	container nesting	GUI-GATE	NOT RUN
+F11	search	basic search	Search	basic query fired by harness	GUI-GATE+JOURNEY	NOT RUN
+F12	search	enhanced (multi-scope + history)	Search	SCOPE AUDIT PENDING: enhanced scope/history vs Search screen	AUDIT	NOT RUN
+F13	search	advanced (AND/OR/NOT, phrases, scope)	Advanced Search	query builder	GUI-GATE+JOURNEY	NOT RUN
+F14	main	sources (1 source)	Sources	grid + selection	GUI-GATE+JOURNEY	NOT RUN
+F15	entity	source-1-detail	Source Detail	—	GUI-GATE	NOT RUN
+F16	entity	source-1-categories-keywords	Source Relationships	relationship listing state	GUI-GATE	NOT RUN
+F17	main	sides (1 side)	Aspects	Sides→Aspects terminology adaptation	GUI-GATE+JOURNEY	NOT RUN
+F18	entity	side-1-detail	Aspect Detail	—	GUI-GATE	NOT RUN
+F19	entity	side-1-categories-keywords	Aspect Relationships	relationship listing state	GUI-GATE	NOT RUN
+F20	main	categories (57)	Categories	two-pane + link	GUI-GATE+JOURNEY	NOT RUN
+F21	entity	category-1-words (context)	Category Detail	—	GUI-GATE	NOT RUN
+F22	entity	category-1-words	Category Detail	words-listing state	GUI-GATE+JOURNEY	NOT RUN
+F23	main	keywords (2213)	Keywords	selection + update	GUI-GATE+JOURNEY	NOT RUN
+F24	main	words (10089)	Words	stats tiles + list	GUI-GATE+JOURNEY	NOT RUN
+F25	main	email-words (409)	Email Words	domain filter	GUI-GATE+JOURNEY	NOT RUN
+F26	main	notifications (empty)	Notifications	empty state	GUI-GATE	NOT RUN
+F27	settings	10 tabs	Settings	ADAPTED: System+Theme+Processing cards; PostgreSQL explicitly not reproduced	GUI-GATE+AUDIT	NOT RUN
+F28	main	upload	Upload Files	intake flow	GUI-GATE+JOURNEY	NOT RUN
+F29	java-ext	none (cf. enhanced scope: Titles)	Titles	searchable title list	GUI-GATE	NOT RUN
+F30	java-ext	none	Relations	graph search	GUI-GATE	NOT RUN
+F31	java-ext	none	Geolocation	EXIF/GPS table	GUI-GATE	NOT RUN
+F32	entity	source-1-categories-keywords (context)	Source Relationships	—	GUI-GATE	NOT RUN
+F33	entity	side-1-categories-keywords (context)	Aspect Relationships	harness shot added with this inventory	GUI-GATE	NOT RUN
+F34	file-tabs	keyword context	Keyword Detail	—	GUI-GATE	NOT RUN
+F35	file-tabs	word context	Word Detail	—	GUI-GATE	NOT RUN
+F36	java-ext	none	Assistant	agent Q&A fired by harness	GUI-GATE	NOT RUN
+F37	java-ext	none	Import / Export	—	GUI-GATE	NOT RUN
+F38	java-ext	none	Saved Searches	—	GUI-GATE	NOT RUN
+F39	ops	none	Processing	monitor state	GUI-GATE	NOT RUN
+F40	ops	none	Errors	empty vs error states	GUI-GATE	NOT RUN
+F41	ops	none	Performance	—	GUI-GATE	NOT RUN
+F42	main	setup.png	Setup	—	GUI-GATE	NOT RUN

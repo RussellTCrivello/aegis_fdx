@@ -35,6 +35,7 @@ code ever disagree, the build says so.
 | **ADAPTED** | The reference behaviour is delivered in the form the Java architecture calls for — a dialog instead of a form route, a canvas chart instead of a web chart — not in the reference's form. |
 | **UNSUPPORTED** | Deliberately not reproduced. The note says why; "the reference has a control" is not on its own a reason to build one. |
 | **ABSENT** | No Java counterpart. The note says why and what adding it would involve. |
+| **NOT RUN** | Implemented and statically wired, but the JavaFX layer has not been compiled or executed here, so no test proves the control itself. The note names the test behind the operation. |
 
 "Cannot be validated on this machine" is recorded as **LIMITED**, never as absent, and
 never as verified.
@@ -48,6 +49,7 @@ never as verified.
 | ADAPTED | $(count ADAPTED) |
 | UNSUPPORTED | $(count UNSUPPORTED) |
 | ABSENT | $(count ABSENT) |
+| NOT RUN | $(count "NOT RUN") |
 | **Total** | **$total** |
 
 HEADER

@@ -22,6 +22,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
@@ -30,11 +31,16 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Everything known about one aspect: the record, the material attributed to it, and
@@ -55,6 +61,8 @@ public final class AspectDetailScreen implements Detail {
     private ProgressBar reviewBar;
     private Label reviewLabel;
     private Label filesCount;
+    private FlowPane fileCards;
+    private final Set<Integer> selectedFiles = new HashSet<>();
     private final ObservableList<PathDto> files = FXCollections.observableArrayList();
     private final ObservableList<CategoryUsage> categories = FXCollections.observableArrayList();
     private final ObservableList<KeywordUsage> keywords = FXCollections.observableArrayList();
@@ -68,7 +76,8 @@ public final class AspectDetailScreen implements Detail {
     @Override public String title() { return "Aspect Detail"; }
 
     @Override public String breadcrumb() {
-        return aspect == null ? "Home / Aspects / Detail" : "Home / Aspects / " + aspect.name();
+        return aspect == null ? "Home / Analysis / Sides / Detail"
+                : "Home / Analysis / Sides / " + aspect.name();
     }
 
     @Override public String icon() { return Icons.DIAGRAM3; }
@@ -156,12 +165,29 @@ public final class AspectDetailScreen implements Detail {
         HBox.setHgrow(left, Priority.ALWAYS);
         HBox.setHgrow(right, Priority.ALWAYS);
 
+        fileCards = new FlowPane(12, 12);
+        Button selectAllFiles = Fas.ghost("Select All", Icons.CHECK_ALL);
+        selectAllFiles.setOnAction(e -> {
+            for (PathDto p : files) {
+                selectedFiles.add(p.id());
+            }
+            buildFileCards();
+        });
+        Button selectNoFiles = Fas.ghost("Select None", Icons.CLOSE);
+        selectNoFiles.setOnAction(e -> {
+            selectedFiles.clear();
+            buildFileCards();
+        });
+        Button downloadSel = Fas.outline("Download Selected", Icons.DOWNLOAD);
+        downloadSel.setOnAction(e -> downloadSelected());
+        HBox fileBulk = Fas.row(8, selectAllFiles, selectNoFiles, downloadSel);
+
         VBox content = new VBox(16,
                 Fas.pageHeader("Aspect Detail", null, analyze, back, rel, edit, del),
                 heading, statsRow,
                 new HBox(14, left, right),
-                Fas.cardWithHeader("Attributed Material", "Double-click a row to open the file",
-                        new VBox(10, filesCount, fileTable)),
+                Fas.cardWithHeader("Attributed Material", "Double-click a card or row to open the file",
+                        new VBox(10, filesCount, fileCards, fileBulk, fileTable)),
                 new HBox(14,
                         grow(Fas.cardWithHeader("Categories", null, catTable)),
                         grow(Fas.cardWithHeader("Keywords", "Double-click to open", kwTable))));
@@ -216,6 +242,112 @@ public final class AspectDetailScreen implements Detail {
             heading.setText("Could not load this aspect");
             statsRow.getChildren().setAll(Fas.emptyState(e.getMessage()));
         }
+    }
+
+    private void buildFileCards() {
+        fileCards.getChildren().clear();
+        if (files.isEmpty()) {
+            fileCards.getChildren().add(Fas.emptyState(
+                    "No files attributed to this aspect yet."));
+            return;
+        }
+        for (PathDto p : files) {
+            fileCards.getChildren().add(fileCard(p));
+        }
+    }
+
+    private VBox fileCard(PathDto p) {
+        CheckBox cb = new CheckBox();
+        cb.setSelected(selectedFiles.contains(p.id()));
+        cb.setOnAction(e -> {
+            if (cb.isSelected()) {
+                selectedFiles.add(p.id());
+            } else {
+                selectedFiles.remove(p.id());
+            }
+        });
+
+        Label name = new Label(nz(p.fileName()));
+        name.getStyleClass().add("file-card-name");
+        name.setWrapText(true);
+
+        String ext = p.fileType() == null ? "" : p.fileType();
+        if (!ext.isBlank() && !ext.startsWith(".")) {
+            ext = "." + ext;
+        }
+        String date = p.fileDate() == null ? "" : p.fileDate().toString();
+        Label meta = new Label("source: " + nz(p.sourceName()) + "   side: " + nz(p.aspectName())
+                + "\nsize: " + DashboardScreen.humanBytes(p.fileSize())
+                + "   date: " + (date.isBlank() ? "—" : date)
+                + "   extension: " + (ext.isBlank() ? "—" : ext));
+        meta.getStyleClass().add("file-card-meta");
+        meta.setWrapText(true);
+
+        Button view = Fas.ghost("View Details", Icons.EYE);
+        view.setOnAction(e -> router.openFile(p.id()));
+        Button full = Fas.ghost("Full View", Icons.FILE_TEXT);
+        full.setOnAction(e -> router.openContent(p.id()));
+        Button download = Fas.ghost("Download", Icons.DOWNLOAD);
+        download.setOnAction(e -> downloadFile(p));
+
+        VBox card = new VBox(8, Fas.row(8, name, Fas.spacer(), cb), meta,
+                Fas.row(4, view, full, download));
+        card.getStyleClass().add("file-card");
+        card.setPrefWidth(300);
+        card.setOnMouseClicked(e -> {
+            if (e.getClickCount() == 2) {
+                router.openFile(p.id());
+            }
+        });
+        return card;
+    }
+
+    private void downloadFile(PathDto p) {
+        String text = "";
+        try {
+            text = facades.contents().getContentAsText(p.id());
+        } catch (RuntimeException ignored) {
+            text = "";
+        }
+        if (text == null) {
+            text = "";
+        }
+        Fas.saveBytes(heading, "Download File Content",
+                safeName(p.fileName()) + ".txt", text.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void downloadSelected() {
+        if (selectedFiles.isEmpty()) {
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (PathDto p : files) {
+            if (!selectedFiles.contains(p.id())) {
+                continue;
+            }
+            String text = "";
+            try {
+                text = facades.contents().getContentAsText(p.id());
+            } catch (RuntimeException ignored) {
+                text = "";
+            }
+            sb.append("===== ").append(p.fileName()).append(" =====\n");
+            sb.append(text == null ? "" : text).append("\n\n");
+        }
+        String who = aspect == null ? "aspect" : aspect.name();
+        Fas.saveBytes(heading, "Download Selected Files",
+                safeName(who) + "-files.txt", sb.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String safeName(String s) {
+        if (s == null || s.isBlank()) {
+            return "content";
+        }
+        return s.replaceAll("[^A-Za-z0-9._\\-]+", "_");
+    }
+
+    private static String nz(String s) {
+        return s == null ? "" : s;
     }
 
     private static Label value(String s) {

@@ -138,7 +138,23 @@ Page<SearchResultDto> hits = facades.search().search(
 ```
 
 Results show File Name, Type, Size, Source, Status, Matches, Rank and Path. Selecting
-a row previews the matching text and its hashes underneath.
+a row previews the matching text and its hashes underneath. **Clear Filters**
+restores every filter including the page size and re-runs the search, so stale
+results never linger.
+
+Below the results, **Search Everywhere** reports where each file matched — name,
+path, metadata, content, keyword, category or category word — scoped by the Scope
+box. **Update associations** re-derives the file↔term links and **Check
+relationships** verifies them; both run off the interface thread so the window never
+freezes.
+
+Opening a result resolves its forensic element id through the case database to the
+exact registered file — never by name, so two files that share a name still open the
+record the index matched. Use the **View Details** button, double-click the row, or
+select it and press Enter. A result with no registered file reports itself in words
+instead of navigating anywhere. In Search Everywhere, double-clicking a match opens
+the file for name, path, metadata and content matches, and the matched term's own
+detail destination for keyword, category and category-word matches.
 
 The query grammar is the full AEGIS one — phrases, wildcards, `term~` fuzzy,
 `"a b"~5` proximity, `AND/OR/NOT` with parentheses, field queries and `/regex/`.
@@ -184,8 +200,9 @@ multi-select bulk delete and **Find Duplicates**. Each keyword must belong to an
 existing category; attaching one to an unknown category is rejected.
 
 ### 3.8 Words
-Paged, searchable word list with per-page selection (25/50/100/200), inline rename,
-delete and bulk delete.
+Summary tiles (Total Words / In Files / Unused) above a paged, searchable word list
+with per-page selection (25/50/100/200), inline rename, delete and bulk delete.
+Double-clicking a word opens its detail destination.
 
 ### 3.9 Categories
 ![Categories](screens-fas/14-categories.png)
@@ -193,8 +210,29 @@ delete and bulk delete.
 Two-pane layout: categories on the left, the selected category's linked
 words on the right, with **Link Word** to attach one.
 
-### 3.10 Upload Files
-![Upload Files](screens-fas/15-upload-files.png)
+### 3.10 Titles
+![Titles](screens-fas/15-titles.png)
+
+Every distinct document title in the case, searchable and sortable (A-Z, Z-A,
+most files), with page sizes 10/25/50/100. Double-clicking a title opens the
+file it belongs to.
+
+### 3.11 Relations
+![Relations](screens-fas/16-relations.png)
+
+One search box over the whole relationship graph — keywords, categories, words
+and files. **Search Graph** lists every match with its kind, ready to drill
+through.
+
+### 3.12 Geolocation
+![Geolocation](screens-fas/17-geolocation.png)
+
+Locations extracted from file metadata (EXIF/GPS): coordinates, file counts,
+contributing files and sources, searchable by coordinate or file name, each row
+drilling through to the file.
+
+### 3.13 Upload Files
+![Upload Files](screens-fas/18-upload-files.png)
 
 - **Storage Assignment** — Source and Side, both mandatory. Processing will not start
   until both are chosen, mirroring the reference contract where `storage_source` and
@@ -209,8 +247,8 @@ Reading, extraction, hashing, OCR and metadata are all performed by the existing
 AEGIS pipeline. This screen drives it and then registers the results into the
 relational model.
 
-### 3.11 File Library
-![File Library](screens-fas/16-file-library.png)
+### 3.14 File Library
+![File Library](screens-fas/19-file-library.png)
 
 Columns: File Name, Type, Size, Source, Aspect, Status, Date, Actions. Filter by type and Read/Unread status, with paging.
 
@@ -218,7 +256,7 @@ Per row: **view details** (full metadata including SHA-256, coordinates and the
 linked element id), **view content** (the stored extracted text) and **toggle
 Read/Unread**.
 
-### 3.12 Import / Export
+### 3.15 Import / Export
 Export the file registry as CSV, Excel or JSON; export keywords, settings, or a
 database backup ZIP. Import validates a backup, loads settings, or ingests a CSV file
 list.
@@ -228,9 +266,9 @@ mutating the case. Asking it to restore raises an explicit unsupported error rat
 than silently doing nothing.
 
 
-### 3.13 Assistant
+### 3.16 Assistant
 
-![Assistant](screens-fas/19-assistant.png)
+![Assistant](screens-fas/22-assistant.png)
 
 A local analysis assistant. Ask a question in plain language; it searches, reads and
 correlates case records by calling application tools, then answers with the records it
@@ -252,17 +290,17 @@ runtime is installed the screen says so and the rest of the application is unaff
 Full detail — model selection, tools, safety boundary, offline verification:
 **[AI_AGENT.md](AI_AGENT.md)**.
 
-### 3.14 Saved Searches
+### 3.17 Saved Searches
 Saved searches with use counts on the left; recent search history on the right, with
 Clear History.
 
-### 3.15 Notifications
+### 3.18 Notifications
 Unread / Active stat tiles and Upcoming Events, with a table of all notifications
 carrying type, priority badge, title, message and timestamp. Mark-as-read and dismiss
 per row; filter by unread or hide dismissed.
 
-### 3.16 Settings
-![Settings](screens-fas/26-settings.png)
+### 3.19 Settings
+![Settings](screens-fas/29-settings.png)
 
 - **System** — the application name, the interface language, the open case and its
   folder, shown as facts rather than as fields. The reference offers an editable name
@@ -323,7 +361,7 @@ destination.
 
 ### 4.5 Archives
 
-![Archives](screens-fas/17-archives.png)
+![Archives](screens-fas/20-archives.png)
 
 Containers and their nested contents, built from the engine's own `parentId`/`depth`
 model — what an archive or mailbox expanded into, at what depth. This is a capability
@@ -331,22 +369,26 @@ the reference application does not have; it is surfaced here rather than discard
 
 ### 4.6 Source Detail
 
-![Source Detail](screens-fas/27-source-detail.png)
+![Source Detail](screens-fas/30-source-detail.png)
 
 Everything known about one source: the full record, computed statistics (files, size,
 type count, review progress), the material collected from it, and the categories and
-keywords appearing in that material. Edit and delete act here; double-clicking a file
-opens it.
+keywords appearing in that material. Edit and delete act here; the collected
+material shows file cards (source, side, size, date, extension) with a selection
+checkbox and **View Details** / **Full View** / **Download** per card,
+Select All / None and a **Download Selected** bundle above the table.
+Double-clicking a card or a row opens the file.
 
 ### 4.7 Aspect Detail
 
-![Aspect Detail](screens-fas/28-aspect-detail.png)
+![Aspect Detail](screens-fas/31-aspect-detail.png)
 
-The same treatment for an aspect.
+The same treatment for an aspect, including the file cards and the
+**Download Selected** bundle over its attributed material.
 
 ### 4.8 Source and Aspect Relationships
 
-![Source Relationships](screens-fas/33-source-relationships.png)
+![Source Relationships](screens-fas/36-source-relationships.png)
 
 The categories and keywords associated with one source or aspect, with file counts and
 hit totals. Double-clicking drills through to the category's files or the keyword's
@@ -354,7 +396,7 @@ detail.
 
 ### 4.9 File Detail
 
-![File Detail](screens-fas/29-file-detail.png)
+![File Detail](screens-fas/32-file-detail.png)
 
 One registered file in full: metadata, SHA-256, the originating engine element and its
 processing status, applied categories and keyword hits, and a preview of the extracted
@@ -362,7 +404,7 @@ text. Mark read, classify, and navigate to the source or aspect from here.
 
 ### 4.10 Full Content
 
-![Full Content](screens-fas/30-full-content.png)
+![Full Content](screens-fas/33-full-content.png)
 
 The complete extracted text, with in-document find (wrapping, case-insensitive, with a
 match count) and copy-all. Separate from File Detail because reading a long document
@@ -370,7 +412,7 @@ is its own task.
 
 ### 4.11 Word and Keyword Detail
 
-![Keyword Detail](screens-fas/31-keyword-detail.png)
+![Keyword Detail](screens-fas/34-keyword-detail.png)
 
 A term, the categories it belongs to, the files carrying it with per-file hit counts,
 and a live occurrence search across everything indexed. The recorded-hit table and the
@@ -378,7 +420,7 @@ live index search are shown separately, because they answer different questions.
 
 ### 4.12 Processing Monitor
 
-![Processing](screens-fas/22-processing.png)
+![Processing](screens-fas/25-processing.png)
 
 Live pipeline state: queue depth, elements in flight, worker configuration and
 outcomes. Polls every two seconds while visible and stops when you leave. Pause and
@@ -386,7 +428,7 @@ cancel act on a running ingest.
 
 ### 4.13 Error Dashboard
 
-![Errors](screens-fas/23-errors.png)
+![Errors](screens-fas/26-errors.png)
 
 Everything that did not index cleanly, grouped by status and by normalised cause so
 recurring problems stand out, with the full list underneath. Surfaces `Item.errors()`,
@@ -394,7 +436,7 @@ which the engine has always recorded but which no destination previously display
 
 ### 4.14 Performance
 
-![Performance](screens-fas/24-performance.png)
+![Performance](screens-fas/27-performance.png)
 
 Storage footprint, index size, heap use, and a query timer that runs a real search
 against the live index five times and reports best, median and worst — measured here
@@ -410,7 +452,7 @@ readings, so on an idle machine they will read low, and during ingestion they mo
 
 ### 4.15 Setup
 
-![Setup](screens-fas/25-setup.png)
+![Setup](screens-fas/28-setup.png)
 
 Case paths and sizes, schema counts, and integrity verification. The reference
 application's setup page configures a database connection; a case here is
@@ -509,6 +551,11 @@ java -Dglass.platform=Monocle -Dmonocle.platform=Headless -Dprism.order=sw \
      --module-path $FX --add-modules javafx.controls,javafx.swing \
      --patch-module javafx.graphics=/path/to/openjfx-monocle.jar \
      -cp "/tmp/shot:build/classes:$CP" FasShotHarness docs/screens-fas
+```
+
+`FasShotHarness` launches `FasApp` itself and walks the real navigation, so a
+screenshot can only be produced if the screen actually renders.
+$CP" FasShotHarness docs/screens-fas
 ```
 
 `FasShotHarness` launches `FasApp` itself and walks the real navigation, so a

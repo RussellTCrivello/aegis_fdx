@@ -1,0 +1,16 @@
+# Enforce LF line endings so hashes, manifests and scripts are identical on every OS.
+# In particular packaging/SOURCE-MANIFEST.txt records SHA-256 over LF bytes;
+# a CRLF checkout on Windows would otherwise fail verify-sources.ps1.
+* text=auto
+*.java text eol=lf
+*.kts text eol=lf
+*.gradle text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=lf
+*.txt text eol=lf
+*.md text eol=lf
+*.tsv text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf

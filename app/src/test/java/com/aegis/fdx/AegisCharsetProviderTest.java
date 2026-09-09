@@ -123,14 +123,17 @@ public final class AegisCharsetProviderTest {
     @Test
     @DisplayName("PstAnalyzer recognizes PST and OST file extensions")
     void pstAnalyzerExtensions() {
+        // The analyzer SPI recognizes types through sniff(), not a supports()
+        // predicate: magic bytes win (1.0), then extension (0.5), else 0.
         PstAnalyzer analyzer = new PstAnalyzer();
-        assertTrue(analyzer.supports("archive.pst"));
-        assertTrue(analyzer.supports("BACKUP.PST"));
-        assertTrue(analyzer.supports("mailbox.ost"));
-        assertTrue(analyzer.supports("MAILBOX.OST"));
-        assertFalse(analyzer.supports("document.pdf"));
-        assertFalse(analyzer.supports("data.docx"));
-        assertFalse(analyzer.supports(""));
+        byte[] noHeader = new byte[0];
+        assertTrue(analyzer.sniff(noHeader, "archive.pst") > 0);
+        assertTrue(analyzer.sniff(noHeader, "BACKUP.PST") > 0);
+        assertTrue(analyzer.sniff(noHeader, "mailbox.ost") > 0);
+        assertTrue(analyzer.sniff(noHeader, "MAILBOX.OST") > 0);
+        assertTrue(analyzer.sniff(noHeader, "document.pdf") == 0);
+        assertTrue(analyzer.sniff(noHeader, "data.docx") == 0);
+        assertTrue(analyzer.sniff(noHeader, "") == 0);
     }
 
     // ================================================================== main

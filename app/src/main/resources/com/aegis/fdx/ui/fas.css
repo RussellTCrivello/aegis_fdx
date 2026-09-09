@@ -102,9 +102,10 @@
 }
 
 .sidebar-nav-link.active {
-    -fx-background-color: #4f46e5;
+    -fx-background-color: linear-gradient(to right, #4f46e5, #6366f1);
     -fx-text-fill: white;
     -fx-font-weight: bold;
+    -fx-effect: dropshadow(gaussian, rgba(79,70,229,0.45), 8, 0, 0, 2);
 }
 
 .sidebar-footer {
@@ -361,3 +362,255 @@
              -fx-padding: 6 8 6 8; }
 .list-cell:hover { -fx-background-color: #f8fafc; }
 .list-cell:selected { -fx-background-color: #eef2ff; -fx-text-fill: #1e293b; }
+
+/* ==================== analysis hub (entity navigation) ==================== */
+
+.hub-card {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 14;
+    -fx-border-color: #e2e8f0;
+    -fx-border-radius: 14;
+    -fx-border-width: 1;
+    -fx-padding: 20;
+    -fx-min-width: 190;
+    -fx-min-height: 150;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);
+}
+
+.hub-card:hover {
+    -fx-border-color: #4f46e5;
+    -fx-effect: dropshadow(gaussian, rgba(79,70,229,0.22), 14, 0, 0, 3);
+}
+
+.hub-card-title {
+    -fx-text-fill: #0f172a;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.hub-card-count {
+    -fx-text-fill: #4f46e5;
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+}
+
+.hub-card-sub {
+    -fx-text-fill: #64748b;
+    -fx-font-size: 11px;
+}
+
+.hub-icon {
+    -fx-background-radius: 12;
+    -fx-padding: 10;
+    -fx-min-width: 42;
+    -fx-min-height: 42;
+    -fx-max-width: 42;
+    -fx-max-height: 42;
+    -fx-alignment: center;
+}
+
+/* ==================== entity cards (category / keyword grids) ============ */
+
+.entity-card {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 12;
+    -fx-border-color: #e2e8f0;
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+    -fx-padding: 16;
+    -fx-min-width: 210;
+    -fx-max-width: 260;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 8, 0, 0, 2);
+}
+
+.entity-card:hover {
+    -fx-border-color: #6366f1;
+    -fx-effect: dropshadow(gaussian, rgba(79,70,229,0.18), 12, 0, 0, 3);
+}
+
+.entity-card.selected {
+    -fx-border-color: #4f46e5;
+    -fx-border-width: 2;
+}
+
+.entity-card-title {
+    -fx-text-fill: #0f172a;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+
+.entity-card-meta {
+    -fx-text-fill: #64748b;
+    -fx-font-size: 11px;
+}
+
+/* ==================== file cards (category detail) ======================= */
+
+.file-card {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 12;
+    -fx-border-color: #e2e8f0;
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+    -fx-padding: 14;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 6, 0, 0, 1);
+}
+
+.file-card:hover {
+    -fx-border-color: #c7d2fe;
+}
+
+.file-card-name {
+    -fx-text-fill: #0f172a;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+
+.file-card-meta {
+    -fx-text-fill: #64748b;
+    -fx-font-size: 11px;
+}
+
+/* ==================== topbar global search =============================== */
+
+.global-search {
+    -fx-background-color: #f1f5f9;
+    -fx-border-color: #e2e8f0;
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
+    -fx-padding: 7 16 7 16;
+    -fx-font-size: 12px;
+    -fx-pref-width: 380;
+}
+
+.global-search:focused {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #4f46e5;
+}
+
+.topbar-nav-btn {
+    -fx-background-color: transparent;
+    -fx-padding: 6 8 6 8;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+}
+
+.topbar-nav-btn:hover {
+    -fx-background-color: #f1f5f9;
+}
+
+.topbar-nav-btn:disabled {
+    -fx-opacity: 0.35;
+}
+
+/* ==================== filter bar ========================================= */
+
+.filter-bar {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 12;
+    -fx-border-color: #e2e8f0;
+    -fx-border-radius: 12;
+    -fx-padding: 14 16 14 16;
+}
+
+.filter-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #64748b;
+}
+
+/* ==================== pagination ========================================= */
+
+.page-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: #4f46e5;
+    -fx-border-color: #e2e8f0;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 6 12 6 12;
+    -fx-font-size: 12px;
+    -fx-cursor: hand;
+}
+
+.page-btn:hover {
+    -fx-background-color: #eef2ff;
+    -fx-border-color: #4f46e5;
+}
+
+.page-btn.current {
+    -fx-background-color: #4f46e5;
+    -fx-text-fill: white;
+    -fx-border-color: #4f46e5;
+    -fx-font-weight: bold;
+}
+
+.page-btn:disabled {
+    -fx-opacity: 0.4;
+}
+
+/* ==================== word frequency / classification ==================== */
+
+.freq-bar {
+    -fx-background-radius: 5;
+}
+
+.freq-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: #1e293b;
+}
+
+.freq-count {
+    -fx-font-size: 11px;
+    -fx-text-fill: #64748b;
+}
+
+.pie-legend-dot {
+    -fx-min-width: 10;
+    -fx-min-height: 10;
+    -fx-max-width: 10;
+    -fx-max-height: 10;
+    -fx-background-radius: 5;
+}
+
+.sub-tab {
+    -fx-background-color: transparent;
+    -fx-text-fill: #64748b;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-padding: 7 14 7 14;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+}
+
+.sub-tab:hover {
+    -fx-background-color: #f1f5f9;
+}
+
+.sub-tab.active {
+    -fx-background-color: #eef2ff;
+    -fx-text-fill: #4f46e5;
+}
+
+/* ==================== summary tiles (sides / keywords) =================== */
+
+.summary-tile {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 12;
+    -fx-border-color: #e2e8f0;
+    -fx-border-radius: 12;
+    -fx-padding: 14 18 14 18;
+    -fx-min-width: 150;
+}
+
+.summary-tile-value {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #0f172a;
+}
+
+.summary-tile-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: #64748b;
+}

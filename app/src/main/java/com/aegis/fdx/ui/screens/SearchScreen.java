@@ -7,11 +7,13 @@ import com.aegis.fdx.facade.SearchCriteria;
 import com.aegis.fdx.facade.SortField;
 import com.aegis.fdx.facade.SortOrder;
 import com.aegis.fdx.facade.dto.Page;
+import com.aegis.fdx.facade.dto.PathDto;
 import com.aegis.fdx.facade.dto.PreviewDto;
 import com.aegis.fdx.facade.dto.SearchResultDto;
 import com.aegis.fdx.ai.agent.AgentService;
 import com.aegis.fdx.ai.tools.AgentContext;
 import com.aegis.fdx.ui.AnalyzeAction;
+import com.aegis.fdx.ui.Background;
 import com.aegis.fdx.ui.Fas;
 import com.aegis.fdx.ui.Icons;
 import com.aegis.fdx.ui.Router;
@@ -34,6 +36,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -80,6 +83,7 @@ public final class SearchScreen implements Screen {
     private ComboBox<String> scopeBox;
     private Label matchLabel;
     private TableView<MatchRow> matchTable;
+    private final Background.Job assocJob = Background.job();
 
     public SearchScreen(AegisFacades facades, AgentService agent) {
         this(facades, agent, null);
@@ -122,6 +126,9 @@ public final class SearchScreen implements Screen {
         Button export = Fas.outline("Export CSV", Icons.DOWNLOAD);
         export.setOnAction(e -> exportCsv());
 
+        Button openBtn = Fas.secondary("View Details", Icons.EYE);
+        openBtn.setOnAction(e -> openResult(table.getSelectionModel().getSelectedItem()));
+
         fileType = combo("Any type", "txt", "pdf", "docx", "xlsx", "eml", "msg", "html", "csv",
                 "png", "jpg", "zip");
         sourceBox = combo("Any source");
@@ -139,7 +146,8 @@ public final class SearchScreen implements Screen {
         perPage = new ComboBox<>(FXCollections.observableArrayList(25, 50, 100));
         perPage.setValue(25);
 
-        HBox filters = new HBox(10,
+        FlowPane filters = new FlowPane(10, 10);
+        filters.getChildren().addAll(
                 Fas.formField("File Type", fileType),
                 Fas.formField("Source", sourceBox),
                 Fas.formField("Aspect", aspectBox),
@@ -158,6 +166,8 @@ public final class SearchScreen implements Screen {
             dateTo.clear();
             sortBy.setValue(SortField.RELEVANCE);
             sortOrder.setValue(SortOrder.DESCENDING);
+            perPage.setValue(25);
+            runSearch(true);
         });
 
         resultLabel = Fas.muted("Enter a query to begin");
@@ -189,7 +199,8 @@ public final class SearchScreen implements Screen {
         suggestions.setVisible(false);
         suggestions.setManaged(false);
 
-        VBox resultsCard = Fas.cardWithHeader("Results", null,
+        VBox resultsCard = Fas.cardWithHeader("Results",
+                "Double-click a row, or select it and press Enter, to open the file",
                 new VBox(10, Fas.row(8, resultLabel, Fas.spacer(), pageLabel, prev, next),
                         suggestions, table));
         VBox previewCard = Fas.cardWithHeader("Preview", "Matching text and metadata", snippetArea);
@@ -209,7 +220,8 @@ public final class SearchScreen implements Screen {
                 + "content, keyword, category or category word");
         matchTable = buildMatchTable();
         matchTable.setPrefHeight(220);
-        VBox relCard = Fas.cardWithHeader("Search Everywhere", null,
+        VBox relCard = Fas.cardWithHeader("Search Everywhere",
+                "Double-click a match to open the file — or the matched term",
                 new VBox(10, Fas.row(8, Fas.fieldLabel("Scope"), scopeBox, goRel, update, check,
                         Fas.spacer(), matchLabel), matchTable));
 
@@ -219,7 +231,7 @@ public final class SearchScreen implements Screen {
         VBox.setVgrow(split, Priority.ALWAYS);
 
         VBox searchCard = Fas.card(
-                Fas.row(10, queryField, go, save, export, analyze),
+                Fas.row(10, queryField, go, openBtn, save, export, analyze),
                 filters,
                 Fas.row(8, Fas.spacer(), clear));
 
@@ -243,7 +255,47 @@ public final class SearchScreen implements Screen {
         t.getColumns().add(strCol("Matches", 80, r -> String.valueOf(r.matchCount())));
         t.getColumns().add(strCol("Rank", 80, r -> String.format("%.3f", r.rank())));
         t.getColumns().add(strCol("Path", 260, SearchResultDto::filePath));
+        t.setRowFactory(tv -> {
+            javafx.scene.control.TableRow<SearchResultDto> row =
+                    new javafx.scene.control.TableRow<>();
+            row.setOnMouseClicked(e -> {
+                if (e.getClickCount() == 2 && !row.isEmpty()) {
+                    openResult(row.getItem());
+                }
+            });
+            row.setOnKeyPressed(e -> {
+                if (e.getCode() == KeyCode.ENTER && !row.isEmpty()) {
+                    openResult(row.getItem());
+                }
+            });
+            return row;
+        });
         return t;
+    }
+
+    /**
+     * Opens the registered file behind a full-text result.
+     *
+     * <p>Resolution is by the result's element id through the case database, so two
+     * files that share a name — or share content — still open the exact record the
+     * index matched. A result with no registered file (stale index entry, removed
+     * record) is reported to the operator instead of crashing navigation.
+     */
+    private void openResult(SearchResultDto r) {
+        if (r == null) {
+            return;
+        }
+        try {
+            PathDto p = facades.contents().getPathByElementId(r.id());
+            router.openFile(p.id());
+        } catch (FacadeException e) {
+            Alert a = new Alert(Alert.AlertType.WARNING,
+                    "This result is not registered in the case database, so there is "
+                            + "no file record to open.\n\n" + e.getMessage(),
+                    ButtonType.OK);
+            a.setHeaderText("File not available");
+            a.showAndWait();
+        }
     }
 
     private TableView<MatchRow> buildMatchTable() {
@@ -265,7 +317,12 @@ public final class SearchScreen implements Screen {
             javafx.scene.control.TableRow<MatchRow> row = new javafx.scene.control.TableRow<>();
             row.setOnMouseClicked(e -> {
                 if (e.getClickCount() == 2 && !row.isEmpty()) {
-                    router.openFile(row.getItem().pathId());
+                    openMatch(row.getItem());
+                }
+            });
+            row.setOnKeyPressed(e -> {
+                if (e.getCode() == KeyCode.ENTER && !row.isEmpty()) {
+                    openMatch(row.getItem());
                 }
             });
             return row;
@@ -282,6 +339,46 @@ public final class SearchScreen implements Screen {
             }
         });
         return t;
+    }
+
+    /**
+     * Opens the destination a Search Everywhere row points at: the file for name,
+     * path, metadata and content matches, the matched term's detail destination for
+     * keyword, category and category-word matches. A term match whose id is missing
+     * falls back to the file rather than stranding the operator.
+     */
+    private void openMatch(MatchRow r) {
+        if (r == null) {
+            return;
+        }
+        if (r.matchType() == null) {
+            router.openFile(r.pathId());
+            return;
+        }
+        switch (r.matchType()) {
+            case KEYWORD -> {
+                if (r.keywordId() != null) {
+                    router.openKeyword(r.keywordId());
+                } else {
+                    router.openFile(r.pathId());
+                }
+            }
+            case CATEGORY -> {
+                if (r.categoryId() != null) {
+                    router.openCategoryDetail(r.categoryId());
+                } else {
+                    router.openFile(r.pathId());
+                }
+            }
+            case CATEGORY_WORD -> {
+                if (r.categoryWordId() != null) {
+                    router.openWord(r.categoryWordId());
+                } else {
+                    router.openFile(r.pathId());
+                }
+            }
+            default -> router.openFile(r.pathId());
+        }
     }
 
     private static TableColumn<MatchRow, String> mCol(
@@ -327,36 +424,61 @@ public final class SearchScreen implements Screen {
         }
     }
 
-    /** Walks the relationship graph from both ends and shows the report. */
+    /**
+     * Walks the relationship graph from both ends and shows the report.
+     *
+     * <p>The walk runs off the FX thread; the label, the preview pane and the verdict
+     * dialog are applied back on it.
+     */
     private void checkRelationships() {
-        try {
-            var report = facades.relationshipIntegrity().check();
-            matchLabel.setText(report.summary());
-            snippetArea.setText(com.aegis.fdx.facade.RelationshipIntegrity.render(report));
-            Alert a = new Alert(report.consistent() ? Alert.AlertType.INFORMATION
-                    : Alert.AlertType.WARNING, report.summary(), ButtonType.OK);
-            a.setHeaderText(report.consistent() ? "Relationships are consistent"
-                    : report.findings().size() + " inconsistency(ies) found — see the preview pane");
-            a.showAndWait();
-        } catch (FacadeException e) {
-            matchLabel.setText("Could not check relationships: " + e.getMessage());
+        if (assocJob.busy()) {
+            return;
         }
+        matchLabel.setText("Checking relationships...");
+        assocJob.run(
+                () -> facades.relationshipIntegrity().check(),
+                report -> {
+                    matchLabel.setText(report.summary());
+                    snippetArea.setText(
+                            com.aegis.fdx.facade.RelationshipIntegrity.render(report));
+                    Alert a = new Alert(report.consistent() ? Alert.AlertType.INFORMATION
+                            : Alert.AlertType.WARNING, report.summary(), ButtonType.OK);
+                    a.setHeaderText(report.consistent() ? "Relationships are consistent"
+                            : report.findings().size()
+                                    + " inconsistency(ies) found — see the preview pane");
+                    a.showAndWait();
+                },
+                t -> matchLabel.setText("Could not check relationships: " + msg(t)));
     }
 
-    /** Re-derives file ↔ word and file ↔ keyword edges from the stored text of every file. */
+    /**
+     * Re-derives file ↔ word and file ↔ keyword edges from the stored text of every file.
+     *
+     * <p>The re-derivation runs off the FX thread; when it lands, any visible
+     * relationship matches are re-run so the table reflects the fresh edges.
+     */
     private void updateAssociations() {
-        try {
-            var r = facades.relationshipAnalyzer().analyzeAll(null);
-            matchLabel.setText("Associations updated: " + r.filesScanned() + " file(s) scanned, "
-                    + r.filesWithText() + " with text, " + r.keywordLinks() + " keyword link(s), "
-                    + r.wordLinks() + " category-word link(s) across "
-                    + r.keywordsChecked() + " keyword(s) and " + r.wordsChecked() + " word(s)");
-            if (!matchRows.isEmpty()) {
-                runRelationshipSearch();
-            }
-        } catch (FacadeException e) {
-            matchLabel.setText("Could not update associations: " + e.getMessage());
+        if (assocJob.busy()) {
+            return;
         }
+        matchLabel.setText("Updating associations...");
+        assocJob.run(
+                () -> facades.relationshipAnalyzer().analyzeAll(null),
+                r -> {
+                    matchLabel.setText("Associations updated: " + r.filesScanned()
+                            + " file(s) scanned, " + r.filesWithText() + " with text, "
+                            + r.keywordLinks() + " keyword link(s), " + r.wordLinks()
+                            + " category-word link(s) across " + r.keywordsChecked()
+                            + " keyword(s) and " + r.wordsChecked() + " word(s)");
+                    if (!matchRows.isEmpty()) {
+                        runRelationshipSearch();
+                    }
+                },
+                t -> matchLabel.setText("Could not update associations: " + msg(t)));
+    }
+
+    private static String msg(Throwable t) {
+        return t.getMessage() == null ? String.valueOf(t) : t.getMessage();
     }
 
     private static TableColumn<SearchResultDto, String> strCol(

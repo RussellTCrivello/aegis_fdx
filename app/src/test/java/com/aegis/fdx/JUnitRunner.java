@@ -39,6 +39,7 @@ public final class JUnitRunner {
         } else {
             List<org.junit.platform.engine.DiscoverySelector> sel = new ArrayList<>();
             for (String a : args) {
+                System.out.println("  CLASS  " + a);
                 sel.add(DiscoverySelectors.selectClass(a));
             }
             b.selectors(sel);

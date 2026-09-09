@@ -21,20 +21,20 @@ Generated: 2026-09-08 · 67 automated tests · 52 release-gate checks · 32 dest
 |---|---|---|---|---|---|---|
 | Overview / statistics | `DashboardScreen` | Processing counters, type & source breakdowns | `DashboardFacade` → `LiveCase.statusCounts()`, `CorpusDatabase` counts | `01-dashboard.png` | `UiParityTest.screenInventory` | Verified |
 | Analysis / charts | `AnalysisScreen` | Classification, path analysis, duplicate clusters | `DashboardFacade` → engine duplicate clusters | `02-analysis.png` | `UiParityTest.screenInventory` | Verified |
-| Search | `SearchScreen` | Query, filter, sort, page, preview, save, export | `SearchFacade` → Lucene via `LiveCase.searchNow` | `03-search.png` (live query, 7 hits) | `FacadeParityTest.endToEnd`, `IntegrationModelTest.engineStillWorks` | Verified |
-| Sources | `SourcesScreen` | List, search, create, view, duplicate, delete | `SourceFacade` → `source` table | `04-sources.png` | `FacadeParityTest.sourceFacade`, `IntegrationModelTest.sourceDraft` | Verified |
-| Aspects | `AspectsScreen` | List, create, duplicate, delete | `AspectFacade` → `aspect` table | `05-aspects.png` | `FacadeParityTest.aspectFacade` | Verified |
-| Email material | `EmailWordsScreen` | List extracted email elements | `SearchFacade` field query | `06-email-words.png` | `UiParityTest.screenInventory` | Verified |
-| Keywords | `KeywordsScreen` | List, create, edit, delete, bulk delete, duplicates | `KeywordFacade` → `keyword` table | `07-keywords.png` | `FacadeParityTest.corpusFacades` | Verified |
-| Words | `WordsScreen` | List, search, page, create, rename, delete, bulk | `WordFacade` → `word` table | `08-words.png` | `FacadeParityTest.corpusFacades` | Verified |
-| Categories | `CategoriesScreen` | List, create, delete, link words | `CategoryFacade` → `category`, `word_category` | `09-categories.png` | `FacadeParityTest.corpusFacades` | Verified |
-| Upload / processing | `UploadScreen` | Drag-drop, browse, start/pause/cancel, results | `FileProcessingFacade` → existing ingest pipeline | `10-upload-files.png` | `FacadeParityTest.endToEnd` | Verified |
-| File library | `FileLibraryScreen` | List, filter, page, detail, content, mark read | `ContentFacade` → `path`, `content` | `11-file-library.png` | `IntegrationModelTest.registryFilters` | Verified |
-| Import / export | `ImportExportScreen` | CSV/XLSX/JSON export, backup, settings, CSV import | `ExportFacade`, `ImportFacade` | `12-import-export.png` | `FacadeParityTest.endToEnd` | Verified |
-| Saved searches | `SavedSearchesScreen` | Saved searches and history, rename, delete, clear | `SearchHistoryFacade` → `saved_search`, `search_history` | `13-saved-searches.png` | `FacadeParityTest.searchHistoryFacade` | Verified |
-| Notifications | `NotificationsScreen` | List, filter, mark read, dismiss, upcoming | `NotificationFacade` → `alert` table | `14-notifications.png` | `FacadeParityTest.notificationFacade` | Verified |
-| Settings | `SettingsScreen` | Identity, theme palette, processing options | `CaseSettings` (engine) | `16-settings.png` | `UiParityTest.stylesheetPresent` | Verified |
-| **Assistant** | `AgentScreen` | Ask, cancel, permission toggle, suggestions, evidence chips, activity trace | `AgentService` → tools → facades | `13-assistant.png` (live run) | `AiAgentTest` (23 tests) | Verified |
+| Search | `SearchScreen` | Query, filter, sort, page, preview, save, export | `SearchFacade` → Lucene via `LiveCase.searchNow` | `07-search.png` (live query, 7 hits) | `FacadeParityTest.endToEnd`, `IntegrationModelTest.engineStillWorks` | Verified |
+| Sources | `SourcesScreen` | List, search, create, view, duplicate, delete | `SourceFacade` → `source` table | `09-sources.png` | `FacadeParityTest.sourceFacade`, `IntegrationModelTest.sourceDraft` | Verified |
+| Aspects | `AspectsScreen` | List, create, duplicate, delete | `AspectFacade` → `aspect` table | `10-aspects.png` | `FacadeParityTest.aspectFacade` | Verified |
+| Email material | `EmailWordsScreen` | List extracted email elements | `SearchFacade` field query | `11-email-words.png` | `UiParityTest.screenInventory` | Verified |
+| Keywords | `KeywordsScreen` | List, create, edit, delete, bulk delete, duplicates | `KeywordFacade` → `keyword` table | `12-keywords.png` | `FacadeParityTest.corpusFacades` | Verified |
+| Words | `WordsScreen` | List, search, page, create, rename, delete, bulk | `WordFacade` → `word` table | `13-words.png` | `FacadeParityTest.corpusFacades` | Verified |
+| Categories | `CategoriesScreen` | List, create, delete, link words | `CategoryFacade` → `category`, `word_category` | `14-categories.png` | `FacadeParityTest.corpusFacades` | Verified |
+| Upload / processing | `UploadScreen` | Drag-drop, browse, start/pause/cancel, results | `FileProcessingFacade` → existing ingest pipeline | `18-upload-files.png` | `FacadeParityTest.endToEnd` | Verified |
+| File library | `FileLibraryScreen` | List, filter, page, detail, content, mark read | `ContentFacade` → `path`, `content` | `19-file-library.png` | `IntegrationModelTest.registryFilters` | Verified |
+| Import / export | `ImportExportScreen` | CSV/XLSX/JSON export, backup, settings, CSV import | `ExportFacade`, `ImportFacade` | `21-import-export.png` | `FacadeParityTest.endToEnd` | Verified |
+| Saved searches | `SavedSearchesScreen` | Saved searches and history, rename, delete, clear | `SearchHistoryFacade` → `saved_search`, `search_history` | `23-saved-searches.png` | `FacadeParityTest.searchHistoryFacade` | Verified |
+| Notifications | `NotificationsScreen` | List, filter, mark read, dismiss, upcoming | `NotificationFacade` → `alert` table | `24-notifications.png` | `FacadeParityTest.notificationFacade` | Verified |
+| Settings | `SettingsScreen` | Identity, theme palette, processing options | `CaseSettings` (engine) | `29-settings.png` | `UiParityTest.stylesheetPresent` | Verified |
+| **Assistant** | `AgentScreen` | Ask, cancel, permission toggle, suggestions, evidence chips, activity trace | `AgentService` → tools → facades | `22-assistant.png` (live run) | `AiAgentTest` (23 tests) | Verified |
 
 
 ## 1a. Destinations added after the reference audit

@@ -280,3 +280,70 @@ Everything requiring a running application. The UI has not been compiled, so no 
 about a screen, a click, a rendered value, a dialog or shutdown behaviour is supported by
 execution. `docs/RELEASE_ACCEPTANCE.md` §5 lists all 12 Definition-of-Done items in that
 category as NOT RUN.
+
+## 7. Unit 5 integration pass — 2026-09-08
+
+**Scope:** the five UI work units on `arena/01a08229-aegis-fdx` (category cards,
+keyword cards + Update Keywords, source/aspect cards, Search/Words polish, Search →
+File resolver). Method: trace every new control to its operation, then attack the
+seams — identity, threading, lifecycle, counts, downloads, AI leakage.
+
+### Finding N — Update Keywords froze the interface (fixed)
+
+`updateKeywords` called `RelationshipAnalyzer#analyzeAll` on the FX application
+thread. The analyzer re-reads every registered file, so any real case would hang the
+window for the whole run, with no cancellation and no failure path except an
+uncaught throw. Fix: the work now runs in a `Background` job (the codebase's one
+sanctioned pattern), the label reports the analyzer's own totals, and failures reach
+the existing error dialog on the FX thread. The same freeze existed in Search's
+Update/Check associations; fixed identically. Held in place by: code shape (no test
+can click it here) + `SearchResultResolverTest` proving the analyzer path it calls.
+
+### Finding O — the background pool outlived the application (fixed)
+
+`Background.shutdown()` existed but had no caller: `FasApp#shutdown` disposed screens
+and closed the case but never stopped the pool. Daemon threads meant the JVM still
+exited, so this was a hygiene defect, not a hang — but a background job landing after
+`liveCase.close()` is exactly how a shutdown turns into a stack trace. `shutdown()`
+now stops the pool. The Unit-touched screens own no timers, pollers, animations,
+listeners beyond their own nodes, or connections, so `onHide`/`dispose` need no
+overrides; that was verified by reading each screen, not assumed.
+
+### Attacks that found nothing
+
+- **Name-confusion navigation.** Two `report.txt` files in different folders, two
+  records with identical bytes, a Unicode name, a nested path, a ZIP child: resolution
+  is `element_id → path.id` through a UNIQUE indexed column, never by name, position
+  or UI handle. Pinned by `SearchResultResolverTest` (9 tests).
+- **Stale/fake counts.** Every card, tile and badge reads whole-case `COUNT(DISTINCT
+  path_id)` or the live registry; Update Keywords reports the analyzer's committed
+  totals, then refreshes from the database. No second relationship model was created
+  for the UI.
+- **Evidence mutation via Download.** `Fas#saveBytes` writes only the operator-chosen
+  destination from database-held text; the original is never opened for write, moved,
+  renamed or deleted. Bundles are generated output.
+- **Pretend previews.** Full Content renders extracted text for every type and says
+  `(no extracted text stored for this file)` when there is none; unregistered search
+  results get a warning dialog, never a crash or a wrong file.
+- **AI leakage.** The new paths touch `ContentFacade`, `RelationshipAnalyzer`,
+  `RelationshipFacade` and `Router` only; `AgentService` reaches the screens solely
+  through the pre-existing manual Analyze buttons. No AI in search, cards, update,
+  navigation or shutdown.
+- **Search behaviour drift.** `SearchFacade`, the query grammar, filters, sorting and
+  Search Everywhere matching are untouched; the resolver sits strictly behind result
+  activation.
+- **Term-match misdirection.** Search Everywhere rows now route by `MatchType`: term
+  matches open the term detail (with term-id fallback to the file), file matches open
+  the file. Bidirectional navigation holds in both directions in source.
+
+### What this pass did not establish
+
+Everything requiring execution. This sandbox contains no JVM at all — no `java`, no
+`javac`, no cached toolchain, and a network that reaches only `github.com`, so none
+can be fetched. Consequently: no compilation (§18), no launch (§19), no end-to-end
+workflow (§20), no suite run (§27), no wall-clock timings (§28). The Unit 1–5
+capabilities are classified NOT RUN in `coverage.tsv` (rows U11–U52) and the resolver
+chain in `interface-function-matrix.tsv` (row SN1); the harnesses, renderers and
+`run-tests.sh` were extended so the next machine with a JDK runs the new tests with no
+further wiring. The only executed check this pass could perform was the resolver SQL
+itself: both statements run and the plan is a covering-index search.

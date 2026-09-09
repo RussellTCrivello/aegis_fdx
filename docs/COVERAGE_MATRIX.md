@@ -6,7 +6,7 @@ names Java or a test that does not exist, if a limitation is left unexplained, o
 destination in the interface is missing from the inventory. If this document and the
 code ever disagree, the build says so.
 
-**Generated:** 2026-09-08T16:52:39Z
+**Generated:** 2026-09-09T03:36:42Z
 
 ## How to read it
 
@@ -17,6 +17,7 @@ code ever disagree, the build says so.
 | **ADAPTED** | The reference behaviour is delivered in the form the Java architecture calls for — a dialog instead of a form route, a canvas chart instead of a web chart — not in the reference's form. |
 | **UNSUPPORTED** | Deliberately not reproduced. The note says why; "the reference has a control" is not on its own a reason to build one. |
 | **ABSENT** | No Java counterpart. The note says why and what adding it would involve. |
+| **NOT RUN** | Implemented and statically wired, but the JavaFX layer has not been compiled or executed here, so no test proves the control itself. The note names the test behind the operation. |
 
 "Cannot be validated on this machine" is recorded as **LIMITED**, never as absent, and
 never as verified.
@@ -25,12 +26,13 @@ never as verified.
 
 | Classification | Rows |
 |---|---:|
-| VERIFIED | 88 |
+| VERIFIED | 91 |
 | LIMITED | 3 |
 | ADAPTED | 8 |
 | UNSUPPORTED | 3 |
 | ABSENT | 1 |
-| **Total** | **103** |
+| NOT RUN | 9 |
+| **Total** | **115** |
 
 
 ## Overview
@@ -198,43 +200,90 @@ never as verified.
 
 | # | Reference / capability | Classification | Java | Operation | Test | Notes |
 |---|---|---|---|---|---|---|
-| P01 | batched ingest transactions, chosen batch size, crash mid-batch | **VERIFIED** | `Ingest` | `IngestPipeline#run` | `BatchRecoveryTest#interruptedBatchLeavesConsistentState` | Batch of 5,000 chosen from a six-point sweep (6,451 -> 17,128 rows/s); an interrupted batch leaves item and queue rows consistent and the lost work is re-offered as un-started. |
-| P02 | connection pragmas actually in force at runtime | **VERIFIED** | `Store` | `CaseDatabase#configure` | `BatchRecoveryTest#pragmasAreInForce` | WAL, synchronous, foreign keys, busy timeout, 64 MB cache, MEMORY temp store, 256 MB mmap and autocheckpoint read back from a live connection, not assumed from the source. |
-| P03 | derived dashboard statistics, correctness under mutation | **VERIFIED** | `ComprehensiveDashboardScreen` | `DashboardStats#snapshot` | `DashboardStatsTest#countersSurviveMutation` | Counters maintained by triggers stay equal to a direct aggregate across insert, update, delete, status change and rollback; 15,208 ms -> 0.14 ms at 5M items. |
+| P01 | batched ingest transactions, chosen batch size, crash mid-batch | **VERIFIED** | `IngestPipeline` | `IngestPipeline#run` | `BatchRecoveryTest#interruptedBatchIsAtomic` | Batch of 5,000 chosen from a six-point sweep (6,451 -> 17,128 rows/s); an interrupted batch leaves item and queue rows consistent and the lost work is re-offered as un-started. |
+| P02 | connection pragmas actually in force at runtime | **VERIFIED** | `CaseDatabase` | `CaseDatabase#runtimePragmas` | `BatchRecoveryTest#pragmasAreInForce` | WAL, synchronous, foreign keys, busy timeout, 64 MB cache, MEMORY temp store, 256 MB mmap and autocheckpoint read back from a live connection, not assumed from the source. |
+| P03 | derived dashboard statistics, correctness under mutation | **VERIFIED** | `ComprehensiveDashboardScreen` | `DashboardStats#snapshot` | `DashboardStatsTest#largeMixedCase` | Counters maintained by triggers stay equal to a direct aggregate across insert, update, delete, status change and rollback; 15,208 ms -> 0.14 ms at 5M items. |
 | P04 | deterministic statistics rebuild | **VERIFIED** | `ComprehensiveDashboardScreen` | `DashboardStats#rebuild` | `DashboardStatsTest#rebuildIsDeterministic` | Rebuild from base tables reproduces the counters exactly, including after planted corruption; verify() reports agreement. |
-| P05 | query plans free of unintended scans | **VERIFIED** | `Store` | `CaseDatabase#schema` | `BatchRecoveryTest#resumeLookupUsesIndex` | EXPLAIN QUERY PLAN over the hot queries; the quadratic resume scan is gone (ix_queue_source); remaining scans are bounded and listed in docs/bench/plans.tsv. |
+| P05 | query plans free of unintended scans | **VERIFIED** | `CaseDatabase` | `CaseDatabase#schema` | `BatchRecoveryTest#lostBatchIsResumable` | EXPLAIN QUERY PLAN over the hot queries; the quadratic resume scan is gone (ix_queue_source); remaining scans are bounded and listed in docs/bench/plans.tsv. |
 
 ## Search & retrieval
 
 | # | Reference / capability | Classification | Java | Operation | Test | Notes |
 |---|---|---|---|---|---|---|
-| P06 | facet counts over a result set | **VERIFIED** | `SearchScreen` | `SearchFacets#counts` | `SearchFacetsTest#bucketSumsEqualHitCount` | Postings intersection over existing fields; bucket sums equal the hit count, each bucket equals its own filtered query, uncommitted documents are counted (NRT). |
+| P06 | facet counts over a result set | **VERIFIED** | `SearchScreen` | `SearchFacets#counts` | `SearchFacetsTest#facetsAgreeWithResultSet` | Postings intersection over existing fields; bucket sums equal the hit count, each bucket equals its own filtered query, uncommitted documents are counted (NRT). |
 
 ## Relationships
 
 | # | Reference / capability | Classification | Java | Operation | Test | Notes |
 |---|---|---|---|---|---|---|
-| P07 | case-wide bidirectional counts | **VERIFIED** | `FileDetailScreen` | `CorpusDatabase#selectCategoryUsage` | `RelationshipCountsTest#categoryUsageMatchesPerPathListing` | Counts are COUNT(DISTINCT path_id) over the whole case, not the loaded page; grouped counts agree with independently computed per-term counts in both directions. |
+| P07 | case-wide bidirectional counts | **VERIFIED** | `FileDetailScreen` | `CorpusDatabase#selectCategoryUsage` | `RelationshipCountsTest#countsAreGlobal` | Counts are COUNT(DISTINCT path_id) over the whole case, not the loaded page; grouped counts agree with independently computed per-term counts in both directions. |
 
 ## Performance & scale
 
 | # | Reference / capability | Classification | Java | Operation | Test | Notes |
 |---|---|---|---|---|---|---|
-| P08 | runtime instrumentation of the timed operations | **VERIFIED** | `Store` | `OperationTimings#snapshot` | `OperationTimingsTest#percentilesSeparateFastFromSlow` | Counts, totals, max and bucketed p50/p95/p99 per operation; never under-reports, never over-reports by more than 2x, under 2 microseconds per call, exact under eight concurrent writers. |
+| P08 | runtime instrumentation of the timed operations | **VERIFIED** | `OperationTimings` | `OperationTimings#snapshot` | `OperationTimingsTest#percentilesSeparateFastFromSlow` | Counts, totals, max and bucketed p50/p95/p99 per operation; never under-reports, never over-reports by more than 2x, under 2 microseconds per call, exact under eight concurrent writers. |
 
 ## Architecture
 
 | # | Reference / capability | Classification | Java | Operation | Test | Notes |
 |---|---|---|---|---|---|---|
-| P09 | CorpusDatabase is a DAO on the one case connection, not a second database | **VERIFIED** | `Store` | `CorpusDatabase#CorpusDatabase` | `CorpusAuthorityTest#corpusSharesTheCaseConnectionRatherThanOpeningItsOwn` | Proven by transaction visibility and rollback, not by inspection: an uncommitted corpus write is visible through CaseDatabase and vanishes on its rollback. Only case.db is ever created; PRAGMA database_list shows main and temp only. |
-| P10 | path is a projection of item, not a rival record of case membership | **VERIFIED** | `Store` | `CorpusSchema#migrate` | `CorpusAuthorityTest#pathIsASatelliteOfItemAndIsDeletedWithIt` | path.element_id REFERENCES item(id) ON DELETE CASCADE; deleting the item removes the path row. Four denormalised columns are recorded as technical debt, not drift that is currently reachable. |
-| P11 | exactly one class opens a database connection | **VERIFIED** | `Store` | `CaseDatabase#connection` | `ArchitectureInvariantsTest#onlyCaseDatabaseOpensAConnection` | Walks every main-tree source file; fails if any class but CaseDatabase opens a connection. Replaces a grep that would not survive a merge, after a second UI connection was found bypassing every configured PRAGMA. |
+| P09 | CorpusDatabase is a DAO on the one case connection, not a second database | **VERIFIED** | `CorpusDatabase` | `CorpusDatabase#CorpusDatabase` | `CorpusAuthorityTest#corpusSharesTheCaseConnectionRatherThanOpeningItsOwn` | Proven by transaction visibility and rollback, not by inspection: an uncommitted corpus write is visible through CaseDatabase and vanishes on its rollback. Only case.db is ever created; PRAGMA database_list shows main and temp only. |
+| P10 | path is a projection of item, not a rival record of case membership | **VERIFIED** | `CorpusSchema` | `CorpusSchema#migrate` | `CorpusAuthorityTest#pathIsASatelliteOfItemAndIsDeletedWithIt` | path.element_id REFERENCES item(id) ON DELETE CASCADE; deleting the item removes the path row. Four denormalised columns are recorded as technical debt, not drift that is currently reachable. |
+| P11 | exactly one class opens a database connection | **VERIFIED** | `CaseDatabase` | `CaseDatabase#connection` | `ArchitectureInvariantsTest#onlyCaseDatabaseOpensAConnection` | Walks every main-tree source file; fails if any class but CaseDatabase opens a connection. Replaces a grep that would not survive a merge, after a second UI connection was found bypassing every configured PRAGMA. |
 
 ## Relationships
 
 | # | Reference / capability | Classification | Java | Operation | Test | Notes |
 |---|---|---|---|---|---|---|
-| P12 | term semantics enforced by the schema, not only by Java | **VERIFIED** | `Store` | `CorpusSchema#migrate` | `CorpusAuthorityTest#rawSqlCannotBypassTheKeywordThreeWordRule` | Triggers on INSERT and UPDATE reject a keyword under three words and a category word of more than one. Triggers rather than CHECK so existing multi-gigabyte cases gain the rule at migration without a table rebuild. |
+| P12 | term semantics enforced by the schema, not only by Java | **VERIFIED** | `CorpusSchema` | `CorpusSchema#migrate` | `CorpusAuthorityTest#rawSqlCannotBypassTheKeywordThreeWordRule` | Triggers on INSERT and UPDATE reject a keyword under three words and a category word of more than one. Triggers rather than CHECK so existing multi-gigabyte cases gain the rule at migration without a table rebuild. |
+
+## Analysis hub
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| D40 | Analysis hub — titles card | **VERIFIED** | `TitlesScreen` | `ContentFacade#getPaths` | `UiParityTest#contentsIntegration` | Distinct file names grouped from the path registry with per-title file, type and source counts; double-click opens the file. |
+| D41 | Analysis hub — relations card | **VERIFIED** | `RelationsScreen` | `RelationshipFacade#search` | `RelationshipModelTest#searchByLocation` | Whole-case edge totals plus a scoped graph search; every match reports where the file matched. |
+| D42 | Analysis hub — geolocation card | **VERIFIED** | `GeolocationScreen` | `ContentFacade#getPaths` | `UiParityTest#contentsIntegration` | Groups non-blank path.coordinates from registered material; an empty case reports 0 / 0 with an explicit empty state. |
+
+## Vocabulary
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| U11 | category detail file cards (Unit 1) | **NOT RUN** | `TermDetailScreen` | `RelationshipFacade#category` | `RelationshipModelTest#categoryBidirectional` | Cards show source, side, size, date and extension per file with select, view, full-view and download; the operation behind them is proven but the cards themselves have not been compiled or clicked through. |
+| U21 | keyword Cards/List views (Unit 2) | **NOT RUN** | `KeywordsScreen` | `RelationshipFacade#keywordFileCounts` | `RelationshipModelTest#keywordBidirectional` | Both views render the same page of records with phrase, category, usage and active state; counts are proven but the toggle and cards have not been compiled or clicked through. |
+| U22 | Update Keywords re-derivation (Unit 2) | **NOT RUN** | `KeywordsScreen` | `RelationshipAnalyzer#analyzeAll` | `FailureRecoveryTest#duplicateRelationship` | Runs analyzeAll off the FX thread and reports files scanned plus keyword links; the analyzer is proven but the button and its background handoff have not been compiled or executed. |
+
+## Sources
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| U31 | source detail file cards (Unit 3) | **NOT RUN** | `SourceDetailScreen` | `ContentFacade#getPaths` | `UiParityTest#contentsIntegration` | Collected material as file cards with selection and Download Selected above the table; registry reads are proven but the cards have not been compiled or clicked through. |
+
+## Aspects
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| U32 | aspect detail file cards (Unit 3) | **NOT RUN** | `AspectDetailScreen` | `ContentFacade#getPaths` | `UiParityTest#contentsIntegration` | Attributed material as file cards with selection and Download Selected above the table; registry reads are proven but the cards have not been compiled or clicked through. |
+
+## Search
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| U41 | search filter-bar polish (Unit 4) | **NOT RUN** | `SearchScreen` | `SearchFacade#search` | `SearchFacetsTest#facetsAgreeWithResultSet` | Wrapping filters, Clear Filters reset plus re-run, null-safe preview; search itself is proven but the polish has not been compiled or clicked through. |
+
+## Vocabulary
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| U42 | word summary tiles (Unit 4) | **NOT RUN** | `WordsScreen` | `RelationshipFacade#wordFileCounts` | `RelationshipModelTest#categoryBidirectional` | Total / In Files / Unused tiles from whole-case counts; the counts are proven but the tiles have not been compiled or rendered. |
+
+## Search
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| U51 | search result → File Detail (Unit 5) | **NOT RUN** | `SearchScreen` | `ContentFacade#getPathByElementId` | `SearchResultResolverTest#luceneHitResolves` | Element id resolves through the indexed UNIQUE path.element_id to the exact record; duplicates, Unicode, children and failures are tested, but navigation has not been compiled or clicked through. |
+| U52 | Search Everywhere match-type routing (Unit 5) | **NOT RUN** | `SearchScreen` | `RelationshipFacade#search` | `RelationshipModelTest#searchByLocation` | Term matches open the term detail, file matches open the file; typed rows with term ids are proven but the routing has not been compiled or clicked through. |
 
 ## The three items that needed a decision
 

@@ -1,0 +1,271 @@
+# AEGIS-FDX execution gate — real JDK 21 + real JavaFX 21, no Gradle required.
+#
+# Runs the repository's own batteries (run-tests.ps1 on Windows, run-tests.sh on
+# Linux): full javac compile of main + tests, then every suite including the
+# Unit 5 SearchResultResolverTest and the matrix inventories. This is the gate
+# that turns NOT RUN rows into executed evidence.
+#
+# Failure diagnostics are reported as check annotations (::error) because the
+# raw log host is not reachable from every client; annotations carry the javac
+# errors and the failing tail.
+name: verify
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Windows battery (JDK 21 + JavaFX 21 SDK)
+    runs-on: windows-latest
+    timeout-minutes: 180
+    env:
+      AEGIS_FX: C:\javafx-sdk-21.0.4\lib
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Temurin JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Fetch JavaFX 21.0.4 SDK (Windows x64)
+        shell: pwsh
+        run: |
+          $zip = "$env:RUNNER_TEMP\openjfx.zip"
+          Invoke-WebRequest -Uri 'https://download2.gluonhq.com/openjfx/21.0.4/openjfx-21.0.4_windows-x64_bin-sdk.zip' -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath 'C:\' -Force
+          Get-ChildItem 'C:\javafx-sdk-21.0.4\lib\javafx.controls.jar' | Format-Table Name, Length
+
+      - name: Toolchain versions
+        shell: pwsh
+        run: |
+          $v = (javac -version 2>&1) + ' / ' + ((java -version 2>&1) -join ' ')
+          Write-Host $v
+          "toolchain=$v" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Run full battery
+        shell: pwsh
+        run: |
+          powershell -ExecutionPolicy Bypass -File run-tests.ps1 -Multiplier 2 *>&1 | Tee-Object -FilePath battery.log
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: GUI gate (real app, every screen + screenshots)
+        shell: pwsh
+        run: |
+          $cp = ((Get-ChildItem lib/*.jar | ForEach-Object { $_.FullName }) -join ';')
+          New-Item -ItemType Directory -Force -Path build/gui-tools | Out-Null
+          javac -nowarn --module-path $env:AEGIS_FX --add-modules javafx.controls,javafx.swing `
+            -cp "build/classes;$cp" -d build/gui-tools tools/FasSeedHarness.java tools/FasShotHarness.java *>&1 | Tee-Object -FilePath gui-gate.log
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Remove-Item -Recurse -Force build/gui-shots -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path build/gui-shots | Out-Null
+          $runCp = "build/gui-tools;build/classes;$cp"
+          $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+          java "-Dfile.encoding=UTF-8" --module-path $env:AEGIS_FX --add-modules "javafx.controls,javafx.swing" `
+            -cp $runCp FasSeedHarness *>&1 | Tee-Object -FilePath gui-gate.log -Append
+          $c1 = $LASTEXITCODE
+          java "-Dfile.encoding=UTF-8" --module-path $env:AEGIS_FX --add-modules "javafx.controls,javafx.swing" `
+            -cp $runCp FasShotHarness build/gui-shots *>&1 | Tee-Object -FilePath gui-gate.log -Append
+          $c2 = $LASTEXITCODE
+          $ErrorActionPreference = $prev
+          if ($c1 -ne 0 -or $c2 -ne 0) { exit 1 }
+
+      - name: Publish evidence digest
+        if: always()
+        shell: pwsh
+        run: |
+          $tr = { param($t) if ($t.Length -gt 200) { $t.Substring(0,200) } else { $t } }
+          $lines = [System.Collections.Generic.List[string]]::new()
+          if (Test-Path battery.log) {
+            $bat = Get-Content battery.log
+            $bat | Select-String -Pattern 'passed, .*failed|tests, .*passed' | ForEach-Object { $lines.Add((&$tr $_.Line)) }
+            $bat | Select-String -Pattern '  CLASS  ' | ForEach-Object { $lines.Add((&$tr $_.Line)) }
+            $bat | Select-String -Pattern 'ops/s|rows/s|p50|p95|p99|throughput' | Select-Object -First 10 | ForEach-Object { $lines.Add((&$tr $_.Line)) }
+            $bat | Select-String -Pattern '^== ' | Select-Object -First 25 | ForEach-Object { $lines.Add((&$tr $_.Line)) }
+          }
+          if (Test-Path gui-gate.log) {
+            $gui = Get-Content gui-gate.log
+            $gui | Select-String -Pattern 'GUI GATE|ingested elements|FIRED|SKIP|FAIL|ENV|SEARCH DIAG|SEARCH RESULTS' | ForEach-Object { $lines.Add((&$tr $_.Line)) }
+            $gui | Select-String -Pattern 'Exception|Caused by' | Select-Object -First 8 | ForEach-Object { $lines.Add((&$tr $_.Line)) }
+            $gui | Select-String -Pattern '^SCREEN ' | ForEach-Object { $lines.Add((&$tr $_.Line)) }
+            $shots = (Get-ChildItem build/gui-shots/*.png -ErrorAction SilentlyContinue | Measure-Object).Count
+            $lines.Add("screenshots=$shots")
+          }
+          $lines.Add(("digest-lines=" + $lines.Count))
+          $chunk = [System.Collections.Generic.List[string]]::new(); $n = 0
+          foreach ($l in $lines) {
+            $chunk.Add($l)
+            if ((($chunk -join "`n").Length) -gt 1500) {
+              $msg = ($chunk -join '%0A') -replace '%(?![02])','%25'; Write-Host "::notice::digest-$n`:$msg"
+              $chunk.Clear(); $n++
+            }
+          }
+          if ($chunk.Count -gt 0) {
+            $msg = ($chunk -join '%0A') -replace '%(?![02])','%25'; Write-Host "::notice::digest-$n`:$msg"
+          }
+
+      - name: Upload GUI screenshots
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-shots-windows
+          path: build/gui-shots/*.png
+          if-no-files-found: warn
+
+      - name: Report failure diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          "toolchain=$env:toolchain" -replace '%','%25' | ForEach-Object { Write-Host "::notice $_" }
+          $errs = Select-String -Path battery.log -Pattern '^(.*\.java):(\d+): error: (.*)$' | Select-Object -First 10
+          foreach ($m in $errs) {
+            $msg = ($m.Matches[0].Groups[3].Value) -replace '%','%25' -replace '\r','%0D' -replace '\n','%0A'
+            $file = ($m.Matches[0].Groups[1].Value) -replace '%','%25'
+            $line = $m.Matches[0].Groups[2].Value
+            Write-Host "::error file=$file,line=$line::$msg"
+          }
+          $tail = (Get-Content battery.log -Tail 60) -join '%0A' -replace '%(?![02])','%25'
+          Write-Host "::error::tail:$tail"
+          if (Test-Path gui-gate.log) {
+            $gtail = (Get-Content gui-gate.log -Tail 40) -join '%0A' -replace '%(?![02])','%25'
+            Write-Host "::error::guitail:$gtail"
+          }
+
+  linux:
+    name: Linux battery (JDK 21 + JavaFX 21 SDK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      AEGIS_FX: /tmp/javafx-sdk-21.0.4/lib
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Temurin JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Export AEGIS_JDK for run-tests.sh
+        run: echo "AEGIS_JDK=$JAVA_HOME/bin" >> "$GITHUB_ENV"
+
+      - name: Fetch JavaFX 21.0.4 SDK (Linux x64)
+        run: |
+          curl -sL -o /tmp/openjfx.zip 'https://download2.gluonhq.com/openjfx/21.0.4/openjfx-21.0.4_linux-x64_bin-sdk.zip'
+          sudo unzip -q -o /tmp/openjfx.zip -d /tmp
+          ls "$AEGIS_FX"/javafx.controls.jar
+
+      - name: Toolchain versions
+        run: |
+          V="$(javac -version 2>&1) / $(java -version 2>&1 | tr '\n' ' ')"
+          echo "$V"
+          echo "TOOLCHAIN=$V" >> "$GITHUB_ENV"
+
+      - name: Run full battery
+        run: |
+          bash run-tests.sh 2 2>&1 | tee battery.log
+          test "${PIPESTATUS[0]}" -eq 0
+
+      - name: GUI gate (real app under Xvfb, every screen + screenshots)
+        run: |
+          command -v Xvfb >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq xvfb; }
+          CP="$(ls lib/*.jar | tr '\n' ':')"
+          mkdir -p build/gui-tools
+          {
+            "$JAVA_HOME/bin/javac" -nowarn --module-path "$AEGIS_FX" --add-modules javafx.controls,javafx.swing \
+              -cp "build/classes:$CP" -d build/gui-tools tools/FasSeedHarness.java tools/FasShotHarness.java
+            rm -rf build/gui-shots && mkdir -p build/gui-shots
+            echo "== seeding demo case =="
+            xvfb-run -a -s '-screen 0 1440x900x24' "$JAVA_HOME/bin/java" -Dfile.encoding=UTF-8 \
+              --module-path "$AEGIS_FX" --add-modules javafx.controls,javafx.swing \
+              -cp "build/gui-tools:build/classes:$CP" FasSeedHarness
+            echo "== driving the real app =="
+            xvfb-run -a -s '-screen 0 1440x900x24' "$JAVA_HOME/bin/java" -Dfile.encoding=UTF-8 \
+              --module-path "$AEGIS_FX" --add-modules javafx.controls,javafx.swing \
+              -cp "build/gui-tools:build/classes:$CP" FasShotHarness build/gui-shots
+          } 2>&1 | tee gui-gate.log
+          test "${PIPESTATUS[0]}" -eq 0
+
+      - name: Publish evidence digest
+        if: always()
+        run: |
+          python3 - <<'DGEOF'
+          import re, glob
+          def read(f):
+              try:
+                  with open(f, encoding='utf-8', errors='replace') as fh:
+                      return fh.read().splitlines()
+              except FileNotFoundError:
+                  return []
+          # Priority-ordered and capped: annotation messages get truncated past a
+          # few KB, so the footers and gate verdicts come first and the digest
+          # ends with a marker line whose absence proves truncation.
+          bat, gui = read('battery.log'), read('gui-gate.log')
+          lines = []
+          lines += [l[:200] for l in bat if re.search(r'passed, .*failed|tests, .*passed', l)]
+          lines += [l[:200] for l in bat if '  CLASS  ' in l]
+          lines += [l[:200] for l in gui if re.search(r'GUI GATE|ingested elements|FIRED|SKIP|FAIL|ENV|SEARCH DIAG|SEARCH RESULTS', l)]
+          lines += [l[:200] for l in gui if re.search(r'Exception|Caused by', l)][:8]
+          lines += [l[:200] for l in gui if l.startswith('SCREEN ')]
+          lines += [l[:200] for l in bat if re.search(r'ops/s|rows/s|p50|p95|p99|throughput', l)][:10]
+          lines += [l[:200] for l in bat if re.match(r'^== ', l)][:25]
+          lines.append('screenshots=%d' % len(glob.glob('build/gui-shots/*.png')))
+          lines.append('digest-lines=%d' % len(lines))
+          def esc(t):
+              return t.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          chunk, n = [], 0
+          for line in lines:
+              chunk.append(line)
+              if sum(len(c) for c in chunk) > 1500:
+                  print('::notice::digest-%d:%s' % (n, esc('\n'.join(chunk))))
+                  chunk, n = [], n + 1
+          if chunk:
+              print('::notice::digest-%d:%s' % (n, esc('\n'.join(chunk))))
+          DGEOF
+
+      - name: Upload GUI screenshots
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-shots-linux
+          path: build/gui-shots/*.png
+          if-no-files-found: error
+
+      - name: Commit GUI screenshots to the branch
+        # Push runs only: on pull_request events GITHUB_REF_NAME is "N/merge",
+        # which is not a pushable branch. Push runs already land the screenshots.
+        if: success() && github.event_name == 'push'
+        run: |
+          git config user.name 'aegis-gate'
+          git config user.email 'aegis-gate@users.noreply.github.com'
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          rm -f docs/screens-fas/*.png
+          cp build/gui-shots/*.png docs/screens-fas/
+          git add docs/screens-fas
+          if git diff --cached --quiet; then
+            echo 'screenshots unchanged'
+          else
+            git commit -m "Gate evidence: GUI screenshots from CI run ${GITHUB_RUN_ID}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+      - name: Report failure diagnostics
+        if: failure()
+        run: |
+          echo "::notice::toolchain=${TOOLCHAIN}"
+          grep -E '^.*\.java:[0-9]+: error: ' battery.log | head -10 | while IFS= read -r l; do
+            f="${l%%.java*}"; f="${f##* }";
+            rest="${l#*.java:}"; n="${rest%%:*}"; msg="${rest#*: error: }"
+            msg="$(printf '%s' "$msg" | sed -e 's/%/%25/g' | tr '\n' ' ')"
+            echo "::error file=${f}.java,line=${n}::${msg}"
+          done
+          tail -60 battery.log | sed -e 's/%/%25/g' -e ':a;N;$!ba;s/\n/%0A/g' | sed 's/^/::error::tail:/'
+          if [ -f gui-gate.log ]; then tail -40 gui-gate.log | sed -e 's/%/%25/g' -e ':a;N;$!ba;s/\n/%0A/g' | sed 's/^/::error::guitail:/'; fi

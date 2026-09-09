@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>{@code docs/coverage.tsv} claims, for every destination and capability, that it is
  * implemented, that a named piece of Java does the work, and that a named test proves
  * it. A claim like that is worth exactly as much as its weakest row, so this suite
- * resolves every one of them: the classification must be one of the five agreed words,
+ * resolves every one of them: the classification must be one of the six agreed words,
  * the Java symbol must exist in the main sources, the test symbol must exist in the test
  * sources, and anything less than fully verified must say what is missing.
  *
@@ -34,11 +34,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public final class CoverageMatrixTest {
 
     private static final Set<String> CLASSIFICATIONS =
-            Set.of("VERIFIED", "LIMITED", "ADAPTED", "UNSUPPORTED", "ABSENT");
+            Set.of("VERIFIED", "LIMITED", "ADAPTED", "UNSUPPORTED", "ABSENT", "NOT RUN");
 
     /** Classifications that must explain themselves. */
     private static final Set<String> MUST_EXPLAIN =
-            Set.of("LIMITED", "ADAPTED", "UNSUPPORTED", "ABSENT");
+            Set.of("LIMITED", "ADAPTED", "UNSUPPORTED", "ABSENT", "NOT RUN");
 
     private record Row(String id, String area, String reference, String classification,
                        String javaSymbol, String operation, String test, String note) { }

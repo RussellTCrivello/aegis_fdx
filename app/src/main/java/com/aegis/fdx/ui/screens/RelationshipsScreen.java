@@ -59,8 +59,8 @@ public final class RelationshipsScreen implements Detail {
 
     @Override
     public String breadcrumb() {
-        String root = forSource ? "Sources" : "Aspects";
-        return "Home / " + root + " / " + (entityName.isBlank() ? "Relationships"
+        String root = forSource ? "Sources" : "Sides";
+        return "Home / Analysis / " + root + " / " + (entityName.isBlank() ? "Relationships"
                 : entityName + " / Categories & Keywords");
     }
 

@@ -117,7 +117,7 @@ Write-Host '== compiling main =='
 $mainSrc = Get-ChildItem -LiteralPath (Join-Path $root 'app\src\main\java') -Recurse -Filter *.java |
            ForEach-Object { $_.FullName }
 $mainList = Join-Path $env:TEMP 'aegis-main-sources.txt'
-$mainSrc | Set-Content -LiteralPath $mainList -Encoding UTF8
+[System.IO.File]::WriteAllLines($mainList, $mainSrc, (New-Object System.Text.UTF8Encoding($false)))
 & $javacExe -nowarn --module-path $FxLib --add-modules javafx.controls `
     -cp $cp -d $outMain "@$mainList"
 if ($LASTEXITCODE -ne 0) { Fail 'Main compilation failed.' }
@@ -130,10 +130,28 @@ Write-Host '== compiling tests =='
 $testSrc = Get-ChildItem -LiteralPath (Join-Path $root 'app\src\test\java') -Recurse -Filter *.java |
            ForEach-Object { $_.FullName }
 $testList = Join-Path $env:TEMP 'aegis-test-sources.txt'
-$testSrc | Set-Content -LiteralPath $testList -Encoding UTF8
+[System.IO.File]::WriteAllLines($testList, $testSrc, (New-Object System.Text.UTF8Encoding($false)))
 & $javacExe -nowarn -proc:none --module-path $FxLib --add-modules javafx.controls `
     -cp "$outMain;$cp" -d $outTest "@$testList"
 if ($LASTEXITCODE -ne 0) { Fail 'Test compilation failed.' }
+
+# ---- java invocation -------------------------------------------------------
+# All JVM launches go through Start-Process with file redirection. A bare or
+# merged (2>&1) native call turns every stderr line into an ErrorRecord, which
+# under $ErrorActionPreference='Stop' aborts the battery the moment Lucene or
+# the JVM logs anything. File redirection bypasses that wrapping entirely.
+function Invoke-Java([string[]]$JvmArgs) {
+    $stdoutFile = Join-Path $env:TEMP 'aegis-java-out.txt'
+    $stderrFile = Join-Path $env:TEMP 'aegis-java-err.txt'
+    foreach ($f in @($stdoutFile, $stderrFile)) { if (Test-Path $f) { Remove-Item -LiteralPath $f -Force } }
+    $allArgs = @('-Dfile.encoding=UTF-8') + $JvmArgs
+    $proc = Start-Process -FilePath $javaExe -ArgumentList $allArgs -NoNewWindow -Wait -PassThru `
+        -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile
+    $lines = @(Get-Content -LiteralPath $stdoutFile -Encoding UTF8)
+    $lines | ForEach-Object { Write-Host $_ }
+    Get-Content -LiteralPath $stderrFile -Encoding UTF8 | ForEach-Object { Write-Host $_ }
+    return @{ Lines = $lines; Code = $proc.ExitCode }
+}
 
 # ---- suites ----------------------------------------------------------------
 $runCp = "$outTest;$outMain;$cp"
@@ -144,8 +162,9 @@ $suiteCount  = 0
 function Invoke-Suite($title, $class, [string[]]$suiteArgs) {
     Write-Host ''
     Write-Host "== $title ==" -ForegroundColor Cyan
-    $out = & $javaExe -Xmx900m -cp $runCp $class @suiteArgs 2>&1
-    $out | ForEach-Object { Write-Host $_ }
+    $r = Invoke-Java (@('-Xmx900m', '-cp', $runCp, $class) + $suiteArgs)
+    $out = $r.Lines
+    if ($r.Code -ne 0) { Fail "$title failed (exit $($r.Code))." }
     foreach ($line in $out) {
         if ("$line" -match '^\s*(?:===\s*)?(\d+)\s+passed,\s*(\d+)\s+failed(?:\s*===)?\s*$') {
             $script:totalPassed += [int]$Matches[1]
@@ -160,7 +179,8 @@ Invoke-Suite 'query validation (unknown fields / dates / regex)' 'com.aegis.fdx.
 
 Write-Host ''
 Write-Host '== generating test dataset (D-04) ==' -ForegroundColor Cyan
-& $javaExe -Xmx900m -cp $runCp com.aegis.fdx.TestDataset (Join-Path $work 'testdata')
+$r = Invoke-Java @('-Xmx900m', '-cp', $runCp, 'com.aegis.fdx.TestDataset', (Join-Path $work 'testdata'))
+if ($r.Code -ne 0) { Fail "generating test dataset failed (exit $($r.Code))." }
 
 Invoke-Suite 'drag-and-drop intake (F-01)' 'com.aegis.fdx.DragDropIngestTest' @((Join-Path $work 'dnd'))
 Invoke-Suite 'AI boundary (B-01..B-07)' 'com.aegis.fdx.AiBoundaryTest' @((Join-Path $work 'aiboundary'))
@@ -168,9 +188,52 @@ Invoke-Suite 'windows compatibility (N-01)' 'com.aegis.fdx.WindowsCompatibilityT
 Invoke-Suite 'pipeline acceptance AT-01..AT-10 (M2)' 'com.aegis.fdx.PipelineAcceptanceTest' @((Join-Path $work 'at'))
 Invoke-Suite 'milestone 3 acceptance (OCR / export / reports / integrity)' 'com.aegis.fdx.M3AcceptanceTest' @((Join-Path $work 'm3'))
 
+Invoke-Suite 'case settings persistence' 'com.aegis.fdx.SettingsPersistenceTest' @()
+Invoke-Suite 'host metrics' 'com.aegis.fdx.HostMetricsTest' @()
+
+function Invoke-JUnit($title, [string[]]$classes, [string[]]$jvmArgs) {
+    Write-Host ''
+    Write-Host "== $title ==" -ForegroundColor Cyan
+    $r = Invoke-Java ($jvmArgs + @('com.aegis.fdx.JUnitRunner') + $classes)
+    if ($r.Code -ne 0) { Fail "$title failed (exit $($r.Code))." }
+}
+
+Invoke-JUnit 'JUnit suites (facade, agent, batch, model, scenario, resolver)' @(
+    'com.aegis.fdx.FacadeParityTest',
+    'com.aegis.fdx.AiAgentTest',
+    'com.aegis.fdx.BatchAnalysisTest',
+    'com.aegis.fdx.IntegrationModelTest',
+    'com.aegis.fdx.EndToEndScenarioTest',
+    'com.aegis.fdx.SettingsPersistenceTest',
+    'com.aegis.fdx.HostMetricsTest',
+    'com.aegis.fdx.FailureRecoveryTest',
+    'com.aegis.fdx.AegisCharsetProviderTest',
+    'com.aegis.fdx.SearchResultResolverTest',
+    'com.aegis.fdx.FacadeInventoryTest'
+) @('-Xmx900m', '-cp', $runCp)
+
+Invoke-Suite 'architecture invariants' 'com.aegis.fdx.ArchitectureInvariantsTest' @((Join-Path $work 'arch'))
+Invoke-Suite 'failure and recovery' 'com.aegis.fdx.ResilienceTest' @((Join-Path $work 'resilience'))
+Invoke-Suite 'coverage inventory' 'com.aegis.fdx.CoverageMatrixTest' @()
+Invoke-Suite 'interface-function matrix' 'com.aegis.fdx.InterfaceFunctionMatrixTest' @()
+
+$fxControls = Join-Path $FxLib 'javafx.controls.jar'
+if (Test-Path $fxControls) {
+    $uiJvm = @('-Xmx900m', '--module-path', $FxLib, '--add-modules', 'javafx.controls,javafx.graphics', '-cp', $runCp)
+} else {
+    $uiJvm = @('-Xmx900m', '-cp', $runCp)
+}
+Invoke-JUnit 'interface suites (parity, destinations, relationships, bridge)' @(
+    'com.aegis.fdx.UiParityTest',
+    'com.aegis.fdx.DestinationCoverageTest',
+    'com.aegis.fdx.RelationshipModelTest',
+    'com.aegis.fdx.SuiteBridgeTest'
+) $uiJvm
+
 Write-Host ''
 Write-Host '== benchmark (N-02 / F-18 / N-03) ==' -ForegroundColor Cyan
-& $javaExe -Xmx900m -cp $runCp com.aegis.fdx.Benchmark (Join-Path $work 'bench') $Multiplier
+$r = Invoke-Java @('-Xmx900m', '-cp', $runCp, 'com.aegis.fdx.Benchmark', (Join-Path $work 'bench'), $Multiplier)
+if ($r.Code -ne 0) { Fail "benchmark failed (exit $($r.Code))." }
 
 # ---- summary ---------------------------------------------------------------
 Write-Host ''
@@ -179,8 +242,8 @@ Write-Host (" {0} suites: {1} assertions, {2} failures" -f $suiteCount, $totalPa
 Write-Host '==================================================================='
 
 if ($totalFailed -gt 0) { exit 1 }
-if ($suiteCount -lt 6) {
-    Write-Host "WARNING: expected 6 suites, saw $suiteCount - a suite may not have run." -ForegroundColor Yellow
+if ($suiteCount -lt 12) {
+    Write-Host "WARNING: expected 12 footer-counted suites, saw $suiteCount - a suite may not have run." -ForegroundColor Yellow
     exit 1
 }
 Write-Host 'ALL SUITES COMPLETED' -ForegroundColor Green
