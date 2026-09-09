@@ -22,11 +22,13 @@ import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -62,6 +64,8 @@ public final class SourceDetailScreen implements Detail {
     private final ObservableList<KeywordUsage> keywords = FXCollections.observableArrayList();
     private Label filesCount;
     private Label emptyNote;
+    private FlowPane fileCards;
+    private final Set<Integer> selectedFiles = new HashSet<>();
 
     public SourceDetailScreen(AegisFacades facades, Router router, AgentService agent) {
         this.facades = facades;
@@ -204,14 +208,31 @@ public final class SourceDetailScreen implements Detail {
                 grow(Fas.cardWithHeader("Categories", "Double-click to see the files", catTable)),
                 grow(Fas.cardWithHeader("Keywords", "Double-click to open the keyword", kwTable)));
 
+        fileCards = new FlowPane(12, 12);
+        Button selectAllFiles = Fas.ghost("Select All", Icons.CHECK_ALL);
+        selectAllFiles.setOnAction(e -> {
+            for (PathDto p : files) {
+                selectedFiles.add(p.id());
+            }
+            buildFileCards();
+        });
+        Button selectNoFiles = Fas.ghost("Select None", Icons.CLOSE);
+        selectNoFiles.setOnAction(e -> {
+            selectedFiles.clear();
+            buildFileCards();
+        });
+        Button downloadSel = Fas.outline("Download Selected", Icons.DOWNLOAD);
+        downloadSel.setOnAction(e -> downloadSelected());
+        HBox fileBulk = Fas.row(8, selectAllFiles, selectNoFiles, downloadSel);
+
         VBox content = new VBox(16,
                 Fas.pageHeader("Source Detail", null, analyze, back, relationships, editBtn, deleteBtn),
                 heading,
                 statsRow,
                 new HBox(14, left, right),
                 Fas.cardWithHeader("Collected Material",
-                        "Double-click a row to open the file",
-                        new VBox(10, filesCount, fileTable)),
+                        "Double-click a card or row to open the file",
+                        new VBox(10, filesCount, fileCards, fileBulk, fileTable)),
                 rel,
                 emptyNote);
         content.setPadding(new Insets(20));
@@ -288,6 +309,8 @@ public final class SourceDetailScreen implements Detail {
             files.setAll(facades.contents()
                     .getPaths(null, sourceId, null, null, 500, 0).results());
             filesCount.setText(files.size() + (files.size() == 1 ? " file" : " files"));
+            selectedFiles.retainAll(files.stream().map(PathDto::id).toList());
+            buildFileCards();
 
             categories.setAll(facades.analytics().categoriesForSource(sourceId));
             keywords.setAll(facades.analytics().keywordsForSource(sourceId));
@@ -325,6 +348,113 @@ public final class SourceDetailScreen implements Detail {
         v.setStyle("-fx-font-size: 12px; -fx-text-fill: " + Fas.TEXT_DARK + ";");
         fields.add(v, 1, r);
         return r + 1;
+    }
+
+
+    private void buildFileCards() {
+        fileCards.getChildren().clear();
+        if (files.isEmpty()) {
+            fileCards.getChildren().add(Fas.emptyState(
+                    "No files from this source yet."));
+            return;
+        }
+        for (PathDto p : files) {
+            fileCards.getChildren().add(fileCard(p));
+        }
+    }
+
+    private VBox fileCard(PathDto p) {
+        CheckBox cb = new CheckBox();
+        cb.setSelected(selectedFiles.contains(p.id()));
+        cb.setOnAction(e -> {
+            if (cb.isSelected()) {
+                selectedFiles.add(p.id());
+            } else {
+                selectedFiles.remove(p.id());
+            }
+        });
+
+        Label name = new Label(nz(p.fileName()));
+        name.getStyleClass().add("file-card-name");
+        name.setWrapText(true);
+
+        String ext = p.fileType() == null ? "" : p.fileType();
+        if (!ext.isBlank() && !ext.startsWith(".")) {
+            ext = "." + ext;
+        }
+        String date = p.fileDate() == null ? "" : p.fileDate().toString();
+        Label meta = new Label("source: " + nz(p.sourceName()) + "   side: " + nz(p.aspectName())
+                + "\nsize: " + DashboardScreen.humanBytes(p.fileSize())
+                + "   date: " + (date.isBlank() ? "\u2014" : date)
+                + "   extension: " + (ext.isBlank() ? "\u2014" : ext));
+        meta.getStyleClass().add("file-card-meta");
+        meta.setWrapText(true);
+
+        Button view = Fas.ghost("View Details", Icons.EYE);
+        view.setOnAction(e -> router.openFile(p.id()));
+        Button full = Fas.ghost("Full View", Icons.FILE_TEXT);
+        full.setOnAction(e -> router.openContent(p.id()));
+        Button download = Fas.ghost("Download", Icons.DOWNLOAD);
+        download.setOnAction(e -> downloadFile(p));
+
+        VBox card = new VBox(8, Fas.row(8, name, Fas.spacer(), cb), meta,
+                Fas.row(4, view, full, download));
+        card.getStyleClass().add("file-card");
+        card.setPrefWidth(300);
+        card.setOnMouseClicked(e -> {
+            if (e.getClickCount() == 2) {
+                router.openFile(p.id());
+            }
+        });
+        return card;
+    }
+
+    private void downloadFile(PathDto p) {
+        String text = "";
+        try {
+            text = facades.contents().getContentAsText(p.id());
+        } catch (RuntimeException ignored) {
+            text = "";
+        }
+        if (text == null) {
+            text = "";
+        }
+        Fas.saveBytes(heading, "Download File Content",
+                safeName(p.fileName()) + ".txt", text.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void downloadSelected() {
+        if (selectedFiles.isEmpty()) {
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (PathDto p : files) {
+            if (!selectedFiles.contains(p.id())) {
+                continue;
+            }
+            String text = "";
+            try {
+                text = facades.contents().getContentAsText(p.id());
+            } catch (RuntimeException ignored) {
+                text = "";
+            }
+            sb.append("===== ").append(p.fileName()).append(" =====\n");
+            sb.append(text == null ? "" : text).append("\n\n");
+        }
+        String who = source == null ? "source" : source.name();
+        Fas.saveBytes(heading, "Download Selected Files",
+                safeName(who) + "-files.txt", sb.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String safeName(String s) {
+        if (s == null || s.isBlank()) {
+            return "content";
+        }
+        return s.replaceAll("[^A-Za-z0-9._\\-]+", "_");
+    }
+
+    private static String nz(String s) {
+        return s == null ? "" : s;
     }
 
     /** Opens the edit form. Reuses the create form's field set, pre-filled. */
