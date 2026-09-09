@@ -61,6 +61,8 @@ public final class AspectDetailScreen implements Detail {
     private ProgressBar reviewBar;
     private Label reviewLabel;
     private Label filesCount;
+    private FlowPane fileCards;
+    private final Set<Integer> selectedFiles = new HashSet<>();
     private final ObservableList<PathDto> files = FXCollections.observableArrayList();
     private final ObservableList<CategoryUsage> categories = FXCollections.observableArrayList();
     private final ObservableList<KeywordUsage> keywords = FXCollections.observableArrayList();

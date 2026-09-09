@@ -74,6 +74,11 @@ public final class WordsScreen implements Screen {
 
     @Override
     public Node build() {
+        tileTotal = Fas.summaryTile("0", "Total Words");
+        tileInFiles = Fas.summaryTile("0", "In Files");
+        tileUnused = Fas.summaryTile("0", "Unused");
+        VBox tiles = new VBox(Fas.statsGrid(tileTotal, tileInFiles, tileUnused));
+
         searchField = Fas.field("Search words...");
         searchField.setPrefWidth(230);
         searchField.textProperty().addListener((o, a, b) -> {
@@ -232,6 +237,12 @@ public final class WordsScreen implements Screen {
             fileCounts.putAll(facades.relationships().wordFileCounts());
             rows.setAll(page.results());
             total = page.totalCount();
+
+            int allWords = facades.words().searchWords(null, 1, 0).totalCount();
+            int inFiles = (int) fileCounts.values().stream().filter(n -> n > 0).count();
+            Fas.setSummary(tileTotal, String.format("%,d", allWords));
+            Fas.setSummary(tileInFiles, String.format("%,d", inFiles));
+            Fas.setSummary(tileUnused, String.format("%,d", Math.max(0, allWords - inFiles)));
             int from = total == 0 ? 0 : offset + 1;
             int to = Math.min(offset + limit, total);
             pageLabel.setText(from + " - " + to + " of " + String.format("%,d", total));
