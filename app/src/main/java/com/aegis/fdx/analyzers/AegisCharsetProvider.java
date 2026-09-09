@@ -29,22 +29,22 @@ public final class AegisCharsetProvider extends CharsetProvider {
     static {
         registerAliases("ISO-8859-8-I", new String[]{
                 "iso-8859-8-i", "iso_8859_8_i", "iso8859-8-i", "iso8859_8_i",
-                "csiso88598i", "logical-hebrew", "hebrew-logical", "iso-ir-138-i"
+                "csiso88598i", "iso88598i", "logical-hebrew", "hebrew-logical", "iso-ir-138-i"
         }, safeCharset("ISO-8859-8", "windows-1255", "ISO-8859-1"));
 
         registerAliases("ISO-8859-8-E", new String[]{
                 "iso-8859-8-e", "iso_8859_8_e", "iso8859-8-e", "iso8859_8_e",
-                "csiso88598e", "explicit-hebrew", "hebrew-explicit"
+                "csiso88598e", "iso88598e", "explicit-hebrew", "hebrew-explicit"
         }, safeCharset("ISO-8859-8", "windows-1255", "ISO-8859-1"));
 
         registerAliases("ISO-8859-6-I", new String[]{
                 "iso-8859-6-i", "iso_8859_6_i", "iso8859-6-i", "iso8859_6_i",
-                "csiso88596i", "logical-arabic", "arabic-logical"
+                "csiso88596i", "iso88596i", "logical-arabic", "arabic-logical"
         }, safeCharset("ISO-8859-6", "windows-1256", "ISO-8859-1"));
 
         registerAliases("ISO-8859-6-E", new String[]{
                 "iso-8859-6-e", "iso_8859_6_e", "iso8859-6-e", "iso8859_6_e",
-                "csiso88596e", "explicit-arabic", "arabic-explicit"
+                "csiso88596e", "iso88596e", "explicit-arabic", "arabic-explicit"
         }, safeCharset("ISO-8859-6", "windows-1256", "ISO-8859-1"));
 
         registerAliases("ISO-8859-1-Windows-3.1-Latin-1", new String[]{
