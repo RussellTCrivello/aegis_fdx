@@ -1,6 +1,6 @@
 # Interface → Function Matrix
 
-Machine-readable source: **`docs/interface-function-matrix.tsv`** (120 rows, 16 audit columns + id). This page is rendered from it by `tools/render_interface_matrix.py`; `InterfaceFunctionMatrixTest` fails the build if the TSV names a Java handler, facade, database operation or test that does not exist, if a screen or button label in the JavaFX interface has no row, or if a non-VERIFIED row lacks an explanation.
+Machine-readable source: **`docs/interface-function-matrix.tsv`** (123 rows, 16 audit columns + id). This page is rendered from it by `tools/render_interface_matrix.py`; `InterfaceFunctionMatrixTest` fails the build if the TSV names a Java handler, facade, database operation or test that does not exist, if a screen or button label in the JavaFX interface has no row, or if a non-VERIFIED row lacks an explanation.
 
 Every interactive element of the reference (`RussellTCrivello/file_analysis`: templates, `static/js/pages/*.js`, `Api/routes`, `Api/services`, `database/`) is traced forward to the Java control that reproduces its observable behaviour, and every Java control is traced back to the reference behaviour it exists for. The reference is a behavioural specification only — no Python, Flask route, template or JavaScript is executed, embedded or called by the Java application (`ArchitectureInvariantsTest#noWebApiOrPythonRuntimeDependency`).
 
@@ -8,7 +8,7 @@ Every interactive element of the reference (`RussellTCrivello/file_analysis`: te
 
 | Status | Meaning | Rows |
 |---|---|---|
-| **VERIFIED** | The Java control performs the same observable operation on the same data (case.db / Lucene) and an executable test named in the row exercises it. | 82 |
+| **VERIFIED** | The Java control performs the same observable operation on the same data (case.db / Lucene) and an executable test named in the row exercises it. | 85 |
 | **ADAPTED** | Same purpose and same stored result, different mechanism appropriate to a desktop (dialog instead of modal, table sort instead of `?sort=` reload, search on the Search destination instead of an inline filter). The note says what differs. | 27 |
 | **LIMITED** | Part of the reference behaviour is reproduced; the missing part and the reason are stated. | 2 |
 | **UNSUPPORTED** | Deliberately not reproduced, with the reason (evidence is never deleted; render-format toggles carry no information; a flag nothing reads). | 5 |
@@ -279,6 +279,9 @@ The gap is narrow but real, and it is exactly the class of defect static resolut
 | DB7 | metrics, pools, threads, processes, async tasks | updateMetrics et al. | concurrency.* → runtime introspection | Processing Monitor / Pause, Cancel, Refresh | ProcessingMonitorScreen#build → LiveCase#ingestRunning | LiveCase#statusCounts | Live worker and queue state during a real ingest | PipelineAcceptanceTest | VERIFIED |
 | DB8 | CPU / memory / disk meters, timed query | (static markup) | (none) → (none) | Performance / Run Timed Query, Refresh | PerformanceScreen#build → HostMetrics#read | LiveCase#indexedCount | Real OS counters or an explicit 'unavailable'; measured query time | HostMetricsTest#cpuIsMeasuredOrDeclaredMissing | VERIFIED |
 | DB9 | error table, retry | retry | analysis.retry → re-run | Error Dashboard / Refresh, Retry | ErrorDashboardScreen#build → AnalyticsFacade#errorReport | CorpusDatabase#selectPaths | Failures by type with causes; retry re-processes | DestinationCoverageTest#errorReport | VERIFIED |
+| DB10 | map points, geo clustering, coordinate filter | initMap | analytics.geolocation → geo coordinate extraction | Geolocation / Refresh, View on Map | GeolocationScreen#build → AnalyticsFacade#directoryTree | CorpusDatabase#countPaths | Coordinate distribution and mapped file clusters | DestinationCoverageTest#directoryTree | VERIFIED |
+| DB11 | document title extraction, title frequency | loadTitles | analytics.titles → extracted title frequency | Titles / Refresh, Filter | TitlesScreen#build → AnalyticsFacade#directoryTree | CorpusDatabase#countPaths | Extracted document titles aggregated with file counts | DestinationCoverageTest#directoryTree | VERIFIED |
+| DB12 | entity relationship network, node graph | initNetworkGraph | analytics.relations → graph traversal | Relations / Refresh, Explore | RelationsScreen#build → RelationshipFacade#search | CorpusDatabase#selectKeywordsMatching | Interactive entity relation network and node connections | RelationshipModelTest#searchKeywordForms | VERIFIED |
 
 ### Notifications
 

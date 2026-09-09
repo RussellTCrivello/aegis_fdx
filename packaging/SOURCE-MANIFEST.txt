@@ -1,6 +1,6 @@
 # AEGIS-FDX source manifest - regenerate with: packaging/make-manifest.sh (or .ps1)
 # Verifies a checkout is complete and self-consistent before building.
-# Generated: 2026-09-09T07:09:07Z
+# Generated: 2026-09-09T07:13:33Z
 16ca465504404df14dea70cbc0c7d490a6b80fb7bd378e4a3b66667ba1d1d91c  app/build.gradle.kts
 a50ba435da72eba0899409746b3dbf616778e46aa3a2c12643c4f41f31595201  app/src/main/java/com/aegis/fdx/Launcher.java
 fefdeb103ac764f5adb0efe044f22f88ba61fa53b651d64fec919a6beb0770ca  app/src/main/java/com/aegis/fdx/ai/agent/AgentActivity.java
@@ -189,7 +189,7 @@ b84a23197a71ab6286a0a7db2c97ffc6eb368ceb0afc38bbae4a76699590c5fd  app/src/test/j
 9c981a2ff8d70fac84cded22584ffdce3ec8721b2192fc4365fc987e90f1e18f  app/src/test/java/com/aegis/fdx/HostMetricsTest.java
 4e32b7b6220bb9f7e78a66a8f2bffc018bb52cee94c1a3b6eb2dec3d55157fcc  app/src/test/java/com/aegis/fdx/I18nTest.java
 754a6cec229abaa81bee32cf658a7353ddb8d497674c8cff31b924af73e8d4d6  app/src/test/java/com/aegis/fdx/IntegrationModelTest.java
-d6994878396a0b186d2565e1d7ee079036e9a64520fcaaa083e172910db37fb8  app/src/test/java/com/aegis/fdx/InterfaceFunctionMatrixTest.java
+1752fd95bee5e996b7e9c82efa2265e7b43459481ad6059c5e23a1fa3f907fd7  app/src/test/java/com/aegis/fdx/InterfaceFunctionMatrixTest.java
 d2e9b87da9ecfa9dcc490e5acd41818bd3e85fb1e3090cec0418a731f4fb0f51  app/src/test/java/com/aegis/fdx/JUnitRunner.java
 70f68016de8dd5ba6caa5515c2ebb44914fb1ed7e1d94d91b53e3a76c3183606  app/src/test/java/com/aegis/fdx/M3AcceptanceTest.java
 6f7eac1749229ac6e1d24dc0e3416a008129fe5d837057d26b3282494b1fd12c  app/src/test/java/com/aegis/fdx/OperationTimingsTest.java
