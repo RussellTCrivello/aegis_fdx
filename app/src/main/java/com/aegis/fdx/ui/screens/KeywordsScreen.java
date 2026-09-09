@@ -22,14 +22,17 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
 import java.util.ArrayList;
@@ -68,9 +71,14 @@ public final class KeywordsScreen implements Screen {
     private ComboBox<String> sortBox;
     private ComboBox<String> orderBox;
     private ComboBox<Integer> perPage;
+    private ComboBox<String> displayBox;
     private TableView<KeywordDto> table;
+    private FlowPane grid;
+    private ScrollPane gridScroll;
+    private StackPane views;
     private Label countLabel;
     private Label pageLabel;
+    private Label updateLabel;
     private HBox pageBar;
     private int page;
 
@@ -150,9 +158,16 @@ public final class KeywordsScreen implements Screen {
             page = 0;
             applyFilter();
         });
+        displayBox = new ComboBox<>(FXCollections.observableArrayList("Cards", "List"));
+        displayBox.setValue("Cards");
+        displayBox.setPrefWidth(100);
+        displayBox.setOnAction(e -> applyFilter());
 
         Button add = Fas.primary("Add Keyword", Icons.PLUS);
         add.setOnAction(e -> openForm());
+
+        Button update = Fas.secondary("Update Keywords", Icons.REFRESH);
+        update.setOnAction(e -> updateKeywords());
 
         Button merge = Fas.outline("Merge Duplicates", Icons.FUNNEL);
         merge.setOnAction(e -> mergeDuplicates());
@@ -168,11 +183,13 @@ public final class KeywordsScreen implements Screen {
                 selected.add(k.id());
             }
             table.refresh();
+            applyFilter();
         });
         Button selectNone = Fas.ghost("Select None", Icons.CLOSE);
         selectNone.setOnAction(e -> {
             selected.clear();
             table.refresh();
+            applyFilter();
         });
         Button editSel = Fas.outline("Edit Selected", Icons.PENCIL);
         editSel.setOnAction(e -> {
@@ -196,6 +213,7 @@ public final class KeywordsScreen implements Screen {
                     return sel == null ? c : c.withKeyword(sel.id());
                 });
 
+        updateLabel = Fas.muted("");
         VBox filterBar = new VBox(10,
                 Fas.row(10,
                         Fas.formField("Search Keywords", searchField),
@@ -203,9 +221,10 @@ public final class KeywordsScreen implements Screen {
                         Fas.formField("Category", categoryBox),
                         Fas.formField("Sort By", sortBox),
                         Fas.formField("Order", orderBox),
-                        Fas.formField("Per Page", perPage)),
+                        Fas.formField("Per Page", perPage),
+                        Fas.formField("Display", displayBox)),
                 Fas.row(8, selectAll, selectNone, editSel, bulk,
-                        Fas.spacer(), analyze, merge, export, add));
+                        Fas.spacer(), updateLabel, analyze, merge, export, update, add));
         filterBar.getStyleClass().add("filter-bar");
 
         countLabel = Fas.muted("0 keywords");
@@ -316,10 +335,20 @@ public final class KeywordsScreen implements Screen {
             return row;
         });
 
+        grid = new FlowPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPrefWrapLength(1120);
+        gridScroll = new ScrollPane(grid);
+        gridScroll.setFitToWidth(true);
+        gridScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        views = new StackPane(table, gridScroll);
+        VBox.setVgrow(views, Priority.ALWAYS);
+
         pageLabel = Fas.muted("0 - 0 of 0");
         pageBar = new HBox(6);
 
-        VBox body = new VBox(10, countLabel, table,
+        VBox body = new VBox(10, countLabel, views,
                 Fas.row(8, pageLabel, Fas.spacer(), pageBar));
 
         VBox content = new VBox(16,
@@ -377,6 +406,7 @@ public final class KeywordsScreen implements Screen {
         } catch (RuntimeException e) {
             all = List.of();
             rows.clear();
+            buildGrid();
         }
     }
 
@@ -431,6 +461,66 @@ public final class KeywordsScreen implements Screen {
         pageLabel.setText(total == 0 ? "0 - 0 of 0"
                 : (from + 1) + " - " + to + " of " + String.format("%,d", total));
         buildPageBar(pages);
+        buildGrid();
+    }
+
+    private void buildGrid() {
+        grid.getChildren().clear();
+        if (rows.isEmpty()) {
+            grid.getChildren().add(Fas.emptyState("No keywords yet."));
+        }
+        for (KeywordDto k : rows) {
+            grid.getChildren().add(buildKeywordCard(k));
+        }
+        boolean cards = displayBox == null || "Cards".equals(displayBox.getValue());
+        gridScroll.setVisible(cards);
+        gridScroll.setManaged(cards);
+        table.setVisible(!cards);
+        table.setManaged(!cards);
+    }
+
+    private VBox buildKeywordCard(KeywordDto k) {
+        int files = fileCounts.getOrDefault(k.id(), 0);
+        boolean active = files > 0;
+        CheckBox cb = new CheckBox();
+        cb.setSelected(selected.contains(k.id()));
+        cb.setOnAction(e -> {
+            if (cb.isSelected()) {
+                selected.add(k.id());
+            } else {
+                selected.remove(k.id());
+            }
+        });
+        Label title = new Label(nz(k.keyword()));
+        title.getStyleClass().add("entity-card-title");
+        title.setWrapText(true);
+        HBox head = Fas.row(8, cb, title);
+        Label cat = Fas.muted("Category: " + nz(k.categoryWord()));
+        Label use = Fas.muted(usageLabel(files));
+        Label status = Fas.badge(active ? "Active" : "Inactive",
+                active ? "success" : "muted");
+        Button view = Fas.ghost("", Icons.EYE);
+        view.setOnAction(e -> router.openKeyword(k.id()));
+        Button edit = Fas.ghost("", Icons.PENCIL);
+        edit.setOnAction(e -> rename(k));
+        HBox actions = Fas.row(4, Fas.spacer(), status, view, edit);
+        VBox card = new VBox(8, head, cat, use, actions);
+        card.getStyleClass().add("entity-card");
+        card.setPrefWidth(300);
+        return card;
+    }
+
+    private void updateKeywords() {
+        updateLabel.setText("Analyzing...");
+        try {
+            var r = facades.relationshipAnalyzer().analyzeAll(null);
+            updateLabel.setText(String.format("%,d files scanned, %,d file-keyword links",
+                    r.filesScanned(), r.keywordLinks()));
+            onShow();
+        } catch (RuntimeException e) {
+            updateLabel.setText("");
+            err("Update failed: " + e.getMessage());
+        }
     }
 
     private void buildPageBar(int pages) {
