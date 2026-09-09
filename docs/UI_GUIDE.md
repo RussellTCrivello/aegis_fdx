@@ -138,7 +138,14 @@ Page<SearchResultDto> hits = facades.search().search(
 ```
 
 Results show File Name, Type, Size, Source, Status, Matches, Rank and Path. Selecting
-a row previews the matching text and its hashes underneath.
+a row previews the matching text and its hashes underneath. **Clear Filters**
+restores every filter including the page size and re-runs the search, so stale
+results never linger.
+
+Below the results, **Search Everywhere** reports where each file matched — name,
+path, metadata, content, keyword, category or category word — scoped by the Scope
+box. Double-clicking a match row opens the file; **Update associations** re-derives
+the file↔term links and **Check relationships** verifies them.
 
 The query grammar is the full AEGIS one — phrases, wildcards, `term~` fuzzy,
 `"a b"~5` proximity, `AND/OR/NOT` with parentheses, field queries and `/regex/`.
@@ -184,8 +191,9 @@ multi-select bulk delete and **Find Duplicates**. Each keyword must belong to an
 existing category; attaching one to an unknown category is rejected.
 
 ### 3.8 Words
-Paged, searchable word list with per-page selection (25/50/100/200), inline rename,
-delete and bulk delete.
+Summary tiles (Total Words / In Files / Unused) above a paged, searchable word list
+with per-page selection (25/50/100/200), inline rename, delete and bulk delete.
+Double-clicking a word opens its detail destination.
 
 ### 3.9 Categories
 ![Categories](screens-fas/14-categories.png)
@@ -335,14 +343,18 @@ the reference application does not have; it is surfaced here rather than discard
 
 Everything known about one source: the full record, computed statistics (files, size,
 type count, review progress), the material collected from it, and the categories and
-keywords appearing in that material. Edit and delete act here; double-clicking a file
-opens it.
+keywords appearing in that material. Edit and delete act here; the collected
+material shows file cards (source, side, size, date, extension) with a selection
+checkbox and **View Details** / **Full View** / **Download** per card,
+Select All / None and a **Download Selected** bundle above the table.
+Double-clicking a card or a row opens the file.
 
 ### 4.7 Aspect Detail
 
 ![Aspect Detail](screens-fas/28-aspect-detail.png)
 
-The same treatment for an aspect.
+The same treatment for an aspect, including the file cards and the
+**Download Selected** bundle over its attributed material.
 
 ### 4.8 Source and Aspect Relationships
 
@@ -509,6 +521,11 @@ java -Dglass.platform=Monocle -Dmonocle.platform=Headless -Dprism.order=sw \
      --module-path $FX --add-modules javafx.controls,javafx.swing \
      --patch-module javafx.graphics=/path/to/openjfx-monocle.jar \
      -cp "/tmp/shot:build/classes:$CP" FasShotHarness docs/screens-fas
+```
+
+`FasShotHarness` launches `FasApp` itself and walks the real navigation, so a
+screenshot can only be produced if the screen actually renders.
+$CP" FasShotHarness docs/screens-fas
 ```
 
 `FasShotHarness` launches `FasApp` itself and walks the real navigation, so a

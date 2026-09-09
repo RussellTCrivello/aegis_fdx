@@ -139,7 +139,8 @@ public final class SearchScreen implements Screen {
         perPage = new ComboBox<>(FXCollections.observableArrayList(25, 50, 100));
         perPage.setValue(25);
 
-        HBox filters = new HBox(10,
+        FlowPane filters = new FlowPane(10, 10);
+        filters.getChildren().addAll(
                 Fas.formField("File Type", fileType),
                 Fas.formField("Source", sourceBox),
                 Fas.formField("Aspect", aspectBox),
@@ -158,6 +159,8 @@ public final class SearchScreen implements Screen {
             dateTo.clear();
             sortBy.setValue(SortField.RELEVANCE);
             sortOrder.setValue(SortOrder.DESCENDING);
+            perPage.setValue(25);
+            runSearch(true);
         });
 
         resultLabel = Fas.muted("Enter a query to begin");

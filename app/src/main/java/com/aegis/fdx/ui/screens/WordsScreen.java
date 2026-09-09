@@ -42,6 +42,9 @@ public final class WordsScreen implements Screen {
     private TextField searchField;
     private Label pageLabel;
     private ComboBox<Integer> perPage;
+    private VBox tileTotal;
+    private VBox tileInFiles;
+    private VBox tileUnused;
     private int offset;
     private int total;
 
@@ -209,8 +212,10 @@ public final class WordsScreen implements Screen {
                         facades.relationships().categoryWords(null, 100_000, 0).results())));
 
         VBox content = new VBox(16,
-                Fas.pageHeader("Words", "Home / Words", searchField, export, bulkDelete, add),
-                Fas.cardWithHeader("Word List", null, body));
+                Fas.pageHeader("Words", breadcrumb(), searchField, export, bulkDelete, add),
+                tiles,
+                Fas.cardWithHeader("Word List",
+                        "Double-click to open the word detail", body));
         content.setPadding(new Insets(20));
         return content;
     }
