@@ -222,10 +222,32 @@ public class FasShotHarness {
 
         private static void collect(javafx.scene.Node n, java.util.List<javafx.scene.Node> out) {
             out.add(n);
-            // A ScrollPane holds its body in getContent(), not among its children, so a
-            // plain child walk misses every control on a scrolling screen.
+            // Several containers keep their bodies outside getChildrenUnmodifiable:
+            // a ScrollPane in getContent(), a SplitPane in getItems(), a TitledPane
+            // in getContent(), a TabPane in its tabs. A plain child walk misses every
+            // control those hold — including the Search screen's entire results card.
             if (n instanceof javafx.scene.control.ScrollPane sp && sp.getContent() != null) {
                 collect(sp.getContent(), out);
+            }
+            if (n instanceof javafx.scene.control.SplitPane split) {
+                for (javafx.scene.Node c : split.getItems()) {
+                    collect(c, out);
+                }
+            }
+            if (n instanceof javafx.scene.control.TitledPane tp && tp.getContent() != null) {
+                collect(tp.getContent(), out);
+            }
+            if (n instanceof javafx.scene.control.TabPane tabs) {
+                for (javafx.scene.control.Tab t : tabs.getTabs()) {
+                    if (t.getContent() != null) {
+                        collect(t.getContent(), out);
+                    }
+                }
+            }
+            if (n instanceof javafx.scene.control.Accordion acc) {
+                for (javafx.scene.control.TitledPane tp : acc.getPanes()) {
+                    collect(tp, out);
+                }
             }
             if (n instanceof javafx.scene.Parent p) {
                 for (javafx.scene.Node c : p.getChildrenUnmodifiable()) collect(c, out);
