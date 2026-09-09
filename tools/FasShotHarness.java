@@ -187,6 +187,7 @@ public class FasShotHarness {
                             shown++;
                         }
                     }
+                    int rows = 0;
                     for (javafx.scene.Node n : allNodes(scene.getRoot())) {
                         if (n instanceof javafx.scene.control.TableView tv) {
                             rows += tv.getItems().size();
