@@ -146,6 +146,7 @@ function Invoke-Suite($title, $class, [string[]]$suiteArgs) {
     Write-Host "== $title ==" -ForegroundColor Cyan
     $out = & $javaExe -Xmx900m -cp $runCp $class @suiteArgs 2>&1
     $out | ForEach-Object { Write-Host $_ }
+    if ($LASTEXITCODE -ne 0) { Fail "$title failed (exit $LASTEXITCODE)." }
     foreach ($line in $out) {
         if ("$line" -match '^\s*(?:===\s*)?(\d+)\s+passed,\s*(\d+)\s+failed(?:\s*===)?\s*$') {
             $script:totalPassed += [int]$Matches[1]
@@ -168,6 +169,47 @@ Invoke-Suite 'windows compatibility (N-01)' 'com.aegis.fdx.WindowsCompatibilityT
 Invoke-Suite 'pipeline acceptance AT-01..AT-10 (M2)' 'com.aegis.fdx.PipelineAcceptanceTest' @((Join-Path $work 'at'))
 Invoke-Suite 'milestone 3 acceptance (OCR / export / reports / integrity)' 'com.aegis.fdx.M3AcceptanceTest' @((Join-Path $work 'm3'))
 
+Invoke-Suite 'case settings persistence' 'com.aegis.fdx.SettingsPersistenceTest' @()
+Invoke-Suite 'host metrics' 'com.aegis.fdx.HostMetricsTest' @()
+
+function Invoke-JUnit($title, [string[]]$classes, [string[]]$jvmArgs) {
+    Write-Host ''
+    Write-Host "== $title ==" -ForegroundColor Cyan
+    & $javaExe @jvmArgs com.aegis.fdx.JUnitRunner @classes
+    if ($LASTEXITCODE -ne 0) { Fail "$title failed (exit $LASTEXITCODE)." }
+}
+
+Invoke-JUnit 'JUnit suites (facade, agent, batch, model, scenario, resolver)' @(
+    'com.aegis.fdx.FacadeParityTest',
+    'com.aegis.fdx.AiAgentTest',
+    'com.aegis.fdx.BatchAnalysisTest',
+    'com.aegis.fdx.IntegrationModelTest',
+    'com.aegis.fdx.EndToEndScenarioTest',
+    'com.aegis.fdx.SettingsPersistenceTest',
+    'com.aegis.fdx.HostMetricsTest',
+    'com.aegis.fdx.FailureRecoveryTest',
+    'com.aegis.fdx.AegisCharsetProviderTest',
+    'com.aegis.fdx.SearchResultResolverTest'
+) @('-Xmx900m', '-cp', $runCp)
+
+Invoke-Suite 'architecture invariants' 'com.aegis.fdx.ArchitectureInvariantsTest' @((Join-Path $work 'arch'))
+Invoke-Suite 'failure and recovery' 'com.aegis.fdx.ResilienceTest' @((Join-Path $work 'resilience'))
+Invoke-Suite 'coverage inventory' 'com.aegis.fdx.CoverageMatrixTest' @()
+Invoke-Suite 'interface-function matrix' 'com.aegis.fdx.InterfaceFunctionMatrixTest' @()
+
+$fxControls = Join-Path $FxLib 'javafx.controls.jar'
+if (Test-Path $fxControls) {
+    $uiJvm = @('-Xmx900m', '--module-path', $FxLib, '--add-modules', 'javafx.controls,javafx.graphics', '-cp', $runCp)
+} else {
+    $uiJvm = @('-Xmx900m', '-cp', $runCp)
+}
+Invoke-JUnit 'interface suites (parity, destinations, relationships, bridge)' @(
+    'com.aegis.fdx.UiParityTest',
+    'com.aegis.fdx.DestinationCoverageTest',
+    'com.aegis.fdx.RelationshipModelTest',
+    'com.aegis.fdx.SuiteBridgeTest'
+) $uiJvm
+
 Write-Host ''
 Write-Host '== benchmark (N-02 / F-18 / N-03) ==' -ForegroundColor Cyan
 & $javaExe -Xmx900m -cp $runCp com.aegis.fdx.Benchmark (Join-Path $work 'bench') $Multiplier
@@ -179,8 +221,8 @@ Write-Host (" {0} suites: {1} assertions, {2} failures" -f $suiteCount, $totalPa
 Write-Host '==================================================================='
 
 if ($totalFailed -gt 0) { exit 1 }
-if ($suiteCount -lt 6) {
-    Write-Host "WARNING: expected 6 suites, saw $suiteCount - a suite may not have run." -ForegroundColor Yellow
+if ($suiteCount -lt 12) {
+    Write-Host "WARNING: expected 12 footer-counted suites, saw $suiteCount - a suite may not have run." -ForegroundColor Yellow
     exit 1
 }
 Write-Host 'ALL SUITES COMPLETED' -ForegroundColor Green
