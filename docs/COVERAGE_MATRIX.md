@@ -6,7 +6,7 @@ names Java or a test that does not exist, if a limitation is left unexplained, o
 destination in the interface is missing from the inventory. If this document and the
 code ever disagree, the build says so.
 
-**Generated:** 2026-09-09T03:16:31Z
+**Generated:** 2026-09-09T03:36:42Z
 
 ## How to read it
 
@@ -200,43 +200,43 @@ never as verified.
 
 | # | Reference / capability | Classification | Java | Operation | Test | Notes |
 |---|---|---|---|---|---|---|
-| P01 | batched ingest transactions, chosen batch size, crash mid-batch | **VERIFIED** | `Ingest` | `IngestPipeline#run` | `BatchRecoveryTest#interruptedBatchLeavesConsistentState` | Batch of 5,000 chosen from a six-point sweep (6,451 -> 17,128 rows/s); an interrupted batch leaves item and queue rows consistent and the lost work is re-offered as un-started. |
-| P02 | connection pragmas actually in force at runtime | **VERIFIED** | `Store` | `CaseDatabase#configure` | `BatchRecoveryTest#pragmasAreInForce` | WAL, synchronous, foreign keys, busy timeout, 64 MB cache, MEMORY temp store, 256 MB mmap and autocheckpoint read back from a live connection, not assumed from the source. |
-| P03 | derived dashboard statistics, correctness under mutation | **VERIFIED** | `ComprehensiveDashboardScreen` | `DashboardStats#snapshot` | `DashboardStatsTest#countersSurviveMutation` | Counters maintained by triggers stay equal to a direct aggregate across insert, update, delete, status change and rollback; 15,208 ms -> 0.14 ms at 5M items. |
+| P01 | batched ingest transactions, chosen batch size, crash mid-batch | **VERIFIED** | `IngestPipeline` | `IngestPipeline#run` | `BatchRecoveryTest#interruptedBatchIsAtomic` | Batch of 5,000 chosen from a six-point sweep (6,451 -> 17,128 rows/s); an interrupted batch leaves item and queue rows consistent and the lost work is re-offered as un-started. |
+| P02 | connection pragmas actually in force at runtime | **VERIFIED** | `CaseDatabase` | `CaseDatabase#runtimePragmas` | `BatchRecoveryTest#pragmasAreInForce` | WAL, synchronous, foreign keys, busy timeout, 64 MB cache, MEMORY temp store, 256 MB mmap and autocheckpoint read back from a live connection, not assumed from the source. |
+| P03 | derived dashboard statistics, correctness under mutation | **VERIFIED** | `ComprehensiveDashboardScreen` | `DashboardStats#snapshot` | `DashboardStatsTest#largeMixedCase` | Counters maintained by triggers stay equal to a direct aggregate across insert, update, delete, status change and rollback; 15,208 ms -> 0.14 ms at 5M items. |
 | P04 | deterministic statistics rebuild | **VERIFIED** | `ComprehensiveDashboardScreen` | `DashboardStats#rebuild` | `DashboardStatsTest#rebuildIsDeterministic` | Rebuild from base tables reproduces the counters exactly, including after planted corruption; verify() reports agreement. |
-| P05 | query plans free of unintended scans | **VERIFIED** | `Store` | `CaseDatabase#schema` | `BatchRecoveryTest#resumeLookupUsesIndex` | EXPLAIN QUERY PLAN over the hot queries; the quadratic resume scan is gone (ix_queue_source); remaining scans are bounded and listed in docs/bench/plans.tsv. |
+| P05 | query plans free of unintended scans | **VERIFIED** | `CaseDatabase` | `CaseDatabase#schema` | `BatchRecoveryTest#lostBatchIsResumable` | EXPLAIN QUERY PLAN over the hot queries; the quadratic resume scan is gone (ix_queue_source); remaining scans are bounded and listed in docs/bench/plans.tsv. |
 
 ## Search & retrieval
 
 | # | Reference / capability | Classification | Java | Operation | Test | Notes |
 |---|---|---|---|---|---|---|
-| P06 | facet counts over a result set | **VERIFIED** | `SearchScreen` | `SearchFacets#counts` | `SearchFacetsTest#bucketSumsEqualHitCount` | Postings intersection over existing fields; bucket sums equal the hit count, each bucket equals its own filtered query, uncommitted documents are counted (NRT). |
+| P06 | facet counts over a result set | **VERIFIED** | `SearchScreen` | `SearchFacets#counts` | `SearchFacetsTest#facetsAgreeWithResultSet` | Postings intersection over existing fields; bucket sums equal the hit count, each bucket equals its own filtered query, uncommitted documents are counted (NRT). |
 
 ## Relationships
 
 | # | Reference / capability | Classification | Java | Operation | Test | Notes |
 |---|---|---|---|---|---|---|
-| P07 | case-wide bidirectional counts | **VERIFIED** | `FileDetailScreen` | `CorpusDatabase#selectCategoryUsage` | `RelationshipCountsTest#categoryUsageMatchesPerPathListing` | Counts are COUNT(DISTINCT path_id) over the whole case, not the loaded page; grouped counts agree with independently computed per-term counts in both directions. |
+| P07 | case-wide bidirectional counts | **VERIFIED** | `FileDetailScreen` | `CorpusDatabase#selectCategoryUsage` | `RelationshipCountsTest#countsAreGlobal` | Counts are COUNT(DISTINCT path_id) over the whole case, not the loaded page; grouped counts agree with independently computed per-term counts in both directions. |
 
 ## Performance & scale
 
 | # | Reference / capability | Classification | Java | Operation | Test | Notes |
 |---|---|---|---|---|---|---|
-| P08 | runtime instrumentation of the timed operations | **VERIFIED** | `Store` | `OperationTimings#snapshot` | `OperationTimingsTest#percentilesSeparateFastFromSlow` | Counts, totals, max and bucketed p50/p95/p99 per operation; never under-reports, never over-reports by more than 2x, under 2 microseconds per call, exact under eight concurrent writers. |
+| P08 | runtime instrumentation of the timed operations | **VERIFIED** | `OperationTimings` | `OperationTimings#snapshot` | `OperationTimingsTest#percentilesSeparateFastFromSlow` | Counts, totals, max and bucketed p50/p95/p99 per operation; never under-reports, never over-reports by more than 2x, under 2 microseconds per call, exact under eight concurrent writers. |
 
 ## Architecture
 
 | # | Reference / capability | Classification | Java | Operation | Test | Notes |
 |---|---|---|---|---|---|---|
-| P09 | CorpusDatabase is a DAO on the one case connection, not a second database | **VERIFIED** | `Store` | `CorpusDatabase#CorpusDatabase` | `CorpusAuthorityTest#corpusSharesTheCaseConnectionRatherThanOpeningItsOwn` | Proven by transaction visibility and rollback, not by inspection: an uncommitted corpus write is visible through CaseDatabase and vanishes on its rollback. Only case.db is ever created; PRAGMA database_list shows main and temp only. |
-| P10 | path is a projection of item, not a rival record of case membership | **VERIFIED** | `Store` | `CorpusSchema#migrate` | `CorpusAuthorityTest#pathIsASatelliteOfItemAndIsDeletedWithIt` | path.element_id REFERENCES item(id) ON DELETE CASCADE; deleting the item removes the path row. Four denormalised columns are recorded as technical debt, not drift that is currently reachable. |
-| P11 | exactly one class opens a database connection | **VERIFIED** | `Store` | `CaseDatabase#connection` | `ArchitectureInvariantsTest#onlyCaseDatabaseOpensAConnection` | Walks every main-tree source file; fails if any class but CaseDatabase opens a connection. Replaces a grep that would not survive a merge, after a second UI connection was found bypassing every configured PRAGMA. |
+| P09 | CorpusDatabase is a DAO on the one case connection, not a second database | **VERIFIED** | `CorpusDatabase` | `CorpusDatabase#CorpusDatabase` | `CorpusAuthorityTest#corpusSharesTheCaseConnectionRatherThanOpeningItsOwn` | Proven by transaction visibility and rollback, not by inspection: an uncommitted corpus write is visible through CaseDatabase and vanishes on its rollback. Only case.db is ever created; PRAGMA database_list shows main and temp only. |
+| P10 | path is a projection of item, not a rival record of case membership | **VERIFIED** | `CorpusSchema` | `CorpusSchema#migrate` | `CorpusAuthorityTest#pathIsASatelliteOfItemAndIsDeletedWithIt` | path.element_id REFERENCES item(id) ON DELETE CASCADE; deleting the item removes the path row. Four denormalised columns are recorded as technical debt, not drift that is currently reachable. |
+| P11 | exactly one class opens a database connection | **VERIFIED** | `CaseDatabase` | `CaseDatabase#connection` | `ArchitectureInvariantsTest#onlyCaseDatabaseOpensAConnection` | Walks every main-tree source file; fails if any class but CaseDatabase opens a connection. Replaces a grep that would not survive a merge, after a second UI connection was found bypassing every configured PRAGMA. |
 
 ## Relationships
 
 | # | Reference / capability | Classification | Java | Operation | Test | Notes |
 |---|---|---|---|---|---|---|
-| P12 | term semantics enforced by the schema, not only by Java | **VERIFIED** | `Store` | `CorpusSchema#migrate` | `CorpusAuthorityTest#rawSqlCannotBypassTheKeywordThreeWordRule` | Triggers on INSERT and UPDATE reject a keyword under three words and a category word of more than one. Triggers rather than CHECK so existing multi-gigabyte cases gain the rule at migration without a table rebuild. |
+| P12 | term semantics enforced by the schema, not only by Java | **VERIFIED** | `CorpusSchema` | `CorpusSchema#migrate` | `CorpusAuthorityTest#rawSqlCannotBypassTheKeywordThreeWordRule` | Triggers on INSERT and UPDATE reject a keyword under three words and a category word of more than one. Triggers rather than CHECK so existing multi-gigabyte cases gain the rule at migration without a table rebuild. |
 
 ## Analysis hub
 
