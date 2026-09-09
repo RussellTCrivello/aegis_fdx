@@ -6,6 +6,7 @@ import com.aegis.fdx.facade.dto.KeywordDto;
 import com.aegis.fdx.ai.agent.AgentService;
 import com.aegis.fdx.ai.tools.AgentContext;
 import com.aegis.fdx.ui.AnalyzeAction;
+import com.aegis.fdx.ui.Background;
 import com.aegis.fdx.ui.Fas;
 import com.aegis.fdx.ui.Icons;
 import com.aegis.fdx.ui.Router;
@@ -81,6 +82,7 @@ public final class KeywordsScreen implements Screen {
     private Label updateLabel;
     private HBox pageBar;
     private int page;
+    private final Background.Job updateJob = Background.job();
 
     public KeywordsScreen(AegisFacades facades, AgentService agent) {
         this(facades, agent, null);
@@ -510,17 +512,31 @@ public final class KeywordsScreen implements Screen {
         return card;
     }
 
+    /**
+     * Re-derives every file-word and file-keyword edge from the stored case content.
+     *
+     * <p>The analysis runs off the FX thread: it re-reads every registered file, so
+     * running it on the event thread would freeze the interface on any real case. The
+     * counts reported are the analyzer's own totals — files scanned, keyword links —
+     * and the list refreshes from the database only after the run commits.
+     */
     private void updateKeywords() {
-        updateLabel.setText("Analyzing...");
-        try {
-            var r = facades.relationshipAnalyzer().analyzeAll(null);
-            updateLabel.setText(String.format("%,d files scanned, %,d file-keyword links",
-                    r.filesScanned(), r.keywordLinks()));
-            onShow();
-        } catch (RuntimeException e) {
-            updateLabel.setText("");
-            err("Update failed: " + e.getMessage());
+        if (updateJob.busy()) {
+            return;
         }
+        updateLabel.setText("Analyzing...");
+        updateJob.run(
+                () -> facades.relationshipAnalyzer().analyzeAll(null),
+                r -> {
+                    updateLabel.setText(String.format(
+                            "%,d files scanned, %,d file-keyword links",
+                            r.filesScanned(), r.keywordLinks()));
+                    onShow();
+                },
+                t -> {
+                    updateLabel.setText("");
+                    err("Update failed: " + (t.getMessage() == null ? t : t.getMessage()));
+                });
     }
 
     private void buildPageBar(int pages) {

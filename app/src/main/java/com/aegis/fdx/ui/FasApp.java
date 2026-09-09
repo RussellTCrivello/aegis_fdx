@@ -563,6 +563,11 @@ public final class FasApp extends Application implements Router {
         } catch (RuntimeException ignored) {
             // best effort
         }
+        try {
+            Background.shutdown();
+        } catch (RuntimeException ignored) {
+            // best effort
+        }
     }
 
     @Override

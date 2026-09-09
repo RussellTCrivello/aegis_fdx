@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public final class InterfaceFunctionMatrixTest {
 
     private static final Set<String> STATUSES = Set.of(
-            "VERIFIED", "ADAPTED", "LIMITED", "UNSUPPORTED", "REFERENCE-INERT", "ENVIRONMENT-LIMITED");
+            "VERIFIED", "ADAPTED", "LIMITED", "UNSUPPORTED", "REFERENCE-INERT", "ENVIRONMENT-LIMITED", "NOT RUN");
 
     private static final int COLUMNS = 17;
     private static final int COL_JAVA_DEST = 8;

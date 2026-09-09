@@ -33,6 +33,7 @@ GROUPS = [
     ('SU', 'Setup / maintenance'),
     ('AI', 'AI (optional, local, manual, read-only)'),
     ('G', 'Shell: navigation, errors, partials, toasts'),
+    ('SN', 'Search result navigation (Unit 5 — element id → File Detail)'),
 ]
 
 def prefix(rid):
@@ -63,8 +64,9 @@ meaning = {
  'UNSUPPORTED': 'Deliberately not reproduced, with the reason (evidence is never deleted; render-format toggles carry no information; a flag nothing reads).',
  'REFERENCE-INERT': 'The reference control does nothing observable (no route behind the handler, or a stored flag nothing evaluates). Reproducing it would be a fake feature.',
  'ENVIRONMENT-LIMITED': 'Implemented and covered, but the confirming step needs something this build environment lacks (a display for a GUI click-through). None at present: GUI click-through is recorded per suite in `VERIFICATION_REPORT.md` instead.',
+ 'NOT RUN': 'Implemented and statically wired, but the JavaFX layer has never been compiled or executed here, so no test proves the control itself. The note names the test behind the operation and what remains.',
 }
-for st in ['VERIFIED','ADAPTED','LIMITED','UNSUPPORTED','REFERENCE-INERT','ENVIRONMENT-LIMITED']:
+for st in ['VERIFIED','ADAPTED','LIMITED','UNSUPPORTED','REFERENCE-INERT','ENVIRONMENT-LIMITED','NOT RUN']:
     out.append('| **%s** | %s | %d |' % (st, meaning[st], counts.get(st,0)))
 out.append('')
 out.append('Nothing is ABSENT: every reference element has a Java destination or an explained status.\n')
@@ -91,7 +93,7 @@ out.append('`reference_destination`, `reference_template`, `html_element`, `js_h
            'describe the Java application. Java symbols are `Class#method` and are resolved against the source tree by the test.\n')
 
 out.append('## Rows that are not VERIFIED\n')
-for st in ['ADAPTED','LIMITED','UNSUPPORTED','REFERENCE-INERT']:
+for st in ['ADAPTED','LIMITED','UNSUPPORTED','REFERENCE-INERT','NOT RUN']:
     sub=[r for r in rows if r['status']==st]
     if not sub: continue
     out.append('### %s (%d)\n' % (st, len(sub)))

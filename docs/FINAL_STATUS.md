@@ -214,3 +214,78 @@ Integration scripts         run-tests.sh, final-acceptance.sh   NOT RUN — need
 5. Run the five excluded UI suites plus `run-tests.sh` / `final-acceptance.sh`.
 6. Windows acceptance and clean-install (AT-10); 10M benchmark on reference hardware.
 7. Localisation only after the above.
+
+## 7. Unit 5 + final interface integration — 2026-09-08
+
+**Branch:** `arena/01a08229-aegis-fdx` · **Scope:** close the Search → File navigation gap
+(Unit 5), verify Units 1–4 against the backend, audit every new control, harden
+threading and shutdown, extend the matrices with an honest NOT RUN status.
+
+### What changed and why
+
+| Change | Why | Java-native API / mechanism |
+|---|---|---|
+| `ContentFacade#getPathByElementId` (new) | Search results carry forensic item ids (`E-000001`, children `E-000001-E1`); nothing exposed the item → file-record bridge, so results could not open files | Plain facade method over `CorpusDatabase#findPathIdByElement` + `getPath`; `Validate#required`, `FacadeException#notFound` |
+| `SearchScreen#openResult` + View Details button, double-click, Enter | The result → File Detail workflow (§2 of the directive) | `TableRow` mouse/key handlers, `Router#openFile`, warning `Alert` on unregistered results |
+| `SearchScreen#openMatch` match-type routing | A keyword/category/word match is about a term, not a file | `switch` on `MatchRow.MatchType` → `Router#openKeyword/#openCategoryDetail/#openWord`, file fallback |
+| `KeywordsScreen#updateKeywords` → `Background` job | `analyzeAll` re-reads every registered file; on the FX thread it freezes the UI (§16) | `Background.job().run(work, onSuccess, onFailure)` — the one sanctioned pattern |
+| `SearchScreen` update/check associations → `Background` job | Same freeze, same fix, same screen slot | Same pattern; re-runs visible matches when the update lands |
+| `FasApp#shutdown` calls `Background.shutdown()` | The pool was never shut down; daemon threads made it harmless, but §17 requires no leftover jobs | `ExecutorService#shutdownNow` on the shared pool |
+| `SearchResultResolverTest` (9 tests) + `run-tests.sh` registration | Resolver regressions must fail the gate | JUnit 5, `@TempDir`, real `LiveCase` + `processFolder` + `registerIngestedItems` |
+| NOT RUN status in both matrices + harnesses + renderers | Units 1–5 cannot honestly be VERIFIED here: no JDK exists in this sandbox | `InterfaceFunctionMatrixTest`, `CoverageMatrixTest`, `render_interface_matrix.py`, `render-coverage.sh` |
+
+### Database lookup (§§28–29)
+
+`SELECT id FROM path WHERE element_id=?` — one indexed probe. `path.element_id` is
+`UNIQUE` with an explicit index (`ix_path_element`) and an FK to `item(id)`; the
+SQLite query plan is a covering-index search, verified by executing the exact SQL
+against a scratch database. No full scan, no `allItems()`, no new database, no
+extracted-text SQL scan. Lucene behaviour is untouched: the resolver is a navigation
+layer behind the existing search.
+
+### Search interaction (§§3–6)
+
+`SearchResultDto.id` is the Lucene hit's `Item.id`, and `registerIngestedItems` stores
+exactly that id on the path row — verified by reading both paths, not assumed. No DTO
+change was needed: the stable identifier was already there, only the bridge was
+missing. Full-text search (phrases, fuzzy, wildcard, Boolean, ranges, filters,
+highlighting, Search Everywhere, sorting) is unchanged; only result *activation* is new.
+
+### Tests
+
+`SearchResultResolverTest`: round-trip of every registered record, Lucene hit →
+record with duplicate filenames, duplicate content staying two records, Unicode
+filenames, archive-child (`-E…`) resolution, unknown id → NOT_FOUND, blank id →
+VALIDATION, deleted record → NOT_FOUND, resolution surviving evidence deletion.
+Written and statically checked; **NOT RUN** — this sandbox has no JVM (see below).
+
+### Bugs found and fixed during verification
+
+1. **FX-thread freeze** — `updateKeywords` ran `analyzeAll` synchronously (Unit 2
+   shipped it). Fixed with `Background`; same fix applied to Search's
+   update/check associations.
+2. **Background pool never shut down** — `Background.shutdown()` had no caller.
+   `FasApp#shutdown` now calls it.
+3. **Edit misfires (process, not product)** — the file-edit tooling silently dropped
+   three SearchScreen insertions and two KeywordsScreen insertions while reporting
+   success, and appended duplicated tails twice. Every insertion is now verified by
+   `grep` + balance check; nothing unverified was committed.
+
+### Known limitations (NOT RUN until a JDK exists)
+
+- No Java has been compiled or executed in this sandbox: `javac`/`java` do not exist,
+  `$HOME/.cache/tools` is absent, and the network allowlists only `github.com`, so no
+  JDK, Gradle distribution, Maven artifact, ECJ jar or JavaFX SDK can be fetched. The
+  `VERIFICATION_REPORT.md` recipe (Temurin JRE + ECJ + shaded JavaFX jars) is the
+  fastest path on the next machine; `run-tests.sh` already auto-registers the new test.
+- GUI click-through (§§19–20), duplicate-evidence/Unicode UI behaviour (§§22–23),
+  wall-clock resolver timing (§28) and the full suite (§27) all await that machine.
+- Deliberately not done: extracting a shared file-card component (§12 — three
+  consistent copies kept; a refactor without a compiler is risk without value), and
+  backgrounding `runSearch`/`runRelationshipSearch` (bounded reads; pre-existing code).
+
+### Verdict
+
+Unit 5 is implemented to the limit of what this environment can prove. The interface
+is **NOT yet ready** for localisation or release: the gate in §33 requires compiled,
+executed, click-verified controls, and that gate is still NOT RUN.

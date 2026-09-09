@@ -144,8 +144,17 @@ results never linger.
 
 Below the results, **Search Everywhere** reports where each file matched — name,
 path, metadata, content, keyword, category or category word — scoped by the Scope
-box. Double-clicking a match row opens the file; **Update associations** re-derives
-the file↔term links and **Check relationships** verifies them.
+box. **Update associations** re-derives the file↔term links and **Check
+relationships** verifies them; both run off the interface thread so the window never
+freezes.
+
+Opening a result resolves its forensic element id through the case database to the
+exact registered file — never by name, so two files that share a name still open the
+record the index matched. Use the **View Details** button, double-click the row, or
+select it and press Enter. A result with no registered file reports itself in words
+instead of navigating anywhere. In Search Everywhere, double-clicking a match opens
+the file for name, path, metadata and content matches, and the matched term's own
+detail destination for keyword, category and category-word matches.
 
 The query grammar is the full AEGIS one — phrases, wildcards, `term~` fuzzy,
 `"a b"~5` proximity, `AND/OR/NOT` with parentheses, field queries and `/regex/`.

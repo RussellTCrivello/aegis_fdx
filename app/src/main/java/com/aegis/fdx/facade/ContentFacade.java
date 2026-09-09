@@ -105,6 +105,32 @@ public final class ContentFacade {
         }
     }
 
+    /**
+     * Resolves a registered file by its forensic element id.
+     *
+     * <p>This is the navigation behind a search result: the index answers which
+     * <em>items</em> match ({@code E-000001}, extracted children {@code E-000001-E1}),
+     * and every registered file carries that id in {@code path.element_id}. The lookup
+     * is a single indexed query ({@code ix_path_element}); it never scans names, never
+     * depends on row position, and cannot confuse two files that share a name.
+     *
+     * @throws FacadeException NOT_FOUND if no registered file carries that element id,
+     *         for example because the result predates registration or the record was
+     *         deleted; callers must report that to the operator, never crash
+     */
+    public PathDto getPathByElementId(String elementId) {
+        String id = Validate.required(elementId, "elementId");
+        try {
+            Integer pathId = db.findPathIdByElement(id);
+            if (pathId == null) {
+                throw FacadeException.notFound("path", id);
+            }
+            return getPath(pathId);
+        } catch (SQLException e) {
+            throw FacadeException.internal("failed to resolve element " + id, e);
+        }
+    }
+
     /** Registered files matching the given filters. */
     public Page<PathDto> getPaths(String fileType, Integer sourceId, Integer aspectId,
                                   String status, int limit, int offset) {

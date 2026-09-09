@@ -1,6 +1,6 @@
 # Interface → Function Matrix
 
-Machine-readable source: **`docs/interface-function-matrix.tsv`** (125 rows, 16 audit columns + id). This page is rendered from it by `tools/render_interface_matrix.py`; `InterfaceFunctionMatrixTest` fails the build if the TSV names a Java handler, facade, database operation or test that does not exist, if a screen or button label in the JavaFX interface has no row, or if a non-VERIFIED row lacks an explanation.
+Machine-readable source: **`docs/interface-function-matrix.tsv`** (126 rows, 16 audit columns + id). This page is rendered from it by `tools/render_interface_matrix.py`; `InterfaceFunctionMatrixTest` fails the build if the TSV names a Java handler, facade, database operation or test that does not exist, if a screen or button label in the JavaFX interface has no row, or if a non-VERIFIED row lacks an explanation.
 
 Every interactive element of the reference (`RussellTCrivello/file_analysis`: templates, `static/js/pages/*.js`, `Api/routes`, `Api/services`, `database/`) is traced forward to the Java control that reproduces its observable behaviour, and every Java control is traced back to the reference behaviour it exists for. The reference is a behavioural specification only — no Python, Flask route, template or JavaScript is executed, embedded or called by the Java application (`ArchitectureInvariantsTest#noWebApiOrPythonRuntimeDependency`).
 
@@ -14,6 +14,7 @@ Every interactive element of the reference (`RussellTCrivello/file_analysis`: te
 | **UNSUPPORTED** | Deliberately not reproduced, with the reason (evidence is never deleted; render-format toggles carry no information; a flag nothing reads). | 5 |
 | **REFERENCE-INERT** | The reference control does nothing observable (no route behind the handler, or a stored flag nothing evaluates). Reproducing it would be a fake feature. | 4 |
 | **ENVIRONMENT-LIMITED** | Implemented and covered, but the confirming step needs something this build environment lacks (a display for a GUI click-through). None at present: GUI click-through is recorded per suite in `VERIFICATION_REPORT.md` instead. | 0 |
+| **NOT RUN** | Implemented and statically wired, but the JavaFX layer has never been compiled or executed here, so no test proves the control itself. The note names the test behind the operation and what remains. | 1 |
 
 Nothing is ABSENT: every reference element has a Java destination or an explained status.
 
@@ -89,6 +90,12 @@ The gap is narrow but real, and it is exactly the class of defect static resolut
 | W09 | #bulkUpdateBtn | Words | Handler has no route behind it in the reference. |
 | S14 | #alertModal toggleAlert saveAlert | (none) | The reference stores alert flags but nothing ever evaluates or sends them; a control that promises alerts and delivers none is not reproduced. |
 | BA2 | #scheduleSelect, off-hours, #resourceLimit | Batch Analysis | Schedule and resource controls in the reference are never read by the server (COVERAGE_MATRIX R01). |
+
+### NOT RUN (1)
+
+| Id | Reference element | Java destination | Why |
+|---|---|---|---|
+| SN1 | result row link to file view | Search | Control → event → handler → facade → indexed SELECT → File Detail; duplicates, Unicode, archive children, missing and deleted records covered by the test. The UI leg has not been compiled or executed: GUI click-through is still required. |
 
 ## Full matrix
 
@@ -321,6 +328,12 @@ The gap is narrow but real, and it is exactly the class of defect static resolut
 | G02 | error pages | (none) | (error handlers) → (none) | (inline) / empty states and dialogs | Fas#emptyState → FacadeException#internal | (none) | Failures surface where they happen | ResilienceTest | UNSUPPORTED |
 | G03 | partials | (none) | (none) → (none) | Fas / card, pageHeader, Previous/Next | Fas#pageHeader → (none) | (none) | Reusable pieces, not destinations | UiParityTest#stylesheetPresent | UNSUPPORTED |
 | G04 | toast notifications | showToast | (none) → (none) | (any) / Alert / inline label | Fas#saveBytes → (none) | (none) | Immediate feedback on every action | ArchitectureInvariantsTest#everyControlEndsInAnOperation | ADAPTED |
+
+### Search result navigation (Unit 5 — element id → File Detail)
+
+| Id | Reference element | JS handler | Route → backend op | Java destination / control | Java handler → facade | DB / index op | Visible result | Test | Status |
+|---|---|---|---|---|---|---|---|---|---|
+| SN1 | result row link to file view | openResult | paths.by_element → path WHERE element_id (UNIQUE, indexed) | Search / View Details button, results double-click, Enter; match-table double-click routes by type | SearchScreen#openResult, SearchScreen#openMatch → ContentFacade#getPathByElementId | CorpusDatabase#findPathIdByElement | Correct File Detail (or matched term detail); explicit warning when the result is not registered | SearchResultResolverTest#luceneHitResolves | NOT RUN |
 
 ## Relationship model behind the rows
 

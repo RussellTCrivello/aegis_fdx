@@ -6,7 +6,7 @@ names Java or a test that does not exist, if a limitation is left unexplained, o
 destination in the interface is missing from the inventory. If this document and the
 code ever disagree, the build says so.
 
-**Generated:** 2026-09-08T18:11:33Z
+**Generated:** 2026-09-09T03:16:31Z
 
 ## How to read it
 
@@ -17,6 +17,7 @@ code ever disagree, the build says so.
 | **ADAPTED** | The reference behaviour is delivered in the form the Java architecture calls for — a dialog instead of a form route, a canvas chart instead of a web chart — not in the reference's form. |
 | **UNSUPPORTED** | Deliberately not reproduced. The note says why; "the reference has a control" is not on its own a reason to build one. |
 | **ABSENT** | No Java counterpart. The note says why and what adding it would involve. |
+| **NOT RUN** | Implemented and statically wired, but the JavaFX layer has not been compiled or executed here, so no test proves the control itself. The note names the test behind the operation. |
 
 "Cannot be validated on this machine" is recorded as **LIMITED**, never as absent, and
 never as verified.
@@ -30,7 +31,8 @@ never as verified.
 | ADAPTED | 8 |
 | UNSUPPORTED | 3 |
 | ABSENT | 1 |
-| **Total** | **106** |
+| NOT RUN | 9 |
+| **Total** | **115** |
 
 
 ## Overview
@@ -243,6 +245,45 @@ never as verified.
 | D40 | Analysis hub — titles card | **VERIFIED** | `TitlesScreen` | `ContentFacade#getPaths` | `UiParityTest#contentsIntegration` | Distinct file names grouped from the path registry with per-title file, type and source counts; double-click opens the file. |
 | D41 | Analysis hub — relations card | **VERIFIED** | `RelationsScreen` | `RelationshipFacade#search` | `RelationshipModelTest#searchByLocation` | Whole-case edge totals plus a scoped graph search; every match reports where the file matched. |
 | D42 | Analysis hub — geolocation card | **VERIFIED** | `GeolocationScreen` | `ContentFacade#getPaths` | `UiParityTest#contentsIntegration` | Groups non-blank path.coordinates from registered material; an empty case reports 0 / 0 with an explicit empty state. |
+
+## Vocabulary
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| U11 | category detail file cards (Unit 1) | **NOT RUN** | `TermDetailScreen` | `RelationshipFacade#category` | `RelationshipModelTest#categoryBidirectional` | Cards show source, side, size, date and extension per file with select, view, full-view and download; the operation behind them is proven but the cards themselves have not been compiled or clicked through. |
+| U21 | keyword Cards/List views (Unit 2) | **NOT RUN** | `KeywordsScreen` | `RelationshipFacade#keywordFileCounts` | `RelationshipModelTest#keywordBidirectional` | Both views render the same page of records with phrase, category, usage and active state; counts are proven but the toggle and cards have not been compiled or clicked through. |
+| U22 | Update Keywords re-derivation (Unit 2) | **NOT RUN** | `KeywordsScreen` | `RelationshipAnalyzer#analyzeAll` | `FailureRecoveryTest#duplicateRelationship` | Runs analyzeAll off the FX thread and reports files scanned plus keyword links; the analyzer is proven but the button and its background handoff have not been compiled or executed. |
+
+## Sources
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| U31 | source detail file cards (Unit 3) | **NOT RUN** | `SourceDetailScreen` | `ContentFacade#getPaths` | `UiParityTest#contentsIntegration` | Collected material as file cards with selection and Download Selected above the table; registry reads are proven but the cards have not been compiled or clicked through. |
+
+## Aspects
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| U32 | aspect detail file cards (Unit 3) | **NOT RUN** | `AspectDetailScreen` | `ContentFacade#getPaths` | `UiParityTest#contentsIntegration` | Attributed material as file cards with selection and Download Selected above the table; registry reads are proven but the cards have not been compiled or clicked through. |
+
+## Search
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| U41 | search filter-bar polish (Unit 4) | **NOT RUN** | `SearchScreen` | `SearchFacade#search` | `SearchFacetsTest#facetsAgreeWithResultSet` | Wrapping filters, Clear Filters reset plus re-run, null-safe preview; search itself is proven but the polish has not been compiled or clicked through. |
+
+## Vocabulary
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| U42 | word summary tiles (Unit 4) | **NOT RUN** | `WordsScreen` | `RelationshipFacade#wordFileCounts` | `RelationshipModelTest#categoryBidirectional` | Total / In Files / Unused tiles from whole-case counts; the counts are proven but the tiles have not been compiled or rendered. |
+
+## Search
+
+| # | Reference / capability | Classification | Java | Operation | Test | Notes |
+|---|---|---|---|---|---|---|
+| U51 | search result → File Detail (Unit 5) | **NOT RUN** | `SearchScreen` | `ContentFacade#getPathByElementId` | `SearchResultResolverTest#luceneHitResolves` | Element id resolves through the indexed UNIQUE path.element_id to the exact record; duplicates, Unicode, children and failures are tested, but navigation has not been compiled or clicked through. |
+| U52 | Search Everywhere match-type routing (Unit 5) | **NOT RUN** | `SearchScreen` | `RelationshipFacade#search` | `RelationshipModelTest#searchByLocation` | Term matches open the term detail, file matches open the file; typed rows with term ids are proven but the routing has not been compiled or clicked through. |
 
 ## The three items that needed a decision
 
