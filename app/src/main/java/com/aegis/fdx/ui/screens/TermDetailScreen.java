@@ -30,6 +30,7 @@ import javafx.scene.layout.VBox;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -173,7 +174,7 @@ public final class TermDetailScreen implements Detail {
         f5.setPrefWidth(70);
         f5.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 kind == Kind.CATEGORY ? "—" : String.valueOf(c.getValue().hits())));
-        fileTable.getColumns().addAll(f1, f2, f3, f4, f5);
+        fileTable.getColumns().addAll(List.of(f1, f2, f3, f4, f5));
         fileTable.setRowFactory(t -> {
             javafx.scene.control.TableRow<TermSummary.FileRef> row =
                     new javafx.scene.control.TableRow<>();
@@ -205,7 +206,7 @@ public final class TermDetailScreen implements Detail {
         o4.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 c.getValue().snippets().isEmpty() ? ""
                         : c.getValue().snippets().get(0).replace('\n', ' ')));
-        occTable.getColumns().addAll(o1, o2, o3, o4);
+        occTable.getColumns().addAll(List.of(o1, o2, o3, o4));
 
         VBox related = new VBox(10,
                 Fas.fieldLabel("Categories"), categoryChips,

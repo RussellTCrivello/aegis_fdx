@@ -205,7 +205,7 @@ public final class UploadScreen implements Screen {
         cErr.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 c.getValue().error() == null ? "" : c.getValue().error()));
 
-        table.getColumns().addAll(cName, cType, cSize, cOk, cErr);
+        table.getColumns().addAll(List.of(cName, cType, cSize, cOk, cErr));
 
         VBox content = new VBox(16,
                 Fas.pageHeader("Upload Files", "Home / Upload Files"),

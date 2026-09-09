@@ -441,7 +441,7 @@ public final class FileDetailScreen implements Detail {
         c3.setPrefWidth(90);
         c3.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 String.format("%.1f%%", c.getValue().share() * 100)));
-        table.getColumns().addAll(c1, c2, c3);
+        table.getColumns().addAll(List.of(c1, c2, c3));
         Label tableLabel = Fas.muted("Data Table (0)");
         tableLabel.setId("catTableLabel");
         VBox chartHolder = new VBox(8);
@@ -467,7 +467,7 @@ public final class FileDetailScreen implements Detail {
         c2.setPrefWidth(100);
         c2.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 String.valueOf(c.getValue().count())));
-        table.getColumns().addAll(c1, c2);
+        table.getColumns().addAll(List.of(c1, c2));
         return new VBox(10, Fas.muted("Top words by frequency in the stored text"), table);
     }
 
@@ -487,7 +487,7 @@ public final class FileDetailScreen implements Detail {
         c3.setPrefWidth(100);
         c3.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 String.valueOf(c.getValue().files())));
-        table.getColumns().addAll(c1, c2, c3);
+        table.getColumns().addAll(List.of(c1, c2, c3));
         table.setRowFactory(t -> {
             TableRow<KwRow> row = new TableRow<>();
             row.setOnMouseClicked(e -> {

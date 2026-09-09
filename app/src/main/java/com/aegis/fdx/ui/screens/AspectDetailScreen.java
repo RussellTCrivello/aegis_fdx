@@ -40,6 +40,7 @@ import javafx.scene.layout.VBox;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -138,7 +139,7 @@ public final class AspectDetailScreen implements Detail {
         c2.setPrefWidth(70);
         c2.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 String.valueOf(c.getValue().fileCount())));
-        catTable.getColumns().addAll(c1, c2);
+        catTable.getColumns().addAll(List.of(c1, c2));
 
         TableView<KeywordUsage> kwTable = new TableView<>(keywords);
         kwTable.setPlaceholder(Fas.emptyState("No keywords found."));
@@ -150,7 +151,7 @@ public final class AspectDetailScreen implements Detail {
         k2.setPrefWidth(60);
         k2.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 String.valueOf(c.getValue().hits())));
-        kwTable.getColumns().addAll(k1, k2);
+        kwTable.getColumns().addAll(List.of(k1, k2));
         kwTable.setRowFactory(t -> {
             javafx.scene.control.TableRow<KeywordUsage> row = new javafx.scene.control.TableRow<>();
             row.setOnMouseClicked(e -> {

@@ -30,6 +30,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * Sources: the people, organisations and systems material originates from.
@@ -88,7 +89,7 @@ public final class SourcesScreen implements Screen {
         table.setPlaceholder(Fas.emptyState("No sources yet. Use \u201cAdd Source\u201d to create one."));
         VBox.setVgrow(table, Priority.ALWAYS);
 
-        table.getColumns().addAll(
+        table.getColumns().addAll(List.of(
                 col("ID", 60, s -> String.valueOf(s.id())),
                 col("Source Name", 190, SourceDto::name),
                 col("Job/Type", 130, SourceDto::job),
@@ -97,7 +98,7 @@ public final class SourcesScreen implements Screen {
                 col("City", 110, SourceDto::city),
                 col("Access Status", 120, SourceDto::accessStatus),
                 col("Discovered", 105,
-                        s -> s.entryDate() == null ? "" : s.entryDate().toString()));
+                        s -> s.entryDate() == null ? "" : s.entryDate().toString())));
 
         TableColumn<SourceDto, SourceDto> actions = new TableColumn<>("Actions");
         actions.setPrefWidth(190);

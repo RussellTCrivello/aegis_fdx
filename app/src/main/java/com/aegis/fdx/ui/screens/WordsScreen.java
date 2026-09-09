@@ -182,7 +182,7 @@ public final class WordsScreen implements Screen {
             }
         });
 
-        table.getColumns().addAll(cId, cWord, cFiles, cAct);
+        table.getColumns().addAll(List.of(cId, cWord, cFiles, cAct));
         table.setRowFactory(t -> {
             javafx.scene.control.TableRow<WordDto> row = new javafx.scene.control.TableRow<>();
             row.setOnMouseClicked(e -> {

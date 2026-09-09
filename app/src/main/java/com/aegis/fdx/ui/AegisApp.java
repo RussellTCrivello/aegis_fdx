@@ -215,14 +215,14 @@ public class AegisApp extends Application {
 
     private TreeItem<String> buildFacetRoot() {
         TreeItem<String> root = new TreeItem<>("root");
-        root.getChildren().addAll(
+        root.getChildren().addAll(List.of(
                 facetGroup("File type", "pdf", "docx", "xlsx", "pptx", "msg", "eml",
                         "jpg", "tiff", "txt", "csv", "zip", "pst", "mp4", "dwg"),
                 facetGroup("Custodian", "A. Farouk", "M. Weber", "L. Nguyen", "S. Okafor", "J. Kowalski"),
                 facetGroup("Status", "Pending", "Processing", "Indexed", "Error", "Locked", "Unsupported"),
                 facetGroup("Tag", "Responsive", "Featured", "Trending", "Needs Review", "Hidden"),
                 facetGroup("Attachments", "Has attachments", "No attachments"),
-                facetGroup("Date", "2024-Q1", "2024-Q2", "2024-Q3", "2024-Q4"));
+                facetGroup("Date", "2024-Q1", "2024-Q2", "2024-Q3", "2024-Q4")));
         return root;
     }
 

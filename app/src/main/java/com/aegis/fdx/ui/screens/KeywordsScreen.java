@@ -326,7 +326,7 @@ public final class KeywordsScreen implements Screen {
             }
         });
 
-        table.getColumns().addAll(cSel, cNum, cKw, cUse, cStatus, cCat, cAct);
+        table.getColumns().addAll(List.of(cSel, cNum, cKw, cUse, cStatus, cCat, cAct));
         table.setRowFactory(t -> {
             javafx.scene.control.TableRow<KeywordDto> row = new javafx.scene.control.TableRow<>();
             row.setOnMouseClicked(e -> {

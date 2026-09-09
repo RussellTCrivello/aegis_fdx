@@ -220,7 +220,7 @@ public final class CategoriesScreen implements Screen {
             }
         });
 
-        table.getColumns().addAll(cId, cWord, cFiles, cWords, cAct);
+        table.getColumns().addAll(List.of(cId, cWord, cFiles, cWords, cAct));
         table.getSelectionModel().selectedItemProperty().addListener((o, a, b) -> loadWords(b));
         table.setRowFactory(t -> {
             javafx.scene.control.TableRow<CategoryDto> row = new javafx.scene.control.TableRow<>();

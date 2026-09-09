@@ -217,7 +217,7 @@ public final class EmailWordsScreen implements Screen {
                 setGraphic(Fas.row(2, open, find));
             }
         });
-        table.getColumns().addAll(cEmail, cValid, cDomain, cUsage, cAct);
+        table.getColumns().addAll(List.of(cEmail, cValid, cDomain, cUsage, cAct));
         table.setRowFactory(t -> {
             javafx.scene.control.TableRow<EmailRow> row = new javafx.scene.control.TableRow<>();
             row.setOnMouseClicked(e -> {

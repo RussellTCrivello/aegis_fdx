@@ -21,6 +21,7 @@ import javafx.scene.layout.VBox;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /**
  * Python parity: {@code templates/Search/saved_searches.html} plus the
@@ -105,7 +106,7 @@ public final class SavedSearchesScreen implements Screen {
                 setGraphic(Fas.row(2, rename, del));
             }
         });
-        savedTable.getColumns().addAll(sName, sQuery, sUsed, sCreated, sAct);
+        savedTable.getColumns().addAll(List.of(sName, sQuery, sUsed, sCreated, sAct));
 
         TableView<SearchHistoryDto> histTable = new TableView<>(history);
         histTable.setPlaceholder(Fas.emptyState("No searches run yet."));
@@ -122,7 +123,7 @@ public final class SavedSearchesScreen implements Screen {
         hWhen.setPrefWidth(150);
         hWhen.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 c.getValue().searchedAt() == null ? "" : DT.format(c.getValue().searchedAt())));
-        histTable.getColumns().addAll(hQuery, hCount, hWhen);
+        histTable.getColumns().addAll(List.of(hQuery, hCount, hWhen));
 
         Button clear = Fas.danger("Clear History", Icons.TRASH);
         clear.setOnAction(e -> {

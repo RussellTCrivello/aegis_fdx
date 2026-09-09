@@ -20,6 +20,7 @@ import javafx.scene.layout.VBox;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /**
  * Python parity: {@code templates/Notifications/notifications.html} and the
@@ -131,7 +132,7 @@ public final class NotificationsScreen implements Screen {
             }
         });
 
-        table.getColumns().addAll(cType, cPri, cTitle, cMsg, cWhen, cAct);
+        table.getColumns().addAll(List.of(cType, cPri, cTitle, cMsg, cWhen, cAct));
 
         VBox content = new VBox(16,
                 Fas.pageHeader("Notifications", "Home / Notifications", refresh),

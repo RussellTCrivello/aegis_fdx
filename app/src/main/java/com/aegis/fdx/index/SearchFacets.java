@@ -8,15 +8,19 @@ import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.search.CollectorManager;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreMode;
+import org.apache.lucene.search.SimpleCollector;
 import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.FixedBitSet;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -109,24 +113,37 @@ public final class SearchFacets {
         for (int i = 0; i < leaves.size(); i++) {
             sets[i] = new FixedBitSet(leaves.get(i).reader().maxDoc());
         }
-        searcher.search(query, new org.apache.lucene.search.SimpleCollector() {
-            private int base;
-            private int ord;
-
+        // CollectorManager is the supported entry point: the single-Collector
+        // search(Query, Collector) overload is deprecated in Lucene 9 and slated
+        // for removal in Lucene 10. Each worker thread gets its own collector via
+        // newCollector(), and every leaf belongs to exactly one thread, so each
+        // sets[ord] bitset is still mutated by a single thread.
+        searcher.search(query, new CollectorManager<SimpleCollector, Void>() {
             @Override
-            protected void doSetNextReader(LeafReaderContext context) {
-                this.base = context.docBase;
-                this.ord = context.ord;
+            public SimpleCollector newCollector() {
+                return new SimpleCollector() {
+                    private int ord;
+
+                    @Override
+                    protected void doSetNextReader(LeafReaderContext context) {
+                        this.ord = context.ord;
+                    }
+
+                    @Override
+                    public void collect(int doc) {
+                        sets[ord].set(doc);
+                    }
+
+                    @Override
+                    public ScoreMode scoreMode() {
+                        return ScoreMode.COMPLETE_NO_SCORES;
+                    }
+                };
             }
 
             @Override
-            public void collect(int doc) {
-                sets[ord].set(doc);
-            }
-
-            @Override
-            public org.apache.lucene.search.ScoreMode scoreMode() {
-                return org.apache.lucene.search.ScoreMode.COMPLETE_NO_SCORES;
+            public Void reduce(Collection<SimpleCollector> collectors) {
+                return null;
             }
         });
         return sets;

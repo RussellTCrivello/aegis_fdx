@@ -164,7 +164,7 @@ public final class SourceDetailScreen implements Detail {
         cCatN.setPrefWidth(70);
         cCatN.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 String.valueOf(c.getValue().fileCount())));
-        catTable.getColumns().addAll(cCat, cCatN);
+        catTable.getColumns().addAll(List.of(cCat, cCatN));
         catTable.setRowFactory(t -> {
             javafx.scene.control.TableRow<CategoryUsage> row = new javafx.scene.control.TableRow<>();
             row.setOnMouseClicked(e -> {
@@ -190,7 +190,7 @@ public final class SourceDetailScreen implements Detail {
         cKwFiles.setPrefWidth(60);
         cKwFiles.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 String.valueOf(c.getValue().files())));
-        kwTable.getColumns().addAll(cKw, cKwHits, cKwFiles);
+        kwTable.getColumns().addAll(List.of(cKw, cKwHits, cKwFiles));
         kwTable.setRowFactory(t -> {
             javafx.scene.control.TableRow<KeywordUsage> row = new javafx.scene.control.TableRow<>();
             row.setOnMouseClicked(e -> {
