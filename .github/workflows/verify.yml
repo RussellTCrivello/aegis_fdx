@@ -91,7 +91,8 @@ jobs:
           }
           if (Test-Path gui-gate.log) {
             $gui = Get-Content gui-gate.log
-            $gui | Select-String -Pattern 'GUI GATE|ingested elements|FIRED|SKIP|FAIL|ENV' | ForEach-Object { $lines.Add((&$tr $_.Line)) }
+            $gui | Select-String -Pattern 'GUI GATE|ingested elements|FIRED|SKIP|FAIL|ENV|SEARCH DIAG|SEARCH RESULTS' | ForEach-Object { $lines.Add((&$tr $_.Line)) }
+            $gui | Select-String -Pattern 'Exception|Caused by' | Select-Object -First 8 | ForEach-Object { $lines.Add((&$tr $_.Line)) }
             $gui | Select-String -Pattern '^SCREEN ' | ForEach-Object { $lines.Add((&$tr $_.Line)) }
             $shots = (Get-ChildItem build/gui-shots/*.png -ErrorAction SilentlyContinue | Measure-Object).Count
             $lines.Add("screenshots=$shots")
@@ -211,7 +212,8 @@ jobs:
           lines = []
           lines += [l[:200] for l in bat if re.search(r'passed, .*failed|tests, .*passed', l)]
           lines += [l[:200] for l in bat if '  CLASS  ' in l]
-          lines += [l[:200] for l in gui if re.search(r'GUI GATE|ingested elements|FIRED|SKIP|FAIL|ENV', l)]
+          lines += [l[:200] for l in gui if re.search(r'GUI GATE|ingested elements|FIRED|SKIP|FAIL|ENV|SEARCH DIAG|SEARCH RESULTS', l)]
+          lines += [l[:200] for l in gui if re.search(r'Exception|Caused by', l)][:8]
           lines += [l[:200] for l in gui if l.startswith('SCREEN ')]
           lines += [l[:200] for l in bat if re.search(r'ops/s|rows/s|p50|p95|p99|throughput', l)][:10]
           lines += [l[:200] for l in bat if re.match(r'^== ', l)][:25]

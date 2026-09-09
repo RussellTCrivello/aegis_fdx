@@ -170,7 +170,23 @@ public class FasShotHarness {
                     System.out.println("SEARCH FIRED");
                     // The query runs off the UI thread; wait, then count rows.
                     Thread.sleep(1500);
-                    int rows = 0;
+                    System.out.println("SEARCH DIAG: field now reads <"
+                            + q.getText() + ">");
+                    int shown = 0;
+                    for (javafx.scene.Node n : allNodes(scene.getRoot())) {
+                        if (shown >= 6) {
+                            break;
+                        }
+                        if (n instanceof javafx.scene.control.Label l
+                                && l.getText() != null
+                                && l.getText().matches(
+                                        "(?is).*((result|begin|match|error|fail)|\\d+\\s*ms).*")) {
+                            String t = l.getText().replaceAll("\\s+", " ").trim();
+                            System.out.println("SEARCH DIAG: label <"
+                                    + t.substring(0, Math.min(160, t.length())) + ">");
+                            shown++;
+                        }
+                    }
                     for (javafx.scene.Node n : allNodes(scene.getRoot())) {
                         if (n instanceof javafx.scene.control.TableView tv) {
                             rows += tv.getItems().size();
