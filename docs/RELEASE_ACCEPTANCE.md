@@ -96,7 +96,7 @@ path that updates it independently of `item`.
 
 ### The gap this investigation found — and closed
 
-Reading `insertKeyword` showed the three-word rule enforced in Java (`requireKeywordPhrase`)
+Reading `insertKeyword` showed the keyword word-count rule enforced in Java (`requireKeywordPhrase`)
 but **not in the schema**: `keyword.phrase` was `TEXT NOT NULL UNIQUE` with no constraint.
 A test confirmed raw SQL could insert a one-word "keyword" — which the relationship model
 cannot distinguish from a category word, exactly the rot the `Terms` class exists to
@@ -104,7 +104,7 @@ prevent.
 
 §16 says *correct inconsistencies rather than merely documenting them*, so it is fixed.
 `CorpusSchema.migrate` now installs four triggers enforcing the semantics at the file
-level, on INSERT **and** UPDATE, for `keyword.phrase` (≥3 words) and `word.word` (exactly
+level, on INSERT **and** UPDATE, for `keyword.phrase` (≥2 words) and `word.word` (exactly
 1 word).
 
 Triggers, not CHECK constraints, deliberately: adding a CHECK requires rebuilding the

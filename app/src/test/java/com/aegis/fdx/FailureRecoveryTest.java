@@ -264,12 +264,13 @@ class FailureRecoveryTest {
         try (LiveCase c = openCase(tmp)) {
             AegisFacades f = AegisFacades.open(c);
             f.categories().createCategory("finance");
-            assertThrows(com.aegis.fdx.facade.FacadeException.class, () -> f.keywords().createKeyword("two words", "finance"));
+            // A two-word phrase is a keyword, not a violation — it stores normally.
+            assertTrue(f.keywords().createKeyword("two words", "finance"));
             assertThrows(com.aegis.fdx.facade.FacadeException.class, () -> f.keywords().createKeyword("one", "finance"));
             assertThrows(com.aegis.fdx.facade.FacadeException.class, () -> f.categories().createCategory("two words"));
             assertThrows(com.aegis.fdx.facade.FacadeException.class, () -> f.categories().linkWordToCategory("two words", "finance"));
             assertThrows(com.aegis.fdx.facade.FacadeException.class, () -> f.keywords().createKeyword("", "finance"));
-            assertEquals(0, f.keywords().listKeywords().totalCount());
+            assertEquals(1, f.keywords().listKeywords().totalCount());
             assertEquals(1, f.categories().listCategories().size());
         }
     }

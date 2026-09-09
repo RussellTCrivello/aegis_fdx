@@ -71,7 +71,7 @@ must preserve the concept, not pick a near-synonym; each target language gets on
 | **Source** | Where material came from (a party, system, custodian). Has name, importance, city, country, category. | `sources` | Aspect; a file's folder |
 | **Aspect** | A viewpoint/side of the matter under which files are grouped (reference "Side"). | `sides` | Source; Category |
 | **Category** | A single-word label. Reaches files through its Category Words, its Keywords, or reviewer attribution. **Exactly one word.** | `category` (+ `word_category`, `path_category`) | folder; MIME type; Aspect |
-| **Keyword** | A phrase of **three or more words** that belongs to exactly one Category; found in file content. | `keyword`, `path_keyword` | Category Word; search term |
+| **Keyword** | A phrase of **two or more words** that belongs to exactly one Category; found in file content. | `keyword`, `path_keyword` | Category Word; search term |
 | **Category Word** | A **single word** in the vocabulary, linked to one or more Categories; found in file content. | `word`, `word_category`, `path_word` | Keyword; any word in a file |
 | **Content** | The extracted text of a file (what matching and search read). | `content` / Lucene | metadata; the file bytes |
 | **File** | One evidentiary item (path, hash, size, type, source, aspect, metadata, content). Never deleted. | `path` (+ engine item) | archive member's container |
@@ -92,7 +92,7 @@ Proposed stable glossary (for the later phase; **not applied anywhere yet**):
 | File | Datei | Bestand | Fichier | Archivo |
 
 "Keyword" is deliberately rendered as *phrase* in the target languages because the invariant
-is ≥ 3 words; a literal "Schlüsselwort"/"trefwoord" would suggest a single word and collide
+is ≥ 2 words; a literal "Schlüsselwort"/"trefwoord" would suggest a single word and collide
 with Category Word.
 
 ## 4. Things that must never be localised

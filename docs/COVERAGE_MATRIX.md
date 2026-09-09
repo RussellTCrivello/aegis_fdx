@@ -6,7 +6,7 @@ names Java or a test that does not exist, if a limitation is left unexplained, o
 destination in the interface is missing from the inventory. If this document and the
 code ever disagree, the build says so.
 
-**Generated:** 2026-09-09T06:00:44Z
+**Generated:** 2026-09-09T07:42:16Z
 
 ## How to read it
 
@@ -177,7 +177,7 @@ never as verified.
 | L03 | category word ↔ files (words_paths) | **VERIFIED** | `RelationshipFacade` | `RelationshipFacade#categoryWord` | `RelationshipModelTest#categoryWordBidirectional` | Word → files equals files → word for every registered file. |
 | L04 | keyword ↔ category ↔ word (keywords.category, words_categorys) | **VERIFIED** | `RelationshipFacade` | `RelationshipFacade#keyword` | `RelationshipModelTest#termToTerm` | Only edges the schema records: a keyword's one category, a category's words, a word's categories. |
 | L05 | edge derivation from stored content | **VERIFIED** | `RelationshipAnalyzer` | `RelationshipAnalyzer#analyzeAll` | `RelationshipModelTest#duplicateRelationship` | Whole-word, non-overlapping phrase matching over the stored text; re-running or double-linking never duplicates an edge. |
-| L06 | term invariants (keyword ≥ 3 words, category = 1 word) | **VERIFIED** | `Terms` | `Terms#classify` | `RelationshipModelTest#invariants` | Enforced in the facade for keywords, categories and category words; display form survives normalisation. |
+| L06 | term invariants (keyword ≥ 2 words, category = 1 word) | **VERIFIED** | `Terms` | `Terms#classify` | `RelationshipModelTest#invariants` | Enforced in the facade for keywords, categories and category words; display form survives normalisation. |
 | L07 | search across everything with match type | **VERIFIED** | `RelationshipFacade` | `RelationshipFacade#search` | `RelationshipModelTest#searchByLocation` | Every row says where it matched: file name, path, metadata, content, keyword, category or category word. Empty and blank queries return nothing. |
 | L08 | Keyword/keywords_list.html usage_count | **VERIFIED** | `KeywordsScreen` | `RelationshipFacade#keywordFileCounts` | `RelationshipModelTest#categoryBidirectional` | The Files column is COUNT(DISTINCT path_id) over the whole case for every keyword, not the visible page. |
 | L09 | Category/categories_list.html file_count | **VERIFIED** | `CategoriesScreen` | `RelationshipFacade#categoryFileCounts` | `RelationshipModelTest#categoryBidirectional` | Files column per category and a per-word file badge on the category-words pane. |
@@ -236,7 +236,7 @@ never as verified.
 
 | # | Reference / capability | Classification | Java | Operation | Test | Notes |
 |---|---|---|---|---|---|---|
-| P12 | term semantics enforced by the schema, not only by Java | **VERIFIED** | `CorpusSchema` | `CorpusSchema#migrate` | `CorpusAuthorityTest#rawSqlCannotBypassTheKeywordThreeWordRule` | Triggers on INSERT and UPDATE reject a keyword under three words and a category word of more than one. Triggers rather than CHECK so existing multi-gigabyte cases gain the rule at migration without a table rebuild. |
+| P12 | term semantics enforced by the schema, not only by Java | **VERIFIED** | `CorpusSchema` | `CorpusSchema#migrate` | `CorpusAuthorityTest#rawSqlCannotBypassTheKeywordTwoWordRule` | Triggers on INSERT and UPDATE reject a keyword under two words and a category word of more than one. Triggers rather than CHECK so existing multi-gigabyte cases gain the rule at migration without a table rebuild. |
 
 ## Analysis hub
 

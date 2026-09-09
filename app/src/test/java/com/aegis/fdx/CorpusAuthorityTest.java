@@ -202,17 +202,16 @@ class CorpusAuthorityTest {
     // ---- §16 term semantics, at the persistence layer ------------------------
 
     @Test
-    void keywordMustHaveThreeOrMoreWords() throws Exception {
+    void keywordMustHaveTwoOrMoreWords() throws Exception {
         withCase((db, corpus) -> {
             int w = corpus.insertWord("finance");
             int cat = corpus.insertCategory(w);
 
             assertThrows(SQLException.class, () -> corpus.insertKeyword("finance", cat),
                     "a one-word keyword was accepted");
-            assertThrows(SQLException.class,
-                    () -> corpus.insertKeyword("offshore account", cat),
-                    "a two-word keyword was accepted");
 
+            int two = corpus.insertKeyword("offshore account", cat);
+            assertTrue(two > 0, "a two-word keyword was refused");
             int ok = corpus.insertKeyword("offshore account transfer", cat);
             assertTrue(ok > 0);
         });
@@ -232,12 +231,12 @@ class CorpusAuthorityTest {
     void keywordWhitespaceIsNormalisedRatherThanInflatingTheWordCount() throws Exception {
         withCase((db, corpus) -> {
             int cat = corpus.insertCategory(corpus.insertWord("finance"));
-            // Ragged spacing must not be a way to smuggle a two-word keyword past the
-            // three-word rule, nor to store two spellings of the same phrase.
+            // Ragged spacing must not inflate the word count past the two-word rule,
+            // nor store two spellings of the same phrase.
             assertThrows(SQLException.class,
-                    () -> corpus.insertKeyword("  offshore    account  ", cat));
+                    () -> corpus.insertKeyword("  padded  ", cat));
 
-            corpus.insertKeyword("  offshore   account   transfer ", cat);
+            corpus.insertKeyword("  offshore   account  ", cat);
             List<String> phrases = new ArrayList<>();
             try (Statement st = db.connection().createStatement();
                  ResultSet rs = st.executeQuery("SELECT phrase FROM keyword")) {
@@ -245,29 +244,31 @@ class CorpusAuthorityTest {
                     phrases.add(rs.getString(1));
                 }
             }
-            assertEquals(List.of("offshore account transfer"), phrases);
+            assertEquals(List.of("offshore account"), phrases);
         });
     }
 
     /**
-     * The three-word and one-word rules used to be enforced only in Java, so raw SQL
+     * The two-word and one-word rules used to be enforced only in Java, so raw SQL
      * against the file could create a malformed term — a one-word "keyword" that the
      * relationship model cannot tell apart from a category word. Schema triggers now
      * close that, for old cases as well as new ones, because migration adds them.
      */
     @Test
-    void rawSqlCannotBypassTheKeywordThreeWordRule() throws Exception {
+    void rawSqlCannotBypassTheKeywordTwoWordRule() throws Exception {
         withCase((db, corpus) -> {
             int cat = corpus.insertCategory(corpus.insertWord("finance"));
             try (Statement st = db.connection().createStatement()) {
-                for (String bad : new String[]{"single", "two words", "   ", "  padded  "}) {
+                for (String bad : new String[]{"single", "   ", "  padded  "}) {
                     SQLException e = assertThrows(SQLException.class,
                             () -> st.executeUpdate("INSERT INTO keyword (phrase, category_id) "
                                     + "VALUES ('" + bad + "', " + cat + ")"),
                             "raw SQL inserted a malformed keyword: \"" + bad + "\"");
-                    assertTrue(e.getMessage().contains("three words"), e.getMessage());
+                    assertTrue(e.getMessage().contains("two words"), e.getMessage());
                 }
                 // The rule is a floor, not a straitjacket: valid phrases still insert.
+                st.executeUpdate("INSERT INTO keyword (phrase, category_id) "
+                        + "VALUES ('offshore account', " + cat + ")");
                 st.executeUpdate("INSERT INTO keyword (phrase, category_id) "
                         + "VALUES ('offshore account transfer', " + cat + ")");
                 st.executeUpdate("INSERT INTO keyword (phrase, category_id) "
@@ -302,6 +303,9 @@ class CorpusAuthorityTest {
                 assertThrows(SQLException.class, () -> st.executeUpdate(
                         "UPDATE keyword SET phrase='single' WHERE phrase='offshore account transfer'"),
                         "an UPDATE degraded a keyword to one word");
+                assertEquals(1, st.executeUpdate(
+                        "UPDATE keyword SET phrase='offshore account' WHERE phrase='offshore account transfer'"),
+                        "an UPDATE to a two-word phrase was refused");
                 assertThrows(SQLException.class, () -> st.executeUpdate(
                         "UPDATE word SET word='two words' WHERE word='finance'"),
                         "an UPDATE degraded a category word to two words");
@@ -332,7 +336,7 @@ class CorpusAuthorityTest {
                 try {
                     corpus.insertKeyword(c, cat);
                 } catch (SQLException e) {
-                    daoRejectsOnSemantics = e.getMessage().contains("three words");
+                    daoRejectsOnSemantics = e.getMessage().contains("two words");
                 }
 
                 boolean schemaRejectsOnSemantics = false;
@@ -340,7 +344,7 @@ class CorpusAuthorityTest {
                     st.executeUpdate("INSERT INTO keyword (phrase, category_id) VALUES ('"
                             + c.replace("'", "''") + "', " + cat + ")");
                 } catch (SQLException e) {
-                    schemaRejectsOnSemantics = e.getMessage().contains("three words");
+                    schemaRejectsOnSemantics = e.getMessage().contains("two words");
                 }
 
                 assertEquals(daoRejectsOnSemantics, schemaRejectsOnSemantics,

@@ -233,7 +233,7 @@ precisely the rot the `Terms` class was written to prevent, and the schema left 
 open for any repair script, migration or future DAO.
 
 **Fix.** Four triggers in `CorpusSchema.migrate`, on INSERT and UPDATE, for
-`keyword.phrase` (≥3 words) and `word.word` (exactly 1). Triggers rather than CHECK
+`keyword.phrase` (≥2 words) and `word.word` (exactly 1). Triggers rather than CHECK
 because CHECK requires a table rebuild, which on a multi-gigabyte case means copying every
 row; triggers reach existing cases at migration time.
 
@@ -269,8 +269,9 @@ not establish, and naming the defect classes static resolution cannot catch.
   the FK cascade removes rows when the item goes.
 - **A second connection.** Exactly one `DriverManager.getConnection` in the entire main
   tree, and it is now test-enforced rather than grep-verified.
-- **Whitespace smuggling.** `"  offshore    account  "` cannot be passed off as a
-  three-word keyword; normalisation happens before counting, in both layers.
+- **Whitespace smuggling.** Ragged spacing cannot inflate a one-word term into a
+  keyword — `"  padded  "` stays one word; normalisation happens before counting, in
+  both layers.
 - **Trigger regressions.** The new schema triggers broke none of the 160 pre-existing
   tests, so no fixture depended on malformed terms.
 

@@ -37,7 +37,7 @@ final class RelationshipCountsTest {
                 "", "", "", "", "", "", LocalDate.now(), null);
         int wordId = dao.insertWord("finance");
         int categoryId = dao.insertCategory(wordId);
-        // §14: a keyword is three or more words.
+        // §14: a keyword is two or more words.
         int keywordId = dao.insertKeyword("financial transaction report", categoryId);
 
         int[] paths = new int[3];

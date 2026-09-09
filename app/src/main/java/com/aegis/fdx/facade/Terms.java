@@ -16,8 +16,8 @@ import java.util.Locale;
  *
  * <dl>
  *   <dt><strong>Keyword</strong></dt>
- *   <dd>A phrase of <strong>three or more words</strong>. {@code financial transaction
- *       report} is a keyword; {@code financial transaction} is not.</dd>
+ *   <dd>A phrase of <strong>two or more words</strong>. {@code financial transaction
+ *       report} and {@code financial transaction} are both keywords.</dd>
  *   <dt><strong>Category</strong></dt>
  *   <dd><strong>Exactly one word</strong>. {@code finance} is a category; {@code
  *       financial records} is not.</dd>
@@ -27,12 +27,11 @@ import java.util.Locale;
  *       category's own name is itself a word row.</dd>
  * </dl>
  *
- * <p><strong>Deviation from the reference, stated plainly.</strong> The reference
+ * <p><strong>Agreement with the reference, stated plainly.</strong> The reference
  * project classifies a term by splitting it: one word becomes a category word, and
  * <em>two or more</em> becomes a keyword ({@code database/operations.py::process_term}).
- * The rule here is stricter — three or more — because that is the definition this case
- * work uses. A two-word phrase is therefore rejected rather than silently stored as a
- * keyword, and the interface says why.
+ * This application follows the same rule, enforced at the facade boundary: a two-word
+ * phrase is a keyword, not a rejection, and the interface accepts it as one.
  *
  * <p><strong>Normalisation.</strong> Comparison is case-insensitive, accent-insensitive
  * and whitespace-insensitive; the form the operator typed is what gets displayed.
@@ -43,7 +42,7 @@ import java.util.Locale;
 public final class Terms {
 
     /** A keyword must have at least this many words. */
-    public static final int MIN_KEYWORD_WORDS = 3;
+    public static final int MIN_KEYWORD_WORDS = 2;
 
     /** A category is exactly this many words. */
     public static final int CATEGORY_WORDS = 1;
@@ -107,7 +106,7 @@ public final class Terms {
         return words(term).size();
     }
 
-    /** True when {@code term} is a keyword: a phrase of three or more words. */
+    /** True when {@code term} is a keyword: a phrase of two or more words. */
     public static boolean isKeyword(String term) {
         return wordCount(term) >= MIN_KEYWORD_WORDS;
     }
@@ -133,7 +132,7 @@ public final class Terms {
             throw FacadeException.validation(field + " must be a phrase of at least "
                     + MIN_KEYWORD_WORDS + " words — \"" + display + "\" has "
                     + n + (n == 1 ? " word" : " words")
-                    + ". A single word is a category word; a phrase of three or more is a keyword.");
+                    + ". A single word is a category word; a phrase of two or more is a keyword.");
         }
         return display;
     }
@@ -148,7 +147,7 @@ public final class Terms {
         if (n != CATEGORY_WORDS) {
             throw FacadeException.validation(field + " must be a single word — \""
                     + display + "\" has " + n + " words."
-                    + " A phrase of three or more words is a keyword, not a category.");
+                    + " A phrase of two or more words is a keyword, not a category.");
         }
         return display;
     }
@@ -166,10 +165,11 @@ public final class Terms {
 
     /**
      * How a term entered in one box should be classified, the way the reference's
-     * {@code process_term} does — but with this application's word counts.
+     * {@code process_term} does.
      *
-     * @return {@link Kind#CATEGORY_WORD} for one word, {@link Kind#KEYWORD} for three or
-     *         more, and {@link Kind#REJECTED} for a two-word phrase, which is neither
+     * @return {@link Kind#CATEGORY_WORD} for one word, {@link Kind#KEYWORD} for two or
+     *         more, and {@link Kind#REJECTED} for input with no words at all, which is
+     *         neither
      */
     public static Kind classify(String term) {
         int n = wordCount(term);
@@ -193,9 +193,8 @@ public final class Terms {
             return switch (this) {
                 case CATEGORY_WORD -> "\"" + term + "\" is a single word: it will be added as a category word.";
                 case KEYWORD -> "\"" + term + "\" is a phrase of " + n + " words: it will be added as a keyword.";
-                case REJECTED -> "\"" + term + "\" has " + n + " words. A category word is one word and a "
-                        + "keyword is three or more, so a two-word phrase cannot be stored as either. "
-                        + "Add a word to make it a keyword, or remove one to make it a category word.";
+                case REJECTED -> "\"" + term + "\" has no words. A category word is one word and a "
+                        + "keyword is two or more, so empty text cannot be stored as either.";
             };
         }
     }

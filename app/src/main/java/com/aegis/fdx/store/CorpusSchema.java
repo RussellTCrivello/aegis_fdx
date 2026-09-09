@@ -266,7 +266,7 @@ final class CorpusSchema {
 
             // ---- term semantics, enforced by the schema ----------------------
             //
-            // A keyword is three or more words; a category word is exactly one. Those
+            // A keyword is two or more words; a category word is exactly one. Those
             // rules were previously enforced only in CorpusDatabase, which is correct
             // for every production write but leaves the file itself permissive: a
             // repair script, a migration or a future DAO could write "single" into
@@ -281,17 +281,27 @@ final class CorpusSchema {
             //
             // Word counting must agree with Terms.wordCount: trim, then count
             // single-space-separated tokens. TRIM plus REPLACE of doubled spaces makes
-            // the SQL agree with the Java for ragged input.
+            // the SQL agree with the Java for ragged input. Two or more words means at
+            // least one space, hence the `< 1` below.
+            //
+            // The keyword triggers are dropped before they are recreated. An earlier
+            // revision enforced three or more words under these same trigger names, so
+            // a bare CREATE TRIGGER IF NOT EXISTS would leave the stale rule in place
+            // on every existing case. Relaxing the rule cannot invalidate stored rows —
+            // everything already in the table satisfied the stricter form — so
+            // drop-then-create is safe on old and new cases alike.
             for (String op : new String[]{"INSERT", "UPDATE"}) {
                 String when = op.equals("INSERT") ? "" : " OF phrase";
+                st.executeUpdate("DROP TRIGGER IF EXISTS trg_keyword_%s_min_words"
+                        .formatted(op.toLowerCase()));
                 st.executeUpdate("""
-                    CREATE TRIGGER IF NOT EXISTS trg_keyword_%s_min_words
+                    CREATE TRIGGER trg_keyword_%s_min_words
                     BEFORE %s%s ON keyword
                     FOR EACH ROW
-                    WHEN LENGTH(TRIM(NEW.phrase)) - LENGTH(REPLACE(TRIM(NEW.phrase), ' ', '')) < 2
+                    WHEN LENGTH(TRIM(NEW.phrase)) - LENGTH(REPLACE(TRIM(NEW.phrase), ' ', '')) < 1
                        OR TRIM(NEW.phrase) = ''
                     BEGIN
-                      SELECT RAISE(ABORT, 'keyword must have at least three words');
+                      SELECT RAISE(ABORT, 'keyword must have at least two words');
                     END""".formatted(op.toLowerCase(), op, when));
 
                 st.executeUpdate("""

@@ -637,7 +637,7 @@ public final class KeywordsScreen implements Screen {
         dlg.setTitle("Add Keyword");
         dlg.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
 
-        TextField phrase = Fas.field("Keyword phrase (three or more words)");
+        TextField phrase = Fas.field("Keyword phrase (two or more words)");
         ComboBox<String> category = new ComboBox<>();
         try {
             category.getItems().setAll(facades.categories().listCategories(500, 0)

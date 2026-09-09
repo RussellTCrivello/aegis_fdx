@@ -122,7 +122,7 @@ out.append('## Relationship model behind the rows\n')
 out.append('''```
 FILE (path, content, hash, metadata)
   │  path_keyword(path_id, keyword_id, hits)      ← reference keywords_paths
-  ├──── KEYWORD (phrase, ≥ 3 words) ──── category_id ──── CATEGORY (one word)
+  ├──── KEYWORD (phrase, ≥ 2 words) ──── category_id ──── CATEGORY (one word)
   │  path_word(path_id, word_id, hits)            ← reference words_paths
   ├──── CATEGORY WORD (one word) ──── word_category ────── CATEGORY
   │  path_category(path_id, category_id)          ← reviewer attribution
@@ -131,7 +131,7 @@ FILE (path, content, hash, metadata)
 
 * Edges are derived by `RelationshipAnalyzer` from stored content when material is registered and on demand ("Update associations"); re-running is idempotent (`RelationshipModelTest`).
 * Every count is `COUNT(DISTINCT path_id)` over the whole case, never over a page.
-* Invariants (keyword ≥ 3 words; category and category word exactly 1 word) are enforced in `Terms`, in the facades, in `CorpusDatabase` inserts/updates and in the UI, and tested at each layer (`RelationshipModelTest#storageInvariants`).
+* Invariants (keyword ≥ 2 words; category and category word exactly 1 word) are enforced in `Terms`, in the facades, in `CorpusDatabase` inserts/updates and in the UI, and tested at each layer (`RelationshipModelTest#storageInvariants`).
 * `RelationshipIntegrity` walks File → Keyword → Category → Category Word → Files in both directions and reports count disagreements and orphan edges ("Check relationships" on Search; `docs/RELATIONSHIP_INTEGRITY_REPORT.md`).
 ''')
 (root / 'docs/INTERFACE_FUNCTION_MATRIX.md').write_text('\n'.join(out), encoding='utf-8')
