@@ -26,7 +26,7 @@ a3e1774ec7c89a27d91017967c0fdcffa473be2638f4384516585476fdd1d6d6  app/src/main/j
 b9a51cd177338f97ceb57211cd25eef8f6dfeba8a1689b0b36b32bb99683b39e  app/src/main/java/com/aegis/fdx/ai/tools/ToolSchema.java
 5ea5576f19f2d26ac3db8a304396fcf5fbdc23b5517236c07a5301994fdb1725  app/src/main/java/com/aegis/fdx/analyzers/AegisCharsetProvider.java
 420f895292b245998974bd6017456a85e3a3e1446f7b82b73f039883355e27b0  app/src/main/java/com/aegis/fdx/analyzers/ArchiveAnalyzer.java
-e76ee777670d44dfa29041085ba338671be9c8a1cbf65a057cbc2c20c2e11c56  app/src/main/java/com/aegis/fdx/analyzers/AttachmentNames.java
+7362b964e204579b83441a0561559b911dfcf4a04c1e441347b2c6b91ec1792b  app/src/main/java/com/aegis/fdx/analyzers/AttachmentNames.java
 8c9edd4d5d47a39e515fab6f0915aea60f9ad4f4efd6b7df4300c135f633daa7  app/src/main/java/com/aegis/fdx/analyzers/EmlAnalyzer.java
 7827e8723af6b5888f3b4e2fadeec816978c27f51d5a81cd495ba6e4872127e9  app/src/main/java/com/aegis/fdx/analyzers/ImageAnalyzer.java
 7b7d5fac663343f657a777c10332ff1417fa3629eef1069ad45ee154ccf704be  app/src/main/java/com/aegis/fdx/analyzers/Magic.java

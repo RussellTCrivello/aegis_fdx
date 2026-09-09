@@ -9,8 +9,8 @@ import java.util.Map;
  * <p>Attachment filename properties are absent more often than not: attached
  * messages, inline images and provider-generated parts carry none, so every mail
  * analyzer used to fall back to {@code attachment_N}. Each analyzer now walks its
- * own ladder — filename properties, pathnames, embedded subjects, Content-IDs,
- * MIME types — and these are the rungs they share: recovering a filename from a
+ * own ladder - filename properties, pathnames, embedded subjects, Content-IDs,
+ * MIME types - and these are the rungs they share: recovering a filename from a
  * Content-ID, mapping a MIME type to an extension, and making any of it safe to
  * store and export.
  *
