@@ -26,14 +26,15 @@ a3e1774ec7c89a27d91017967c0fdcffa473be2638f4384516585476fdd1d6d6  app/src/main/j
 b9a51cd177338f97ceb57211cd25eef8f6dfeba8a1689b0b36b32bb99683b39e  app/src/main/java/com/aegis/fdx/ai/tools/ToolSchema.java
 5ea5576f19f2d26ac3db8a304396fcf5fbdc23b5517236c07a5301994fdb1725  app/src/main/java/com/aegis/fdx/analyzers/AegisCharsetProvider.java
 420f895292b245998974bd6017456a85e3a3e1446f7b82b73f039883355e27b0  app/src/main/java/com/aegis/fdx/analyzers/ArchiveAnalyzer.java
-3e4e694bf50ea911aefb6f7441e76dfa45bb185a466d4f59a528dc26a13d2009  app/src/main/java/com/aegis/fdx/analyzers/EmlAnalyzer.java
+e76ee777670d44dfa29041085ba338671be9c8a1cbf65a057cbc2c20c2e11c56  app/src/main/java/com/aegis/fdx/analyzers/AttachmentNames.java
+8c9edd4d5d47a39e515fab6f0915aea60f9ad4f4efd6b7df4300c135f633daa7  app/src/main/java/com/aegis/fdx/analyzers/EmlAnalyzer.java
 7827e8723af6b5888f3b4e2fadeec816978c27f51d5a81cd495ba6e4872127e9  app/src/main/java/com/aegis/fdx/analyzers/ImageAnalyzer.java
 7b7d5fac663343f657a777c10332ff1417fa3629eef1069ad45ee154ccf704be  app/src/main/java/com/aegis/fdx/analyzers/Magic.java
 da716a7f4c20f9790f034ef45c3b8cf71c8313d4e11fe753fe0b80926baf83e3  app/src/main/java/com/aegis/fdx/analyzers/MboxAnalyzer.java
-987df926618e16b14ebd2b12bd9010d6ae42606049565a36db7300cd7ec0045b  app/src/main/java/com/aegis/fdx/analyzers/MsgAnalyzer.java
+0750d74ff37162c3267217bf64070165c3922612091d40d1f539a85d79ebc1db  app/src/main/java/com/aegis/fdx/analyzers/MsgAnalyzer.java
 d79f00e0d60bb2c51bb1c1fe944c077cb6aeb3155d91efce2571122178fc7984  app/src/main/java/com/aegis/fdx/analyzers/OfficeAnalyzer.java
 92906326e0cd190c64e2e75ed6026e1e9c7854ca5964e2b8f95620a7aecb6c9f  app/src/main/java/com/aegis/fdx/analyzers/PdfAnalyzer.java
-573bfa1149b08b4510dee2000fae1d1f914748d66140fd0b58c3dd5c12f80cd9  app/src/main/java/com/aegis/fdx/analyzers/PstAnalyzer.java
+0466087d6da07c851ac91bc2e7721536fffb32ba01ed83a23f051b9b3170d955  app/src/main/java/com/aegis/fdx/analyzers/PstAnalyzer.java
 ea77e1de0efaf57460fd9e463ad12d2757d7d409bee1bc8862381672565920e7  app/src/main/java/com/aegis/fdx/analyzers/PstConsoleFilter.java
 6af1e2e9302018669d30a37fba3cdc3a2b465ac69c04da5875ddc2871e327a31  app/src/main/java/com/aegis/fdx/analyzers/TextAnalyzer.java
 c44b89400e2321ecc9896bb90916bffd75a37df4be1b685a2eff3a7b7bf500d2  app/src/main/java/com/aegis/fdx/engine/CaseSettings.java
@@ -174,6 +175,7 @@ f99c9e9d090e248756f1766f2f5f0ace3054ad4dec1a16b7aaeb9d05265c206f  app/src/main/j
 6eb5b82d1febb50fa37091653f8f621dc8759bf049fce3e4366a631eb9ff60d8  app/src/test/java/com/aegis/fdx/AiAgentTest.java
 abedafdf8ce2b6812ce39d1186e74ff85f4a9596b1aa7388649953df30fed4bd  app/src/test/java/com/aegis/fdx/AiBoundaryTest.java
 17eb5100a0f7c706b289e9f9e62e34c849c8c51d79917e092e01c1963bffece1  app/src/test/java/com/aegis/fdx/ArchitectureInvariantsTest.java
+ac3139f3e08c4c32f03f5e06fd0ef04e103afcfc7ae188c786ddc06d41189515  app/src/test/java/com/aegis/fdx/AttachmentNamesTest.java
 631897d6b776457a5136480a1e513db6fba692556a016aa86391145a87e93bea  app/src/test/java/com/aegis/fdx/BatchAnalysisTest.java
 361b13fd9e89a6e3dbdd722eb0361f543b92d63c6e16630d596e64f948030f9e  app/src/test/java/com/aegis/fdx/BatchRecoveryTest.java
 c80e5f5e3ca1e8d6c2badf706b1245f419e2803251a484cdb26fc5c7e02ddfa2  app/src/test/java/com/aegis/fdx/Benchmark.java
@@ -182,6 +184,7 @@ a825c2019b7c6f977bf0489f5eb3af638810ce3cac1b385d2c747fc47bf0516d  app/src/test/j
 f81fcacfc95c714a3ccb2a87b6ac3155fd071edf6fdff1228200871cf138e530  app/src/test/java/com/aegis/fdx/DashboardStatsTest.java
 07fbd177448f447cee3373ccc944f8f45f535767dd7fa038bc3871805c033eea  app/src/test/java/com/aegis/fdx/DestinationCoverageTest.java
 1e651d71e32312e531cc0b20329ffb38613aabc7602975eb12b1aede3747f672  app/src/test/java/com/aegis/fdx/DragDropIngestTest.java
+5f6a3b85d2c30bfd98b22c88dbc2bb903e9a078d76434d9b9593c0dea6d77a05  app/src/test/java/com/aegis/fdx/EmlAttachmentNamesTest.java
 9bd7146bd2178571bbf5e927cf5341f5b73f1df71ecdfd90d169e9b2d150b557  app/src/test/java/com/aegis/fdx/EndToEndScenarioTest.java
 ef38a7c50c449a280dd33dfb99f20f10df7e51bac3db3c01508e5aafbfb56f78  app/src/test/java/com/aegis/fdx/FacadeErrorSummaryTest.java
 afd66a1c5609c3567268503dde3bd0bce5e8e84454239aa29bcd1cc730fd47e4  app/src/test/java/com/aegis/fdx/FacadeInventoryTest.java
@@ -221,6 +224,6 @@ e9d0741b78ebe54a11942709e6008d00b7fc0bd00e645a05b1e0621530e35817  packaging/make
 48cc44e87074285041816238836e06f9ef0a5d134a3c41430c679df8a178ad1d  packaging/verify-install.sh
 cb9d83e858c082389a42ea8112bd5800d4ca9a1034814eea8247580da7a3afa4  packaging/verify-sources.ps1
 b4f0bbdde5fd04e8f7516b9473fc21738a92d431c70b1ceb63bf664e197aac65  packaging/verify-sources.sh
-90296808453d6a3e6fba1202d0e9623a62918f3918eaba994d6876936e4acfb8  run-tests.ps1
-58adbed2563278e15483b91c03cabcee5c526f9631b6fe2c2c6c04e4288180ff  run-tests.sh
+bd63f516013e8d062c3128dae4027810ebf56ac389a19303153095e06481e1e5  run-tests.ps1
+50b73c431329be8b40d6cec8faab27b07a75136a2000d086a62d897ce73b65c7  run-tests.sh
 c9e2473d3c501323d179fa767af22e5930c4df5b19a850a2fff8dfd8d392a11a  settings.gradle.kts

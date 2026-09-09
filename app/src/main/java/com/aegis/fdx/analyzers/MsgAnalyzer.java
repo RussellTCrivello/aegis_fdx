@@ -4,6 +4,7 @@ import com.aegis.fdx.model.Item;
 import com.aegis.fdx.spi.Analyzer;
 import org.apache.poi.hsmf.MAPIMessage;
 import org.apache.poi.hsmf.datatypes.AttachmentChunks;
+import org.apache.poi.hsmf.datatypes.StringChunk;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -108,10 +109,70 @@ public final class MsgAnalyzer implements Analyzer {
         }
     }
 
+    /**
+     * Names an attachment for its real filename: long then short filename, an
+     * embedded message's subject, then a filename-shaped Content-ID. Whatever
+     * survives is sanitized; only a fully anonymous attachment keeps a generated
+     * name, with a MIME-derived extension when there is one.
+     */
     private static String pick(AttachmentChunks a, int n) {
-        if (a.getAttachLongFileName() != null) return a.getAttachLongFileName().getValue();
-        if (a.getAttachFileName() != null) return a.getAttachFileName().getValue();
-        return "attachment_" + n;
+        String name = firstPresent(
+                text(a.getAttachLongFileName()),
+                text(a.getAttachFileName()));
+        if (!name.isBlank()) return AttachmentNames.sanitize(name);
+        // Attached messages carry no filename; their subject is the real name.
+        // The caller appends .eml for the flattened bytes (see analyze).
+        String subject = embeddedSubject(a);
+        if (!subject.isBlank()) return AttachmentNames.sanitize(subject);
+        // Inline content usually has only a Content-ID like image001.png@....
+        String fromCid = AttachmentNames.fromContentId(text(a.getAttachContentId()));
+        if (!fromCid.isBlank()) {
+            return AttachmentNames.ensureExtension(
+                    AttachmentNames.sanitize(fromCid), mimeExtensionOf(a));
+        }
+        String ext = mimeExtensionOf(a);
+        return "attachment_" + n + (ext == null ? "" : ext);
+    }
+
+    private static String firstPresent(String... values) {
+        for (String v : values) {
+            if (v != null && !v.isBlank()) return v;
+        }
+        return "";
+    }
+
+    /** Null-safe chunk read; missing chunks and missing values both yield null. */
+    private static String text(StringChunk c) {
+        try {
+            return c == null ? null : c.getValue();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static String embeddedSubject(AttachmentChunks a) {
+        try {
+            if (a.isEmbeddedMessage() && a.getEmbeddedMessage() != null) {
+                String s = a.getEmbeddedMessage().getSubject();
+                return s == null ? "" : s;
+            }
+        } catch (Exception ignored) { }
+        return "";
+    }
+
+    /** MIME tag first, then the PidTagAttachExtension property (e.g. ".pdf"). */
+    private static String mimeExtensionOf(AttachmentChunks a) {
+        String ext = AttachmentNames.extensionFor(text(a.getAttachMimeTag()));
+        if (ext != null) return ext;
+        String raw = text(a.getAttachExtension());
+        if (raw != null) {
+            String r = raw.strip();
+            if (r.startsWith(".")) r = r.substring(1);
+            if (r.matches("[A-Za-z0-9]{1,6}")) {
+                return "." + r.toLowerCase(java.util.Locale.ROOT);
+            }
+        }
+        return null;
     }
 
     private static boolean notBlank(String s) { return s != null && !s.isBlank(); }
