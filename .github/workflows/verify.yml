@@ -4,6 +4,10 @@
 # Linux): full javac compile of main + tests, then every suite including the
 # Unit 5 SearchResultResolverTest and the matrix inventories. This is the gate
 # that turns NOT RUN rows into executed evidence.
+#
+# Failure diagnostics are reported as check annotations (::error) because the
+# raw log host is not reachable from every client; annotations carry the javac
+# errors and the failing tail.
 name: verify
 
 on:
@@ -38,13 +42,30 @@ jobs:
       - name: Toolchain versions
         shell: pwsh
         run: |
-          javac -version
-          java -version
-          Get-ChildItem $env:AEGIS_FX\javafx.*.jar | Format-Table Name
+          $v = (javac -version 2>&1) + ' / ' + ((java -version 2>&1) -join ' ')
+          Write-Host $v
+          "toolchain=$v" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Run full battery
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File run-tests.ps1 -Multiplier 2
+        run: |
+          powershell -ExecutionPolicy Bypass -File run-tests.ps1 -Multiplier 2 *>&1 | Tee-Object -FilePath battery.log
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Report failure diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          "toolchain=$env:toolchain" -replace '%','%25' | ForEach-Object { Write-Host "::notice $_" }
+          $errs = Select-String -Path battery.log -Pattern '^(.*\.java):(\d+): error: (.*)$' | Select-Object -First 10
+          foreach ($m in $errs) {
+            $msg = ($m.Matches[0].Groups[3].Value) -replace '%','%25' -replace '\r','%0D' -replace '\n','%0A'
+            $file = ($m.Matches[0].Groups[1].Value) -replace '%','%25'
+            $line = $m.Matches[0].Groups[2].Value
+            Write-Host "::error file=$file,line=$line::$msg"
+          }
+          $tail = (Get-Content battery.log -Tail 60) -join '%0A' -replace '%(?![02])','%25'
+          Write-Host "::error::tail:$tail"
 
   linux:
     name: Linux battery (JDK 21 + JavaFX 21 SDK)
@@ -61,6 +82,9 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Export AEGIS_JDK for run-tests.sh
+        run: echo "AEGIS_JDK=$JAVA_HOME/bin" >> "$GITHUB_ENV"
+
       - name: Fetch JavaFX 21.0.4 SDK (Linux x64)
         run: |
           curl -sL -o /tmp/openjfx.zip 'https://download2.gluonhq.com/openjfx/21.0.4/openjfx-21.0.4_linux-x64_bin-sdk.zip'
@@ -69,9 +93,23 @@ jobs:
 
       - name: Toolchain versions
         run: |
-          javac -version
-          java -version
-          ls "$AEGIS_FX"/javafx.*.jar
+          V="$(javac -version 2>&1) / $(java -version 2>&1 | tr '\n' ' ')"
+          echo "$V"
+          echo "TOOLCHAIN=$V" >> "$GITHUB_ENV"
 
       - name: Run full battery
-        run: bash run-tests.sh 2
+        run: |
+          bash run-tests.sh 2 2>&1 | tee battery.log
+          test "${PIPESTATUS[0]}" -eq 0
+
+      - name: Report failure diagnostics
+        if: failure()
+        run: |
+          echo "::notice::toolchain=${TOOLCHAIN}"
+          grep -E '^.*\.java:[0-9]+: error: ' battery.log | head -10 | while IFS= read -r l; do
+            f="${l%%.java*}"; f="${f##* }";
+            rest="${l#*.java:}"; n="${rest%%:*}"; msg="${rest#*: error: }"
+            msg="$(printf '%s' "$msg" | sed -e 's/%/%25/g' | tr '\n' ' ')"
+            echo "::error file=${f}.java,line=${n}::${msg}"
+          done
+          tail -60 battery.log | sed -e 's/%/%25/g' -e ':a;N;$!ba;s/\n/%0A/g' | sed 's/^/::error::tail:/'
