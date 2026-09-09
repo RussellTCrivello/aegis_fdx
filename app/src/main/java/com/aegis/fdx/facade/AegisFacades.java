@@ -49,21 +49,21 @@ public final class AegisFacades {
 
     private AegisFacades(LiveCase liveCase, CorpusDatabase corpus) {
         this.liveCase = liveCase;
+        this.contents = new ContentFacade(corpus, liveCase);
+        this.relationshipAnalyzer = new RelationshipAnalyzer(corpus, contents);
         this.sources = new SourceFacade(corpus);
         this.aspects = new AspectFacade(corpus);
-        this.words = new WordFacade(corpus);
-        this.categories = new CategoryFacade(corpus);
-        this.keywords = new KeywordFacade(corpus);
+        this.words = new WordFacade(corpus, relationshipAnalyzer);
+        this.categories = new CategoryFacade(corpus, relationshipAnalyzer);
+        this.keywords = new KeywordFacade(corpus, relationshipAnalyzer);
         this.notifications = new NotificationFacade(corpus);
         this.history = new SearchHistoryFacade(corpus);
         this.search = new SearchFacade(liveCase, sources, aspects);
         this.preview = new PreviewFacade(liveCase);
         this.dashboard = new DashboardFacade(liveCase);
-        this.contents = new ContentFacade(corpus, liveCase);
         this.analytics = new AnalyticsFacade(corpus, liveCase);
         this.batch = new BatchAnalysisFacade(corpus, contents, keywords, categories);
         this.relationships = new RelationshipFacade(corpus);
-        this.relationshipAnalyzer = new RelationshipAnalyzer(corpus, contents);
         this.relationshipIntegrity = new RelationshipIntegrity(corpus, relationships);
     }
 

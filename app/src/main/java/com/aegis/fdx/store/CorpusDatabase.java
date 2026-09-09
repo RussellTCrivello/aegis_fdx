@@ -1590,6 +1590,32 @@ public final class CorpusDatabase {
         }
     }
 
+    /** Removes the derived edges for one keyword across all files. */
+    public void clearKeywordEdges(int keywordId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM path_keyword WHERE keyword_id=?")) {
+            ps.setInt(1, keywordId);
+            ps.executeUpdate();
+        }
+    }
+
+    /** Removes the derived edges for one category word across all files. */
+    public void clearWordEdges(int wordId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM path_word WHERE word_id=?")) {
+            ps.setInt(1, wordId);
+            ps.executeUpdate();
+        }
+    }
+
+    /** All non-empty extracted text grouped by path id. */
+    public List<Row> selectAllContentData() throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT path_id, GROUP_CONCAT(content_data, char(10)) AS content_data " +
+                "FROM content WHERE content_data IS NOT NULL AND content_data != '' " +
+                "GROUP BY path_id ORDER BY path_id")) {
+            return all(ps);
+        }
+    }
+
     /** Files whose name or path contains the text, with which of the two matched. */
     public List<Row> selectFilesByNameOrPath(String text, int limit) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(FILE_COLUMNS + """

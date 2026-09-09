@@ -18,9 +18,15 @@ import java.util.List;
 public final class WordFacade {
 
     private final CorpusDatabase db;
+    private final RelationshipAnalyzer analyzer;
 
     public WordFacade(CorpusDatabase db) {
+        this(db, null);
+    }
+
+    public WordFacade(CorpusDatabase db, RelationshipAnalyzer analyzer) {
         this.db = db;
+        this.analyzer = analyzer;
     }
 
     /** First page of words, default size 100. */
@@ -72,7 +78,11 @@ public final class WordFacade {
     public int createWord(String word) {
         String w = Terms.requireSingleWord(word, "word");
         try {
-            return db.insertWord(w);
+            int wordId = db.insertWord(w);
+            if (analyzer != null && wordId > 0) {
+                analyzer.analyzeWord(wordId);
+            }
+            return wordId;
         } catch (SQLException e) {
             throw FacadeException.internal("failed to create word", e);
         }
@@ -83,7 +93,11 @@ public final class WordFacade {
         Validate.positiveId(wordId, "wordId");
         String w = Terms.requireSingleWord(word, "word");
         try {
-            return db.updateWord(wordId, w);
+            boolean updated = db.updateWord(wordId, w);
+            if (updated && analyzer != null) {
+                analyzer.analyzeWord(wordId);
+            }
+            return updated;
         } catch (SQLException e) {
             throw FacadeException.internal("failed to update word", e);
         }

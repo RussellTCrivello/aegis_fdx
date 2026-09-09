@@ -114,8 +114,11 @@ public final class BatchAnalysisScreen implements Screen {
             }
         });
         templateHint = Fas.muted(BatchAnalysisFacade.Template.KEYWORD_SCAN.description());
-        templateBox.setOnAction(e ->
-                templateHint.setText(templateBox.getValue().description()));
+        templateBox.setOnAction(e -> {
+            if (templateBox.getValue() != null) {
+                templateHint.setText(templateBox.getValue().description());
+            }
+        });
 
         priorityBox = new ComboBox<>(FXCollections.observableArrayList(
                 BatchAnalysisFacade.Priority.values()));

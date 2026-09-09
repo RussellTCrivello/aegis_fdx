@@ -19,9 +19,15 @@ import java.util.Map;
 public final class KeywordFacade {
 
     private final CorpusDatabase db;
+    private final RelationshipAnalyzer analyzer;
 
     public KeywordFacade(CorpusDatabase db) {
+        this(db, null);
+    }
+
+    public KeywordFacade(CorpusDatabase db, RelationshipAnalyzer analyzer) {
         this.db = db;
+        this.analyzer = analyzer;
     }
 
     /** Attaches a phrase to an existing category.
@@ -42,7 +48,10 @@ public final class KeywordFacade {
             if (cat == null) {
                 throw FacadeException.notFound("category", cw);
             }
-            db.insertKeyword(k, cat.i("id"));
+            int keywordId = db.insertKeyword(k, cat.i("id"));
+            if (analyzer != null && keywordId > 0) {
+                analyzer.analyzeKeyword(keywordId);
+            }
             return true;
         } catch (SQLException e) {
             if (isUniqueViolation(e)) {
@@ -93,7 +102,11 @@ public final class KeywordFacade {
         Validate.positiveId(keywordId, "keywordId");
         String k = Terms.requireKeyword(keywordPhrase, "phrase");
         try {
-            return db.updateKeyword(keywordId, k);
+            boolean updated = db.updateKeyword(keywordId, k);
+            if (updated && analyzer != null) {
+                analyzer.analyzeKeyword(keywordId);
+            }
+            return updated;
         } catch (SQLException e) {
             throw FacadeException.internal("failed to update keyword", e);
         }

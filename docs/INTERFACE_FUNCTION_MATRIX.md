@@ -1,6 +1,6 @@
 # Interface → Function Matrix
 
-Machine-readable source: **`docs/interface-function-matrix.tsv`** (126 rows, 16 audit columns + id). This page is rendered from it by `tools/render_interface_matrix.py`; `InterfaceFunctionMatrixTest` fails the build if the TSV names a Java handler, facade, database operation or test that does not exist, if a screen or button label in the JavaFX interface has no row, or if a non-VERIFIED row lacks an explanation.
+Machine-readable source: **`docs/interface-function-matrix.tsv`** (120 rows, 16 audit columns + id). This page is rendered from it by `tools/render_interface_matrix.py`; `InterfaceFunctionMatrixTest` fails the build if the TSV names a Java handler, facade, database operation or test that does not exist, if a screen or button label in the JavaFX interface has no row, or if a non-VERIFIED row lacks an explanation.
 
 Every interactive element of the reference (`RussellTCrivello/file_analysis`: templates, `static/js/pages/*.js`, `Api/routes`, `Api/services`, `database/`) is traced forward to the Java control that reproduces its observable behaviour, and every Java control is traced back to the reference behaviour it exists for. The reference is a behavioural specification only — no Python, Flask route, template or JavaScript is executed, embedded or called by the Java application (`ArchitectureInvariantsTest#noWebApiOrPythonRuntimeDependency`).
 
@@ -8,13 +8,13 @@ Every interactive element of the reference (`RussellTCrivello/file_analysis`: te
 
 | Status | Meaning | Rows |
 |---|---|---|
-| **VERIFIED** | The Java control performs the same observable operation on the same data (case.db / Lucene) and an executable test named in the row exercises it. | 86 |
-| **ADAPTED** | Same purpose and same stored result, different mechanism appropriate to a desktop (dialog instead of modal, table sort instead of `?sort=` reload, search on the Search destination instead of an inline filter). The note says what differs. | 28 |
+| **VERIFIED** | The Java control performs the same observable operation on the same data (case.db / Lucene) and an executable test named in the row exercises it. | 82 |
+| **ADAPTED** | Same purpose and same stored result, different mechanism appropriate to a desktop (dialog instead of modal, table sort instead of `?sort=` reload, search on the Search destination instead of an inline filter). The note says what differs. | 27 |
 | **LIMITED** | Part of the reference behaviour is reproduced; the missing part and the reason are stated. | 2 |
 | **UNSUPPORTED** | Deliberately not reproduced, with the reason (evidence is never deleted; render-format toggles carry no information; a flag nothing reads). | 5 |
 | **REFERENCE-INERT** | The reference control does nothing observable (no route behind the handler, or a stored flag nothing evaluates). Reproducing it would be a fake feature. | 4 |
 | **ENVIRONMENT-LIMITED** | Implemented and covered, but the confirming step needs something this build environment lacks (a display for a GUI click-through). None at present: GUI click-through is recorded per suite in `VERIFICATION_REPORT.md` instead. | 0 |
-| **NOT RUN** | Implemented and statically wired, but the JavaFX layer has never been compiled or executed here, so no test proves the control itself. The note names the test behind the operation and what remains. | 1 |
+| **NOT RUN** | Implemented and statically wired, but the JavaFX layer has never been compiled or executed here, so no test proves the control itself. The note names the test behind the operation and what remains. | 0 |
 
 Nothing is ABSENT: every reference element has a Java destination or an explained status.
 
@@ -32,7 +32,7 @@ The gap is narrow but real, and it is exactly the class of defect static resolut
 
 ## Rows that are not VERIFIED
 
-### ADAPTED (28)
+### ADAPTED (27)
 
 | Id | Reference element | Java destination | Why |
 |---|---|---|---|
@@ -63,7 +63,6 @@ The gap is narrow but real, and it is exactly the class of defect static resolut
 | DB5 | method selector, analyse file / folder / database | Analysis | The three reference modes collapse into one destination that reads the same relations. |
 | ST1 | branding, theme colours, toggles (autoProcess, autoAnalyze, animations, breadcrumbs, logging), language | Settings | Engine options that change behaviour are exposed; branding and colour theming are presentation-only and deferred to the localisation/theming phase (LOCALIZATION_PREPARATION.md). |
 | G04 | toast notifications | (any) | Dialogs and inline labels instead of toasts. |
-| DB3a | (no reference equivalent) | Comprehensive Dashboard | New control with no reference counterpart. The reference recomputes dashboard figures by scanning on every request, so it needs no repair action; this application maintains derived counters (docs/DATABASE_PERFORMANCE_REPORT.md section 5) and therefore must expose a deterministic rebuild for counters left stale by a restored backup or an interrupted migration. |
 
 ### LIMITED (2)
 
@@ -91,12 +90,6 @@ The gap is narrow but real, and it is exactly the class of defect static resolut
 | S14 | #alertModal toggleAlert saveAlert | (none) | The reference stores alert flags but nothing ever evaluates or sends them; a control that promises alerts and delivers none is not reproduced. |
 | BA2 | #scheduleSelect, off-hours, #resourceLimit | Batch Analysis | Schedule and resource controls in the reference are never read by the server (COVERAGE_MATRIX R01). |
 
-### NOT RUN (1)
-
-| Id | Reference element | Java destination | Why |
-|---|---|---|---|
-| SN1 | result row link to file view | Search | Control → event → handler → facade → indexed SELECT → File Detail; duplicates, Unicode, archive children, missing and deleted records covered by the test. The UI leg has not been compiled or executed: GUI click-through is still required. |
-
 ## Full matrix
 
 ### Keywords list — `Keyword/keywords_list.html` · `keywords-list-page.js`
@@ -109,7 +102,7 @@ The gap is narrow but real, and it is exactly the class of defect static resolut
 | K04 | #sortBtn-text/-usage_count/-status | sortBy | keywords.api_keywords → ORDER BY | Keywords / table header | KeywordsScreen#build → KeywordFacade#listKeywords | in-memory sort of the page | Rows reorder | UiParityTest | ADAPTED |
 | K05 | #perPage, paginator | changePageSize, renderPaginator | keywords.api_keywords → LIMIT OFFSET | Keywords / perPage, Previous, Next | KeywordsScreen#onShow → KeywordFacade#listKeywords | CorpusDatabase#selectAllKeywords | Page label from-to of total; rows change | FacadeParityTest | VERIFIED |
 | K06 | row usage badge | renderRows | COUNT(kp.path_id) → path_keyword | Keywords / Files column | KeywordsScreen#onShow → RelationshipFacade#keywordFileCounts | CorpusDatabase#selectKeywordsWithFileCounts | COUNT(DISTINCT path_id) over the whole case | RelationshipModelTest#categoryBidirectional | VERIFIED |
-| K07 | row Duplicate flag / Merge duplicates | mergeAllDuplicates | keywords.merge_all_duplicates → LOWER(text) groups | Keywords / Merge Duplicates | KeywordsScreen#build → KeywordFacade#mergeDuplicates | CorpusDatabase#mergeKeyword | Groups listed; on confirm merged into the oldest, edges moved | RelationshipModelTest#mergeDuplicates | VERIFIED |
+| K07 | row Duplicate flag / Merge duplicates | mergeAllDuplicates | keywords.merge_all_duplicates → LOWER(text) groups | Keywords / Find Duplicates | KeywordsScreen#build → KeywordFacade#mergeDuplicates | CorpusDatabase#mergeKeyword | Groups listed; on confirm merged into the oldest, edges moved | RelationshipModelTest#mergeDuplicates | VERIFIED |
 | K08 | row view (href /keywords/id) | navigation | keywords.keyword_detail → keywords_paths COUNT | Keywords / eye button / double-click row | KeywordsScreen#build → RelationshipFacade#keyword | CorpusDatabase#selectFilesForKeyword | Keyword Detail opens | RelationshipModelTest#keywordBidirectional | VERIFIED |
 | K09 | row edit | editKeywordInModal, submitUpdateKeyword | keywords.update_keyword → UPDATE keywords | Keywords / pencil button | KeywordsScreen#build → KeywordFacade#updateKeyword | CorpusDatabase#updateKeyword | Phrase renamed; rejected under three words | RelationshipModelTest#storageInvariants | VERIFIED |
 | K10 | row delete | deleteKeyword | keywords.delete_keyword_api → DELETE keywords | Keywords / trash button | KeywordsScreen#build → KeywordFacade#deleteKeyword | CorpusDatabase#deleteKeyword | Row disappears; edges cascade | FacadeParityTest | VERIFIED |
@@ -197,7 +190,7 @@ The gap is narrow but real, and it is exactly the class of defect static resolut
 | Id | Reference element | JS handler | Route → backend op | Java destination / control | Java handler → facade | DB / index op | Visible result | Test | Status |
 |---|---|---|---|---|---|---|---|---|---|
 | F01 | Info: Type, Size, Created, Status, Source, Side | (server-rendered) | files.file_detail → paths JOIN hashs JOIN sources JOIN sides | File Detail / File Record grid | FileDetailScreen#onShow → ContentFacade#getPath | CorpusDatabase#selectPathById | Path, name, size, SHA-256, MD5, MIME, type, created, modified, registered, processing status, OCR, review status, source, aspect | UiParityTest#contentValidation | VERIFIED |
-| F02 | #contentText, #pageJump, goToPage, changePageSize | goToPage, jumpToPage | files.file_detail → contents 50000-char pages | File Detail / Full Content / Content tab Search/Copy/Download/Export; Analysis tab Classification/Word Frequency; Metadata tab; Full Content | FileDetailScreen#onShow → ContentFacade#getContentAsText | CorpusDatabase#selectContentsByPath | First 4000 chars on detail; whole text on Full Content | DestinationCoverageTest | VERIFIED |
+| F02 | #contentText, #pageJump, goToPage, changePageSize | goToPage, jumpToPage | files.file_detail → contents 50000-char pages | File Detail / Full Content / Extracted Text preview; Full Content | FileDetailScreen#onShow → ContentFacade#getContentAsText | CorpusDatabase#selectContentsByPath | First 4000 chars on detail; whole text on Full Content | DestinationCoverageTest | VERIFIED |
 | F03 | #searchInput, #caseSensitive, #wholeWord, findNext/findPrevious | performSearch, highlightMatches, scrollToMatch | (none) → (none) | Full Content / find field, Find Next | FullContentScreen#build → ContentFacade#getContentAsText | in-memory | Caret moves to the next match | UiParityTest | VERIFIED |
 | F04 | copyContent, downloadContent, print, toggleFullscreen, shareFile | same | (none) → (none) | Full Content / Copy All | FullContentScreen#build → (clipboard) | (none) | Text on the clipboard | UiParityTest | ADAPTED |
 | F05 | Metadata tab #metaName #metaNotes Save | saveMetadata | files.api_file_details → UPDATE paths | File Detail / Mark Read / Mark Unread | FileDetailScreen#toggleRead → ContentFacade#setPathStatus | CorpusDatabase#updatePathStatus | Badge flips and persists | UiParityTest#contentValidation | ADAPTED |
@@ -282,7 +275,7 @@ The gap is narrow but real, and it is exactly the class of defect static resolut
 | DB3 | source/aspect/category/type filters, tabs | applyFilters, initializeTabNavigation | analytics.dashboard_summary → filtered counts | Comprehensive Dashboard / Apply Filters, Clear | ComprehensiveDashboardScreen#build → AnalyticsFacade#filteredCounts | CorpusDatabase#countPaths | Every tile narrows consistently | DestinationCoverageTest#combinedFilters | VERIFIED |
 | DB4 | tree, expand/collapse, filters, classification modal | createPathNode, expandAll, handleFilterChange | analytics.path_* → paths grouped by folder | Path Analysis / Expand All, Collapse All, Refresh, node double-click | PathAnalysisScreen#build → AnalyticsFacade#directoryTree | CorpusDatabase#selectAllPathsForTree | Folder tree with rolled-up totals; a file node opens File Detail | DestinationCoverageTest#directoryTree | VERIFIED |
 | DB5 | method selector, analyse file / folder / database | analyzeFile, analyzeFolder, analyzeDatabase | analytics.path_classifications → words_paths JOIN words_categorys | Analysis / source / aspect / category / type distributions, similar files | AnalysisScreen#build → DashboardFacade#getCategoriesFiltered | CorpusDatabase#selectCategoriesForPath | Distributions over real relations | DestinationCoverageTest | ADAPTED |
-| DB6 | search, per page, copy, add to contacts, show files, export | searchInFiles, showEmailFiles, addToContacts | email_words.* → LIKE on words | Email Words / Domain, Domain Mode, Apply Filters, Reset, Export, Copy, Refresh; address row | EmailWordsScreen#build → SearchFacade#search | LiveCase#searchNow | Addresses found in indexed text with the files carrying them | UiParityTest | LIMITED |
+| DB6 | search, per page, copy, add to contacts, show files, export | searchInFiles, showEmailFiles, addToContacts | email_words.* → LIKE on words | Email Words / Refresh; address row | EmailWordsScreen#build → SearchFacade#search | LiveCase#searchNow | Addresses found in indexed text with the files carrying them | UiParityTest | LIMITED |
 | DB7 | metrics, pools, threads, processes, async tasks | updateMetrics et al. | concurrency.* → runtime introspection | Processing Monitor / Pause, Cancel, Refresh | ProcessingMonitorScreen#build → LiveCase#ingestRunning | LiveCase#statusCounts | Live worker and queue state during a real ingest | PipelineAcceptanceTest | VERIFIED |
 | DB8 | CPU / memory / disk meters, timed query | (static markup) | (none) → (none) | Performance / Run Timed Query, Refresh | PerformanceScreen#build → HostMetrics#read | LiveCase#indexedCount | Real OS counters or an explicit 'unavailable'; measured query time | HostMetricsTest#cpuIsMeasuredOrDeclaredMissing | VERIFIED |
 | DB9 | error table, retry | retry | analysis.retry → re-run | Error Dashboard / Refresh, Retry | ErrorDashboardScreen#build → AnalyticsFacade#errorReport | CorpusDatabase#selectPaths | Failures by type with causes; retry re-processes | DestinationCoverageTest#errorReport | VERIFIED |
@@ -328,12 +321,6 @@ The gap is narrow but real, and it is exactly the class of defect static resolut
 | G02 | error pages | (none) | (error handlers) → (none) | (inline) / empty states and dialogs | Fas#emptyState → FacadeException#internal | (none) | Failures surface where they happen | ResilienceTest | UNSUPPORTED |
 | G03 | partials | (none) | (none) → (none) | Fas / card, pageHeader, Previous/Next | Fas#pageHeader → (none) | (none) | Reusable pieces, not destinations | UiParityTest#stylesheetPresent | UNSUPPORTED |
 | G04 | toast notifications | showToast | (none) → (none) | (any) / Alert / inline label | Fas#saveBytes → (none) | (none) | Immediate feedback on every action | ArchitectureInvariantsTest#everyControlEndsInAnOperation | ADAPTED |
-
-### Search result navigation (Unit 5 — element id → File Detail)
-
-| Id | Reference element | JS handler | Route → backend op | Java destination / control | Java handler → facade | DB / index op | Visible result | Test | Status |
-|---|---|---|---|---|---|---|---|---|---|
-| SN1 | result row link to file view | openResult | paths.by_element → path WHERE element_id (UNIQUE, indexed) | Search / View Details button, results double-click, Enter; match-table double-click routes by type | SearchScreen#openResult, SearchScreen#openMatch → ContentFacade#getPathByElementId | CorpusDatabase#findPathIdByElement | Correct File Detail (or matched term detail); explicit warning when the result is not registered | SearchResultResolverTest#luceneHitResolves | NOT RUN |
 
 ## Relationship model behind the rows
 

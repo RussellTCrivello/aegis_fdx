@@ -6,7 +6,7 @@ names Java or a test that does not exist, if a limitation is left unexplained, o
 destination in the interface is missing from the inventory. If this document and the
 code ever disagree, the build says so.
 
-**Generated:** 2026-09-09T03:36:42Z
+**Generated:** 2026-09-09T06:00:44Z
 
 ## How to read it
 
