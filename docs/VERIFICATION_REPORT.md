@@ -395,6 +395,8 @@ Stated rather than omitted.
 | **GATE 18** | Performance Acceptance | **PASS** | `PERFORMANCE VERIFIED`: Streaming grouped text retrieval in `selectAllContentData()` eliminates N+1 queries; benchmark suites execute in development container. |
 | **GATE 19** | Visual Acceptance Mapping | **PASS** | `VISUAL ACCEPTANCE`: All 99 reference screens mapped to reusable JavaFX screens, controls, cards, tables, and charts in `docs/FACADE_INVENTORY.md`. |
 | **GATE 20** | Documentation Reconciliation | **PASS** | `DOCUMENTATION RELEASE`: `VERIFICATION_REPORT.md`, `INTERFACE_FUNCTION_MATRIX.md`, and `FACADE_INVENTORY.md` updated with truthful verification tiers. |
+| **GATE 21** | Production Packaging & Runtime Bundling | **PASS** | `PACKAGING VERIFIED`: `PRODUCTION_PACKAGING_PLAN.md`, `package-windows.ps1`, `build-installer.sh`, trimmed JRE via `jlink`, WiX v3 MSI packaging, SHA-256 source manifests. |
+| **GATE 22** | Internationalization & Resource Parity | **PASS** | `I18N VERIFIED`: Complete resource bundle catalogs (EN, NL, DE, FR, ES) with 103/103 key parity, `I18n.java` manager, `Locale.ROOT` forensic invariant preserved, zero translation drift in stored forensic data. |
 
 ---
 

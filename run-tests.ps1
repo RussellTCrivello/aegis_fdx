@@ -212,6 +212,7 @@ Invoke-JUnit 'JUnit suites (facade, agent, batch, model, scenario, resolver)' @(
     'com.aegis.fdx.CorpusAuthorityTest',
     'com.aegis.fdx.RelationshipCountsTest',
     'com.aegis.fdx.RetrospectiveIndexingTest',
+    'com.aegis.fdx.I18nTest',
     'com.aegis.fdx.FacadeInventoryTest'
 ) @('-Xmx900m', '-cp', $runCp)
 

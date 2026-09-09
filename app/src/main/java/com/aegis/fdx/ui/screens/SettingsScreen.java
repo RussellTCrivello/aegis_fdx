@@ -3,6 +3,7 @@ package com.aegis.fdx.ui.screens;
 import com.aegis.fdx.engine.CaseSettings;
 import com.aegis.fdx.facade.AegisFacades;
 import com.aegis.fdx.ui.Fas;
+import com.aegis.fdx.ui.I18n;
 import com.aegis.fdx.ui.Icons;
 import com.aegis.fdx.ui.Screen;
 
@@ -28,6 +29,7 @@ import javafx.scene.layout.VBox;
 import java.nio.file.Path;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 /**
  * Settings Subsystem: full 10-tab configuration center.
@@ -131,7 +133,36 @@ public final class SettingsScreen implements Screen {
         brandGrid.add(Fas.formField("Logo Icon", readOnly("Shield (Bootstrap #4f46e5)")), 1, 1);
 
         GridPane userGrid = grid();
-        userGrid.add(Fas.formField("Language", readOnly("English (en)")), 0, 0);
+        ComboBox<String> langCombo = new ComboBox<>();
+        langCombo.getItems().addAll(
+                "English (en)",
+                "Nederlands (nl)",
+                "Deutsch (de)",
+                "Français (fr)",
+                "Español (es)"
+        );
+        Locale cur = I18n.getLocale();
+        if ("nl".equalsIgnoreCase(cur.getLanguage())) {
+            langCombo.setValue("Nederlands (nl)");
+        } else if ("de".equalsIgnoreCase(cur.getLanguage())) {
+            langCombo.setValue("Deutsch (de)");
+        } else if ("fr".equalsIgnoreCase(cur.getLanguage())) {
+            langCombo.setValue("Français (fr)");
+        } else if ("es".equalsIgnoreCase(cur.getLanguage())) {
+            langCombo.setValue("Español (es)");
+        } else {
+            langCombo.setValue("English (en)");
+        }
+        langCombo.valueProperty().addListener((obs, ov, nv) -> {
+            if (nv != null) {
+                if (nv.contains("(nl)")) I18n.setLocale(Locale.forLanguageTag("nl"));
+                else if (nv.contains("(de)")) I18n.setLocale(Locale.GERMAN);
+                else if (nv.contains("(fr)")) I18n.setLocale(Locale.FRENCH);
+                else if (nv.contains("(es)")) I18n.setLocale(Locale.forLanguageTag("es"));
+                else I18n.setLocale(Locale.ENGLISH);
+            }
+        });
+        userGrid.add(Fas.formField("Language", langCombo), 0, 0);
         userGrid.add(Fas.formField("Timezone", readOnly(java.util.TimeZone.getDefault().getID())), 1, 0);
         userGrid.add(Fas.formField("Date Format", readOnly("YYYY-MM-DD")), 0, 1);
         userGrid.add(Fas.formField("Time Format", readOnly("HH:mm:ss")), 1, 1);
