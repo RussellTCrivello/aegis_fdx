@@ -80,25 +80,27 @@ jobs:
         if: always()
         shell: pwsh
         run: |
+          $tr = { param($t) if ($t.Length -gt 200) { $t.Substring(0,200) } else { $t } }
           $lines = [System.Collections.Generic.List[string]]::new()
-          $pat = '^== |passed, .*failed|tests, .*passed|GUI GATE|ingested elements|^SCREEN |  CLASS |SEARCH FIRED|AGENT FIRED|AGENT SKIP|BATCH FIRED|BATCH SKIP|ops/s|rows/s|p50|p95|p99|throughput'
-          foreach ($f in @('battery.log','gui-gate.log')) {
-            if (Test-Path $f) {
-              Select-String -Path $f -Pattern $pat -ErrorAction SilentlyContinue | ForEach-Object {
-                $t = $_.Line; if ($t.Length -gt 300) { $t = $t.Substring(0,300) }; $lines.Add($t) }
-            }
+          if (Test-Path battery.log) {
+            $bat = Get-Content battery.log
+            $bat | Select-String -Pattern 'passed, .*failed|tests, .*passed' | ForEach-Object { $lines.Add((&$tr $_.Line)) }
+            $bat | Select-String -Pattern '  CLASS  ' | ForEach-Object { $lines.Add((&$tr $_.Line)) }
+            $bat | Select-String -Pattern 'ops/s|rows/s|p50|p95|p99|throughput' | Select-Object -First 10 | ForEach-Object { $lines.Add((&$tr $_.Line)) }
+            $bat | Select-String -Pattern '^== ' | Select-Object -First 25 | ForEach-Object { $lines.Add((&$tr $_.Line)) }
           }
           if (Test-Path gui-gate.log) {
-            Select-String -Path gui-gate.log -Pattern 'FAIL|ENV' | ForEach-Object {
-              $t = $_.Line; if ($t.Length -gt 300) { $t = $t.Substring(0,300) }; $lines.Add($t) }
-            }
+            $gui = Get-Content gui-gate.log
+            $gui | Select-String -Pattern 'GUI GATE|ingested elements|FIRED|SKIP|FAIL|ENV' | ForEach-Object { $lines.Add((&$tr $_.Line)) }
+            $gui | Select-String -Pattern '^SCREEN ' | ForEach-Object { $lines.Add((&$tr $_.Line)) }
             $shots = (Get-ChildItem build/gui-shots/*.png -ErrorAction SilentlyContinue | Measure-Object).Count
             $lines.Add("screenshots=$shots")
           }
+          $lines.Add(("digest-lines=" + $lines.Count))
           $chunk = [System.Collections.Generic.List[string]]::new(); $n = 0
           foreach ($l in $lines) {
             $chunk.Add($l)
-            if ((($chunk -join "`n").Length) -gt 5000) {
+            if ((($chunk -join "`n").Length) -gt 1500) {
               $msg = ($chunk -join '%0A') -replace '%(?![02])','%25'; Write-Host "::notice::digest-$n`:$msg"
               $chunk.Clear(); $n++
             }
@@ -196,35 +198,31 @@ jobs:
         run: |
           python3 - <<'DGEOF'
           import re, glob
-          lines = []
-          pats = [r'^== ', r'passed, .*failed', r'tests, .*passed', r'GUI GATE',
-                  r'ingested elements', r'^SCREEN ', r'  CLASS ',
-                  r'SEARCH FIRED|AGENT FIRED|AGENT SKIP|BATCH FIRED|BATCH SKIP',
-                  r'ops/s|rows/s|p50|p95|p99|throughput']
-          rx = re.compile('|'.join('(?:%s)' % p for p in pats))
-          for f in ('battery.log', 'gui-gate.log'):
+          def read(f):
               try:
                   with open(f, encoding='utf-8', errors='replace') as fh:
-                      for line in fh:
-                          line = line.rstrip('\n')
-                          if rx.search(line):
-                              lines.append(line[:300])
+                      return fh.read().splitlines()
               except FileNotFoundError:
-                  pass
-          try:
-              with open('gui-gate.log', encoding='utf-8', errors='replace') as fh:
-                  for line in fh:
-                      if 'FAIL' in line or 'ENV' in line:
-                          lines.append(line.rstrip('\n')[:300])
-          except FileNotFoundError:
-              pass
+                  return []
+          # Priority-ordered and capped: annotation messages get truncated past a
+          # few KB, so the footers and gate verdicts come first and the digest
+          # ends with a marker line whose absence proves truncation.
+          bat, gui = read('battery.log'), read('gui-gate.log')
+          lines = []
+          lines += [l[:200] for l in bat if re.search(r'passed, .*failed|tests, .*passed', l)]
+          lines += [l[:200] for l in bat if '  CLASS  ' in l]
+          lines += [l[:200] for l in gui if re.search(r'GUI GATE|ingested elements|FIRED|SKIP|FAIL|ENV', l)]
+          lines += [l[:200] for l in gui if l.startswith('SCREEN ')]
+          lines += [l[:200] for l in bat if re.search(r'ops/s|rows/s|p50|p95|p99|throughput', l)][:10]
+          lines += [l[:200] for l in bat if re.match(r'^== ', l)][:25]
           lines.append('screenshots=%d' % len(glob.glob('build/gui-shots/*.png')))
+          lines.append('digest-lines=%d' % len(lines))
           def esc(t):
               return t.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
           chunk, n = [], 0
           for line in lines:
               chunk.append(line)
-              if sum(len(c) for c in chunk) > 5000:
+              if sum(len(c) for c in chunk) > 1500:
                   print('::notice::digest-%d:%s' % (n, esc('\n'.join(chunk))))
                   chunk, n = [], n + 1
           if chunk:

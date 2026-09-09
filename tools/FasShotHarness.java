@@ -132,29 +132,54 @@ public class FasShotHarness {
             }
         }
 
-        /** Types a query into the real Search screen and clicks the real button. */
+        /** Types a query into the real Search screen, clicks the real button, and
+         * demands real results: the seeded case contains consulting material, so an
+         * empty table here is a product failure, not an empty state. */
         private void runSearch(Scene scene) {
             try {
+                java.util.List<javafx.scene.Node> nodes = allNodes(scene.getRoot());
                 javafx.scene.control.TextField q = null;
-                javafx.scene.control.Button go = null;
-                for (javafx.scene.Node n : allNodes(scene.getRoot())) {
-                    if (q == null && n instanceof javafx.scene.control.TextField tf
+                int qIndex = -1;
+                for (int i = 0; i < nodes.size(); i++) {
+                    if (nodes.get(i) instanceof javafx.scene.control.TextField tf
                             && tf.getPromptText() != null
                             && tf.getPromptText().startsWith("Search across")) {
                         q = tf;
+                        qIndex = i;
+                        break;
                     }
-                    // The sidebar nav link is also labelled "Search" and appears first
-                    // in traversal order; match the page's primary button instead.
-                    if (go == null && n instanceof javafx.scene.control.Button b
-                            && "Search".equals(b.getText())
-                            && b.getStyleClass().contains("btn-primary")) {
-                        go = b;
+                }
+                // The sidebar link and the topbar global-search button are also
+                // labelled "Search" and both precede the page form in traversal
+                // order; the page button is the first primary "Search" AFTER the
+                // query field.
+                javafx.scene.control.Button go = null;
+                if (qIndex >= 0) {
+                    for (int i = qIndex + 1; i < nodes.size(); i++) {
+                        if (nodes.get(i) instanceof javafx.scene.control.Button b
+                                && "Search".equals(b.getText())
+                                && b.getStyleClass().contains("btn-primary")) {
+                            go = b;
+                            break;
+                        }
                     }
                 }
                 if (q != null && go != null) {
                     q.setText("consulting");
                     go.fire();
                     System.out.println("SEARCH FIRED");
+                    // The query runs off the UI thread; wait, then count rows.
+                    Thread.sleep(1500);
+                    int rows = 0;
+                    for (javafx.scene.Node n : allNodes(scene.getRoot())) {
+                        if (n instanceof javafx.scene.control.TableView tv) {
+                            rows += tv.getItems().size();
+                        }
+                    }
+                    System.out.println("SEARCH RESULTS: " + rows + " rows");
+                    if (rows == 0) {
+                        fail("SEARCH FAIL: 'consulting' returned no rows on the seeded case");
+                    }
                 } else {
                     fail("SEARCH FAIL: controls not found");
                 }
