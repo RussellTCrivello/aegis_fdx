@@ -399,7 +399,26 @@ public final class CorpusDatabase {
                 "DELETE FROM word_category WHERE category_id=? AND word_id=?")) {
             ps.setInt(1, categoryId);
             ps.setInt(2, wordId);
-            return ps.executeUpdate() > 0;
+            boolean removed = ps.executeUpdate() > 0;
+            if (removed) {
+                try (PreparedStatement checkPs = conn.prepareStatement("""
+                        SELECT 1 FROM word_category WHERE word_id = ?
+                        UNION ALL
+                        SELECT 1 FROM category WHERE word_id = ?""")) {
+                    checkPs.setInt(1, wordId);
+                    checkPs.setInt(2, wordId);
+                    try (ResultSet rs = checkPs.executeQuery()) {
+                        if (!rs.next()) {
+                            try (PreparedStatement delPs = conn.prepareStatement(
+                                    "DELETE FROM path_word WHERE word_id = ?")) {
+                                delPs.setInt(1, wordId);
+                                delPs.executeUpdate();
+                            }
+                        }
+                    }
+                }
+            }
+            return removed;
         }
     }
 

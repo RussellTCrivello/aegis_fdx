@@ -1,6 +1,6 @@
 # AEGIS-FDX source manifest - regenerate with: packaging/make-manifest.sh (or .ps1)
 # Verifies a checkout is complete and self-consistent before building.
-# Generated: 2026-09-09T07:05:16Z
+# Generated: 2026-09-09T07:09:07Z
 16ca465504404df14dea70cbc0c7d490a6b80fb7bd378e4a3b66667ba1d1d91c  app/build.gradle.kts
 a50ba435da72eba0899409746b3dbf616778e46aa3a2c12643c4f41f31595201  app/src/main/java/com/aegis/fdx/Launcher.java
 fefdeb103ac764f5adb0efe044f22f88ba61fa53b651d64fec919a6beb0770ca  app/src/main/java/com/aegis/fdx/ai/agent/AgentActivity.java
@@ -117,7 +117,7 @@ aa9a8ccaf7d7f30163ac898c2a9125689081d751ad6ac4117f604abee9d7919b  app/src/main/j
 a174a7a9d8ed3270cd2933ba80acae69518fb11b3a2deffbdc530f87fbb69e8e  app/src/main/java/com/aegis/fdx/spi/AnalyzerRegistry.java
 048793a62cf367b13576839831f7f0e571d0c31605923fce322405d28f487650  app/src/main/java/com/aegis/fdx/store/CaseDatabase.java
 80ee66c9503ac148898ac41ab681767473b1883871a4a3d0d7c36853cef2ff49  app/src/main/java/com/aegis/fdx/store/CaseFolder.java
-7962a84e03c49c7748102c30859f08737d94789a3fa6c435af147815ea9dbf48  app/src/main/java/com/aegis/fdx/store/CorpusDatabase.java
+61e1e6f85d3f39672ef26b6e23884ca8be4fddab5c6815118260700534a903cd  app/src/main/java/com/aegis/fdx/store/CorpusDatabase.java
 f89d1b944f2f2eb06f9d5e09c7f605c103fe84bcce78bdb1c9a6db1d0a6bb54d  app/src/main/java/com/aegis/fdx/store/CorpusSchema.java
 145084240ce058ef70e0e118e076b374b63110b6999a74314c6a4f9b5e6500c4  app/src/main/java/com/aegis/fdx/store/DashboardStats.java
 9cb10a8c16aabc26bf033e26d34bbfc7b936dee0da4c7d99bf1276caaeb20db9  app/src/main/java/com/aegis/fdx/store/OperationTimings.java
