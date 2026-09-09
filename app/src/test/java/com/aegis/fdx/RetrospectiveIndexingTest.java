@@ -133,7 +133,8 @@ public class RetrospectiveIndexingTest {
 
             // 5. Category word retrospective indexing & stale-edge removal
             assertTrue(f.categories().linkWordToCategory("gamma", "greek"));
-            int gammaWordId = f.relationships().categoryWords("gamma", 10, 0).results().get(0).id();
+            int gammaWordId = f.categories().getCategoryWords(greekCatId, 10, 0).results().stream()
+                    .filter(w -> w.word().equals("gamma")).findFirst().orElseThrow().id();
 
             TermSummary gammaSummary = f.relationships().categoryWord(gammaWordId);
             assertEquals(2, gammaSummary.fileCount(), "gamma appears in fileA and fileB");

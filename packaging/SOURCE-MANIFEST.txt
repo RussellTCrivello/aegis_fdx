@@ -1,6 +1,6 @@
 # AEGIS-FDX source manifest - regenerate with: packaging/make-manifest.sh (or .ps1)
 # Verifies a checkout is complete and self-consistent before building.
-# Generated: 2026-09-09T07:00:11Z
+# Generated: 2026-09-09T07:05:16Z
 16ca465504404df14dea70cbc0c7d490a6b80fb7bd378e4a3b66667ba1d1d91c  app/build.gradle.kts
 a50ba435da72eba0899409746b3dbf616778e46aa3a2c12643c4f41f31595201  app/src/main/java/com/aegis/fdx/Launcher.java
 fefdeb103ac764f5adb0efe044f22f88ba61fa53b651d64fec919a6beb0770ca  app/src/main/java/com/aegis/fdx/ai/agent/AgentActivity.java
@@ -199,7 +199,7 @@ ded1c51ce5b3be5d21bb8815fbb50998897858b48b8389b2050d3d060af6a2c6  app/src/test/j
 3c58ddbb06500a8c0e925bfcb1c325cc53e030a437daa1bebbbd90aa12c28205  app/src/test/java/com/aegis/fdx/RelationshipCountsTest.java
 05b77db165c66894dcc265d55efbee39e6806c4e297e289e8a11cdb48a8f2e15  app/src/test/java/com/aegis/fdx/RelationshipModelTest.java
 6e4ed14c83d9627bfd518975ab416c3e2a7a2695963a204e1268f4b730c5b9d7  app/src/test/java/com/aegis/fdx/ResilienceTest.java
-68e76e7c3dbfd50a75ca7f1d589101c6bcdf9a5d0e88cc7ae90c90e1c39ae18a  app/src/test/java/com/aegis/fdx/RetrospectiveIndexingTest.java
+eecad601d7a6d7f2ea387d9b723c99fcb7bba2877cffce94b8299a4ceb3b151d  app/src/test/java/com/aegis/fdx/RetrospectiveIndexingTest.java
 c1545930b00f819ceaad2ca63ed08cea5dc8fa31f5c9748dff2133f4a60320f5  app/src/test/java/com/aegis/fdx/SearchFacetsTest.java
 e8ff928ebbf16447c3a91793494647e13d1b5344e9178f7b129be5d89bc9dc91  app/src/test/java/com/aegis/fdx/SearchResultResolverTest.java
 e72d6df441adb20880ad5e0f9e898e8de50f3697ee30de8d5f6c5c1454a0fc50  app/src/test/java/com/aegis/fdx/SettingsPersistenceTest.java
