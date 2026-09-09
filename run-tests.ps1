@@ -117,7 +117,7 @@ Write-Host '== compiling main =='
 $mainSrc = Get-ChildItem -LiteralPath (Join-Path $root 'app\src\main\java') -Recurse -Filter *.java |
            ForEach-Object { $_.FullName }
 $mainList = Join-Path $env:TEMP 'aegis-main-sources.txt'
-$mainSrc | Set-Content -LiteralPath $mainList -Encoding UTF8
+[System.IO.File]::WriteAllLines($mainList, $mainSrc, (New-Object System.Text.UTF8Encoding($false)))
 & $javacExe -nowarn --module-path $FxLib --add-modules javafx.controls `
     -cp $cp -d $outMain "@$mainList"
 if ($LASTEXITCODE -ne 0) { Fail 'Main compilation failed.' }
@@ -130,7 +130,7 @@ Write-Host '== compiling tests =='
 $testSrc = Get-ChildItem -LiteralPath (Join-Path $root 'app\src\test\java') -Recurse -Filter *.java |
            ForEach-Object { $_.FullName }
 $testList = Join-Path $env:TEMP 'aegis-test-sources.txt'
-$testSrc | Set-Content -LiteralPath $testList -Encoding UTF8
+[System.IO.File]::WriteAllLines($testList, $testSrc, (New-Object System.Text.UTF8Encoding($false)))
 & $javacExe -nowarn -proc:none --module-path $FxLib --add-modules javafx.controls `
     -cp "$outMain;$cp" -d $outTest "@$testList"
 if ($LASTEXITCODE -ne 0) { Fail 'Test compilation failed.' }
