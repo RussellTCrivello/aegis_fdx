@@ -939,21 +939,22 @@ public final class ComprehensiveDashboardScreen implements Screen {
                     try {
                         var clusters = facades.liveCase().duplicateClusters();
                         int gid = 1;
-                        for (var cluster : clusters) {
-                            if (cluster.size() >= minSize) {
-                                Item lead = cluster.get(0);
-                                List<String> names = cluster.stream().map(Item::name).toList();
+                        for (var entry : clusters.entrySet()) {
+                            List<String> names = entry.getValue();
+                            if (names.size() >= minSize) {
+                                String leadName = names.get(0);
+                                String ext = leadName.contains(".") ? leadName.substring(leadName.lastIndexOf('.') + 1) : "—";
                                 Integer leadPathId = null;
                                 try {
-                                    leadPathId = dao.findPathIdByElement(lead.id());
+                                    leadPathId = dao.findPathIdByElement(leadName);
                                 } catch (Exception ignored) {}
 
                                 out.add(new SimilarGroupRow(
-                                        gid++, "100% (Exact)", cluster.size(),
-                                        lead.extension() == null ? "—" : lead.extension(),
-                                        lead.name(), String.join(", ", names),
+                                        gid++, "100% (Exact)", names.size(),
+                                        ext,
+                                        leadName, String.join(", ", names),
                                         leadPathId == null ? 0 : leadPathId));
-                                breakdown.merge("Exact SHA-256 (" + lead.extension() + ")", cluster.size(), Integer::sum);
+                                breakdown.merge("Exact SHA-256 (" + ext + ")", names.size(), Integer::sum);
                             }
                         }
                     } catch (Exception ignored) {}
@@ -1042,22 +1043,22 @@ public final class ComprehensiveDashboardScreen implements Screen {
         statsJob.run(
                 () -> {
                     var stats = facades.dashboard().getStats();
-                    int totalFiles = stats.totalFiles();
+                    long totalFiles = stats.totalFiles();
                     long totalBytes = stats.totalBytes();
                     int catCount = facades.categories().listCategories(1, 0).totalCount();
                     var review = facades.analytics().reviewProgress();
                     int read = review.getOrDefault("Read", 0);
                     int unread = review.getOrDefault("Unread", 0);
-                    int errors = stats.errors();
+                    long errors = stats.errors();
                     return new Object[]{totalFiles, totalBytes, read, read + unread, catCount, errors};
                 },
                 res -> {
-                    int totalFiles = (int) res[0];
+                    long totalFiles = (long) res[0];
                     long totalBytes = (long) res[1];
                     int read = (int) res[2];
                     int totalReview = (int) res[3];
                     int catCount = (int) res[4];
-                    int errors = (int) res[5];
+                    long errors = (long) res[5];
 
                     tiles.getChildren().setAll(Fas.statsGrid(
                             Fas.statCard(Icons.FILES, Fas.PRIMARY, String.format("%,d", totalFiles), "Files Matching"),

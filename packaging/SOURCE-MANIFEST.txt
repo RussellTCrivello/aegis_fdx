@@ -1,6 +1,6 @@
 # AEGIS-FDX source manifest - regenerate with: packaging/make-manifest.sh (or .ps1)
 # Verifies a checkout is complete and self-consistent before building.
-# Generated: 2026-09-09T06:49:57Z
+# Generated: 2026-09-09T07:00:11Z
 16ca465504404df14dea70cbc0c7d490a6b80fb7bd378e4a3b66667ba1d1d91c  app/build.gradle.kts
 a50ba435da72eba0899409746b3dbf616778e46aa3a2c12643c4f41f31595201  app/src/main/java/com/aegis/fdx/Launcher.java
 fefdeb103ac764f5adb0efe044f22f88ba61fa53b651d64fec919a6beb0770ca  app/src/main/java/com/aegis/fdx/ai/agent/AgentActivity.java
@@ -129,7 +129,7 @@ b08aa9d9e6e6464848209cbe3d0f83476e4de3b8f8b8a351df5ead64e28c40fe  app/src/main/j
 e4693835bfd5cf8380d811f7ae074a56f4cb0ed03783603524bbb43fcd2fb4dc  app/src/main/java/com/aegis/fdx/ui/Fas.java
 14136a78317182d9548da2b045dbe70705f44d1cb8ef552dc771f9933e7e6670  app/src/main/java/com/aegis/fdx/ui/FasApp.java
 daa796eebb431fea8835715fa673042eda3cd8174da7cc32b1aa8a73247b5030  app/src/main/java/com/aegis/fdx/ui/I18n.java
-bb0a33dbabb5c3f4d691436ab82cf26d0db5e7b6710e98339bf9583ab2559590  app/src/main/java/com/aegis/fdx/ui/Icons.java
+a9a0d8e8f2dff283b1b0b7311f493e7eda92ec236f5ee888aa4498c4d6ee3350  app/src/main/java/com/aegis/fdx/ui/Icons.java
 3e994f1bf56e4e6fa03ea87596f9a594654afe5b483f18291cee215985eda289  app/src/main/java/com/aegis/fdx/ui/Router.java
 317f606ed0fd3aff2a78d2b99089cbc18e3effedca8f518ec658adf7e4fb0b51  app/src/main/java/com/aegis/fdx/ui/Screen.java
 be1d9760ef927fb13e17aea6d95f0a6251d2990722d0528f1a45a23be351f575  app/src/main/java/com/aegis/fdx/ui/UiParts.java
@@ -142,11 +142,11 @@ d7ec91a38a304afdcad7e4eea73f33dfed5e85b1872467f5a5e6ab375dd2c085  app/src/main/j
 2cba565d6b563d951ff4acb8de156cb053bd7b8709d001fbe48809db4abded5b  app/src/main/java/com/aegis/fdx/ui/screens/BatchAnalysisScreen.java
 41c019224f57f372d8292a342940e7149c71e6dc9c6bba9b6e83fb01b0679461  app/src/main/java/com/aegis/fdx/ui/screens/CategoriesScreen.java
 a7035f4ba58bf4b4d379851f0b166fbf26fef6d610bf0ccf376ad3b3ab755e88  app/src/main/java/com/aegis/fdx/ui/screens/ChartsDashboardScreen.java
-fd8806fb6e93ecf7c5a8db1d9e4dc5b2a50e7418984a1f77274c52a586654fec  app/src/main/java/com/aegis/fdx/ui/screens/ComprehensiveDashboardScreen.java
+dcc89c4ea7975c4348dc5ace507e8eb48da23c7468f0eabb31584a5fa7f92c3f  app/src/main/java/com/aegis/fdx/ui/screens/ComprehensiveDashboardScreen.java
 0128e43aada6b3f29fcf4c4f44f5ac767b50d73260f175e28b84261875f706f2  app/src/main/java/com/aegis/fdx/ui/screens/DashboardScreen.java
 1a27f26dc415ed3f493a06623f5e555317eda2776fd739b4f9fcf6884a36054d  app/src/main/java/com/aegis/fdx/ui/screens/EmailWordsScreen.java
 37c5cbcb0419445eb14ac4bafa008c908242c18df4040d347d72652dcd3aa9be  app/src/main/java/com/aegis/fdx/ui/screens/ErrorDashboardScreen.java
-0398a9a061f544fb8a8c60c785e10d9560e5a080138cc9a0592f0af23c2c45c7  app/src/main/java/com/aegis/fdx/ui/screens/FileDetailScreen.java
+04ce893981bfa9c757bb6656ffadf7c160260ad50c1d559be3ea8380878465a7  app/src/main/java/com/aegis/fdx/ui/screens/FileDetailScreen.java
 5a25a6d04e51809eb18e3587a513ebdba8519d281c1a9fc8b9240ab8670f6ed1  app/src/main/java/com/aegis/fdx/ui/screens/FileLibraryScreen.java
 e7fd640b680b403095ae6ae5bb83eb04f1a3b029b15f00119dad9a8fa9316df7  app/src/main/java/com/aegis/fdx/ui/screens/FullContentScreen.java
 4791de4b654c76144222abbf672d35702aa6e4ca6f47f56e6d4aa09deb5c4be9  app/src/main/java/com/aegis/fdx/ui/screens/GeolocationScreen.java
