@@ -67,10 +67,10 @@ jobs:
           New-Item -ItemType Directory -Force -Path build/gui-shots | Out-Null
           $runCp = "build/gui-tools;build/classes;$cp"
           $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-          java -Dfile.encoding=UTF-8 --module-path $env:AEGIS_FX --add-modules javafx.controls,javafx.swing `
+          java "-Dfile.encoding=UTF-8" --module-path $env:AEGIS_FX --add-modules "javafx.controls,javafx.swing" `
             -cp $runCp FasSeedHarness *>&1 | Tee-Object -FilePath gui-gate.log -Append
           $c1 = $LASTEXITCODE
-          java -Dfile.encoding=UTF-8 --module-path $env:AEGIS_FX --add-modules javafx.controls,javafx.swing `
+          java "-Dfile.encoding=UTF-8" --module-path $env:AEGIS_FX --add-modules "javafx.controls,javafx.swing" `
             -cp $runCp FasShotHarness build/gui-shots *>&1 | Tee-Object -FilePath gui-gate.log -Append
           $c2 = $LASTEXITCODE
           $ErrorActionPreference = $prev
