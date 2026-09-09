@@ -18,6 +18,7 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableColumn;
@@ -26,6 +27,10 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Detail for one node of the relationship graph — a keyword, a category or a category
@@ -59,6 +64,9 @@ public final class TermDetailScreen implements Detail {
     private FlowPane wordChips;
     private final ObservableList<TermSummary.FileRef> files = FXCollections.observableArrayList();
     private final ObservableList<SearchResultDto> occurrences = FXCollections.observableArrayList();
+    private FlowPane fileCards;
+    private Label filesHeader;
+    private final Set<Integer> selectedFiles = new HashSet<>();
 
     public TermDetailScreen(AegisFacades facades, Router router, Kind kind,
                             AgentService agent) {
@@ -87,7 +95,9 @@ public final class TermDetailScreen implements Detail {
 
     @Override
     public String breadcrumb() {
-        return "Home / Analysis / " + listDestination()
+        // The analysis trail reads Home / Analysis / Category / <name>.
+        String segment = kind == Kind.CATEGORY ? "Category" : listDestination();
+        return "Home / Analysis / " + segment
                 + (termText.isBlank() ? " / Detail" : " / " + termText);
     }
 
@@ -202,6 +212,33 @@ public final class TermDetailScreen implements Detail {
                 Fas.fieldLabel("Keywords"), keywordChips,
                 Fas.fieldLabel("Category words"), wordChips);
 
+        // Category detail shows its files as cards (source, side, size, date,
+        // extension + View Details / Full View / Download), with a selection
+        // checkbox on each. Other kinds keep the relationship table alone.
+        filesHeader = Fas.muted("0 files");
+        fileCards = new FlowPane(12, 12);
+        Button selectAllFiles = Fas.ghost("Select All", Icons.CHECK_ALL);
+        selectAllFiles.setOnAction(e -> {
+            for (TermSummary.FileRef f : files) {
+                selectedFiles.add(f.pathId());
+            }
+            buildFileCards();
+        });
+        Button selectNoFiles = Fas.ghost("Select None", Icons.CLOSE);
+        selectNoFiles.setOnAction(e -> {
+            selectedFiles.clear();
+            buildFileCards();
+        });
+        Button downloadSelected = Fas.outline("Download Selected", Icons.DOWNLOAD);
+        downloadSelected.setOnAction(e -> downloadSelected());
+        HBox fileBulk = Fas.row(8, selectAllFiles, selectNoFiles, downloadSelected);
+        boolean isCategory = kind == Kind.CATEGORY;
+        fileCards.setVisible(isCategory);
+        fileCards.setManaged(isCategory);
+        fileBulk.setVisible(isCategory);
+        fileBulk.setManaged(isCategory);
+        VBox filesBox = new VBox(10, filesHeader, fileCards, fileBulk, fileTable);
+
         VBox content = new VBox(16,
                 Fas.pageHeader(title(), null, analyze, back, manage, searchBtn),
                 new VBox(2, heading, subtitle),
@@ -209,9 +246,9 @@ public final class TermDetailScreen implements Detail {
                 new HBox(14,
                         grow(Fas.cardWithHeader("Related Terms",
                                 "Each with its own whole-case file count; click to open", related)),
-                        grow(Fas.cardWithHeader("Related Files",
+                        grow(Fas.cardWithHeader("Files",
                                 "Files this term reaches through recorded relationships",
-                                fileTable))),
+                                filesBox))),
                 Fas.cardWithHeader("Occurrences in Indexed Text",
                         "Live search across everything the engine indexed",
                         new VBox(10, occurrencesLabel, occTable)));
@@ -247,14 +284,20 @@ public final class TermDetailScreen implements Detail {
                 case CATEGORY -> facades.relationships().category(termId);
             };
             termText = t.text();
-            heading.setText(termText);
+            heading.setText(kind == Kind.CATEGORY ? "category: " + termText : termText);
             subtitle.setText(switch (kind) {
                 case WORD -> "Category word · normalised as \"" + t.normalized() + "\"";
                 case KEYWORD -> "Keyword · " + t.wordCount() + " words · normalised as \""
                         + t.normalized() + "\"";
-                case CATEGORY -> "Category · files are reached through its words or by attribution";
+                case CATEGORY -> "Files reached through its words or by attribution";
             });
             files.setAll(t.files());
+            selectedFiles.retainAll(t.files().stream().map(TermSummary.FileRef::pathId).toList());
+            filesHeader.setText(t.files().size()
+                    + (t.files().size() == 1 ? " file" : " files"));
+            if (kind == Kind.CATEGORY) {
+                buildFileCards();
+            }
             chips(categoryChips, t.categories(), "No categories");
             chips(keywordChips, t.keywords(), "No keywords");
             chips(wordChips, t.categoryWords(), "No category words");
@@ -286,6 +329,117 @@ public final class TermDetailScreen implements Detail {
             heading.setText("Could not load this term");
             subtitle.setText(e.getMessage());
         }
+    }
+
+    private void buildFileCards() {
+        fileCards.getChildren().clear();
+        if (files.isEmpty()) {
+            fileCards.getChildren().add(Fas.emptyState(
+                    "No files in this category yet. Classify material or link words to populate it."));
+            return;
+        }
+        for (TermSummary.FileRef f : files) {
+            fileCards.getChildren().add(fileCard(f));
+        }
+    }
+
+    private VBox fileCard(TermSummary.FileRef f) {
+        CheckBox cb = new CheckBox();
+        cb.setSelected(selectedFiles.contains(f.pathId()));
+        cb.setOnAction(e -> {
+            if (cb.isSelected()) {
+                selectedFiles.add(f.pathId());
+            } else {
+                selectedFiles.remove(f.pathId());
+            }
+        });
+
+        Label name = new Label(f.fileName());
+        name.getStyleClass().add("file-card-name");
+        name.setWrapText(true);
+
+        String date = "";
+        try {
+            var p = facades.contents().getPath(f.pathId());
+            date = p.fileDate() == null ? "" : p.fileDate().toString();
+        } catch (RuntimeException ignored) {
+            date = "";
+        }
+        String ext = f.fileType() == null ? "" : f.fileType();
+        if (!ext.isBlank() && !ext.startsWith(".")) {
+            ext = "." + ext;
+        }
+        Label meta = new Label("source: " + nz(f.sourceName()) + "   side: " + nz(f.aspectName())
+                + "\nsize: " + DashboardScreen.humanBytes(f.fileSize())
+                + "   date: " + (date.isBlank() ? "—" : date)
+                + "   extension: " + (ext.isBlank() ? "—" : ext));
+        meta.getStyleClass().add("file-card-meta");
+        meta.setWrapText(true);
+
+        Button view = Fas.ghost("View Details", Icons.EYE);
+        view.setOnAction(e -> router.openFile(f.pathId()));
+        Button full = Fas.ghost("Full View", Icons.FILE_TEXT);
+        full.setOnAction(e -> router.openContent(f.pathId()));
+        Button download = Fas.ghost("Download", Icons.DOWNLOAD);
+        download.setOnAction(e -> downloadFile(f));
+
+        VBox card = new VBox(8, Fas.row(8, name, Fas.spacer(), cb), meta,
+                Fas.row(4, view, full, download));
+        card.getStyleClass().add("file-card");
+        card.setPrefWidth(300);
+        card.setOnMouseClicked(e -> {
+            if (e.getClickCount() == 2) {
+                router.openFile(f.pathId());
+            }
+        });
+        return card;
+    }
+
+    private void downloadFile(TermSummary.FileRef f) {
+        String text = "";
+        try {
+            text = facades.contents().getContentAsText(f.pathId());
+        } catch (RuntimeException ignored) {
+            text = "";
+        }
+        if (text == null) {
+            text = "";
+        }
+        Fas.saveBytes(heading, "Download File Content",
+                safeName(f.fileName()) + ".txt", text.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void downloadSelected() {
+        if (selectedFiles.isEmpty()) {
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (TermSummary.FileRef f : files) {
+            if (!selectedFiles.contains(f.pathId())) {
+                continue;
+            }
+            String text = "";
+            try {
+                text = facades.contents().getContentAsText(f.pathId());
+            } catch (RuntimeException ignored) {
+                text = "";
+            }
+            sb.append("===== ").append(f.fileName()).append(" =====\n");
+            sb.append(text == null ? "" : text).append("\n\n");
+        }
+        Fas.saveBytes(heading, "Download Selected Files",
+                safeName(termText) + "-files.txt", sb.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String safeName(String s) {
+        if (s == null || s.isBlank()) {
+            return "content";
+        }
+        return s.replaceAll("[^A-Za-z0-9._\\-]+", "_");
+    }
+
+    private static String nz(String s) {
+        return s == null ? "" : s;
     }
 
     private void chips(FlowPane pane, java.util.List<TermSummary.RelatedTerm> terms, String none) {
