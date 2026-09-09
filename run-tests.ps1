@@ -194,7 +194,7 @@ Invoke-Suite 'host metrics' 'com.aegis.fdx.HostMetricsTest' @()
 function Invoke-JUnit($title, [string[]]$classes, [string[]]$jvmArgs) {
     Write-Host ''
     Write-Host "== $title ==" -ForegroundColor Cyan
-    $r = Invoke-Java (@jvmArgs + @('com.aegis.fdx.JUnitRunner') + $classes)
+    $r = Invoke-Java ($jvmArgs + @('com.aegis.fdx.JUnitRunner') + $classes)
     if ($r.Code -ne 0) { Fail "$title failed (exit $($r.Code))." }
 }
 
