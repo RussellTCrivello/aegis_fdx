@@ -6,6 +6,7 @@ import com.aegis.fdx.model.Item;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -13,7 +14,8 @@ import java.util.Set;
  *
  * <p>Elements are addressed by their string id ({@code E-000001-E1}); an int overload
  * is accepted for convenience. Text and document previews return the stored extracted
- * text, image and PDF previews return the native bytes, and anything else reports
+ * text, image previews return the native bytes plus the stored extracted text,
+ * PDF previews return the native bytes, and anything else reports
  * {@link PreviewDto.PreviewType#UNSUPPORTED}.
  */
 public final class PreviewFacade {
@@ -89,8 +91,19 @@ public final class PreviewFacade {
 
         if (type == PreviewDto.PreviewType.IMAGE || type == PreviewDto.PreviewType.PDF) {
             byte[] data = readNative(it);
+            // Images also carry their stored text (dimensions/EXIF/OCR/filename
+            // fallback) so callers can show the picture and its words together.
+            String text = null;
+            boolean truncated = false;
+            if (type == PreviewDto.PreviewType.IMAGE) {
+                text = readStoredText(it.id());
+                if (text != null && text.length() > MAX_TEXT_CHARS) {
+                    text = text.substring(0, MAX_TEXT_CHARS);
+                    truncated = true;
+                }
+            }
             return new PreviewDto(type, it.name(), it.sourcePath(), it.mediaType(),
-                    it.size(), null, data, maxWidth, maxHeight, false,
+                    it.size(), text, data, maxWidth, maxHeight, truncated,
                     data == null ? "native file not available" : null);
         }
 
@@ -99,11 +112,16 @@ public final class PreviewFacade {
                 "preview not supported for ." + ext);
     }
 
+    /** Whether an extension denotes a displayable image (case-insensitive). */
+    public static boolean isImageExtension(String ext) {
+        return ext != null && IMAGE_EXT.contains(ext.toLowerCase(Locale.ROOT));
+    }
+
     private static PreviewDto.PreviewType classify(String ext) {
         if ("pdf".equals(ext)) {
             return PreviewDto.PreviewType.PDF;
         }
-        if (IMAGE_EXT.contains(ext)) {
+        if (isImageExtension(ext)) {
             return PreviewDto.PreviewType.IMAGE;
         }
         if (TEXT_EXT.contains(ext)) {

@@ -1,6 +1,7 @@
 package com.aegis.fdx.ui.screens;
 
 import com.aegis.fdx.facade.AegisFacades;
+import com.aegis.fdx.facade.ContentFacade;
 import com.aegis.fdx.facade.FacadeException;
 import com.aegis.fdx.facade.dto.PathDto;
 import com.aegis.fdx.ui.Detail;
@@ -14,10 +15,14 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+
+import java.io.ByteArrayInputStream;
 
 /**
  * The complete extracted text of one file, with in-document search.
@@ -36,6 +41,7 @@ public final class FullContentScreen implements Detail {
 
     private Label heading;
     private Label stats;
+    private VBox imageBox;
     private TextArea body;
     private TextField findField;
     private Label findStatus;
@@ -88,10 +94,15 @@ public final class FullContentScreen implements Detail {
         Button back = Fas.outline("Back to File", null);
         back.setOnAction(e -> router.openFile(pathId));
 
+        imageBox = new VBox(8);
+        imageBox.setVisible(false);
+        imageBox.setManaged(false);
+
         VBox content = new VBox(14,
                 Fas.pageHeader("Full Content", null, back, copy),
                 new VBox(2, heading, stats),
                 Fas.row(10, findField, findBtn, findStatus),
+                imageBox,
                 body);
         content.setPadding(new Insets(20));
         VBox.setVgrow(content, Priority.ALWAYS);
@@ -119,9 +130,52 @@ public final class FullContentScreen implements Detail {
                     fullText.length(), words, lines, path.fileType()));
             lastFindIndex = -1;
             findStatus.setText("");
+            updateImageBox();
         } catch (FacadeException e) {
             heading.setText("Could not load content");
             stats.setText(e.getMessage());
+        }
+    }
+
+    /** Shows the picture above the text for image files; hidden for the rest. */
+    private void updateImageBox() {
+        imageBox.getChildren().clear();
+        imageBox.setVisible(false);
+        imageBox.setManaged(false);
+        if (path == null || !ContentFacade.isImageFile(path.fileName())) {
+            return;
+        }
+        Image image = loadNativeImage();
+        if (image == null || image.isError()) {
+            imageBox.getChildren().add(
+                    Fas.muted("(Image preview is not available for this file.)"));
+        } else {
+            ImageView view = new ImageView(image);
+            view.setPreserveRatio(true);
+            view.setSmooth(true);
+            if (image.getWidth() > 900) {
+                view.setFitWidth(900);
+            }
+            if (image.getHeight() > 600) {
+                view.setFitHeight(600);
+            }
+            String dims = ((int) image.getWidth()) + " x " + ((int) image.getHeight());
+            imageBox.getChildren().add(Fas.cardWithHeader("Image", dims, view));
+        }
+        imageBox.setVisible(true);
+        imageBox.setManaged(true);
+    }
+
+    /** Decodes the registered native bytes, or null when unavailable. */
+    private Image loadNativeImage() {
+        try {
+            byte[] data = facades.contents().getNativeBytes(pathId);
+            if (data == null || data.length == 0) {
+                return null;
+            }
+            return new Image(new ByteArrayInputStream(data));
+        } catch (Exception e) {
+            return null;
         }
     }
 
