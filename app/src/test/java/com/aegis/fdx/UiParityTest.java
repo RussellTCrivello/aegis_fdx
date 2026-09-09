@@ -5,7 +5,7 @@ import com.aegis.fdx.store.CorpusDatabase;
 import com.aegis.fdx.engine.CaseSettings;
 import com.aegis.fdx.engine.LiveCase;
 import com.aegis.fdx.facade.AegisFacades;
-import com.aegis.fdx.facade.ContentFacade;
+import com.aegis.fdx.facade.FileState;
 import com.aegis.fdx.facade.dto.ContentDto;
 import com.aegis.fdx.facade.dto.PathDto;
 import com.aegis.fdx.ui.Icons;
@@ -189,7 +189,7 @@ class UiParityTest {
             assertNotNull(p.hashValue(), "paths row links to a hashs row from the real SHA-256");
             assertEquals("Acme", p.sourceName(), "path is linked to its source");
             assertEquals("Plaintiff", p.aspectName(), "path is linked to its aspect");
-            assertEquals(ContentFacade.STATUS_UNREAD, p.fileStatus());
+            assertEquals(FileState.UNREAD.label(), p.fileStatus());
             assertNotNull(p.elementId(), "path keeps the AEGIS element id");
 
             // extracted text reached the contents table
@@ -206,8 +206,8 @@ class UiParityTest {
             assertEquals(registered, f.contents().getPaths().totalCount());
 
             // status round-trip, as the File Library toggle does
-            assertTrue(f.contents().setPathStatus(p.id(), ContentFacade.STATUS_READ));
-            assertEquals(ContentFacade.STATUS_READ,
+            assertTrue(f.contents().setPathStatus(p.id(), FileState.READ.label()));
+            assertEquals(FileState.READ.label(),
                     f.contents().getPath(p.id()).fileStatus());
 
             // filters used by the File Library screen
@@ -216,7 +216,7 @@ class UiParityTest {
             assertEquals(0,
                     f.contents().getPaths("pdf", null, null, null, 100, 0).results().size());
             assertEquals(1, f.contents()
-                    .getPaths(null, null, null, ContentFacade.STATUS_READ, 100, 0).totalCount());
+                    .getPaths(null, null, null, FileState.READ.label(), 100, 0).totalCount());
         }
     }
 
@@ -230,7 +230,7 @@ class UiParityTest {
             assertEquals(h, f.contents().createHash("abc123", null), "hash insert is idempotent");
 
             int pathId = f.contents().createPath("a.txt", "/tmp/a.txt", 10, "txt",
-                    ContentFacade.STATUS_UNREAD, LocalDate.now(), LocalDate.now(),
+                    FileState.UNREAD.label(), LocalDate.now(), LocalDate.now(),
                     h, null, null, null, null);
             assertTrue(pathId > 0);
 

@@ -301,17 +301,18 @@ class IntegrationModelTest {
 
     @Test
     @DisplayName("Aspect is the current name; the former Side API still delegates")
+    // This test exists to exercise the deprecated alias; suppressing at method level
+    // covers the calls the local-variable suppressions below cannot reach.
+    @SuppressWarnings("deprecation")
     void deprecatedAliasStillWorks(@TempDir Path tmp) throws Exception {
         try (LiveCase c = openCase(tmp)) {
             AegisFacades f = AegisFacades.open(c);
             int viaAspect = f.aspects().createAspect("Plaintiff", 0.9);
 
-            @SuppressWarnings("deprecation")
             var legacy = f.sides();
             assertEquals(1, legacy.getAllSides().size());
             assertEquals("Plaintiff", legacy.getSideById(viaAspect).name());
 
-            @SuppressWarnings("deprecation")
             int viaSide = legacy.createSide("Defendant", 0.4, LocalDate.now());
             assertEquals("Defendant", f.aspects().getAspect(viaSide).name(),
                     "both names address the same storage");
