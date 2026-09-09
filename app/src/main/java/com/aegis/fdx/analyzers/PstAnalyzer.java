@@ -61,11 +61,17 @@ public final class PstAnalyzer implements Analyzer {
             }
             PSTFile pst = new PSTFile(tmp.toFile());
             try {
+                // The library prints one "Unknown message type" line per unhandled
+                // item with no way to mute it; filter the console and count instead.
+                PstConsoleFilter.installOnce();
+                PstConsoleFilter.resetThreadSuppressed();
                 item.addMetadata("PST-Encryption", String.valueOf(pst.getEncryptionType()));
                 Counter c = new Counter();
                 walk(pst.getRootFolder(), "", item, sink, c, 0);
                 item.addMetadata("Messages", String.valueOf(c.messages));
                 item.addMetadata("Folders", String.valueOf(c.folders));
+                item.addMetadata("PST-Unknown-Classes",
+                        String.valueOf(PstConsoleFilter.threadSuppressed()));
                 item.extractedText("Outlook store: " + c.messages
                         + " messages across " + c.folders + " folders.");
             } finally {

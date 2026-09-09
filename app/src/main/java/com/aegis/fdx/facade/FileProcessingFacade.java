@@ -1,5 +1,6 @@
 package com.aegis.fdx.facade;
 
+import com.aegis.fdx.engine.EngineEvent;
 import com.aegis.fdx.engine.IngestPipeline;
 import com.aegis.fdx.engine.LiveCase;
 import com.aegis.fdx.facade.dto.ProcessingResultDto;
@@ -10,10 +11,12 @@ import com.aegis.fdx.model.ItemStatus;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 /**
  * Runs material through the processing pipeline and reports what happened to it.
@@ -83,13 +86,25 @@ public final class FileProcessingFacade implements AutoCloseable {
         }
 
         try {
-            Future<IngestPipeline.Result> f = liveCase.startIngest(path, storageSource, ev -> { });
+            // A bare error count names nothing actionable, so the failure reasons
+            // the pipeline already emits are sampled for the result message. The
+            // listener runs on the ingest worker, hence the synchronized list; the
+            // get() below waits for the run, so every event has landed by the time
+            // the message is built.
+            List<String> failures = Collections.synchronizedList(new ArrayList<>());
+            Future<IngestPipeline.Result> f = liveCase.startIngest(path, storageSource, ev -> {
+                if (ev instanceof EngineEvent.Failed failed) {
+                    failures.add(failed.itemName() + " \u2014 " + failed.reason());
+                } else if (ev instanceof EngineEvent.Log log && "ERROR".equals(log.level())) {
+                    failures.add(log.message());
+                }
+            });
             IngestPipeline.Result r = f.get();
             boolean ok = r.errors() == 0;
             Item stored = findBySourcePath(p);
             return new ProcessingResultDto(
                     p, fileName, ext, size, ok,
-                    ok ? null : "processing reported " + r.errors() + " error(s)",
+                    ok ? null : errorSummary(r.errors(), failures),
                     enableStorage,
                     r.duplicates() > 0,
                     stored == null ? null : stored.sha256(),
@@ -98,6 +113,32 @@ public final class FileProcessingFacade implements AutoCloseable {
             return new ProcessingResultDto(p, fileName, ext, size, false,
                     String.valueOf(e.getMessage()), enableStorage, false, null, 0);
         }
+    }
+
+    /**
+     * Turns an ingest error count into a result message that names the failures.
+     *
+     * <p>A bare count tells the reviewer nothing actionable, so the first distinct
+     * failure samples ride along, each truncated to fit the results table. The
+     * full reasons stay on the failed elements themselves for the error views.
+     *
+     * @param errorCount the pipeline's error total, which the message always leads with
+     * @param samples    failure reasons collected during the run, e.g. from
+     *                   {@code EngineEvent.Failed}; null or empty leaves the bare count
+     */
+    public static String errorSummary(long errorCount, List<String> samples) {
+        String head = "processing reported " + errorCount + " error(s)";
+        if (samples == null) {
+            return head;
+        }
+        String detail = samples.stream()
+                .filter(s -> s != null && !s.isBlank())
+                .map(String::strip)
+                .distinct()
+                .limit(2)
+                .map(s -> s.length() > 160 ? s.substring(0, 160) + "..." : s)
+                .collect(Collectors.joining("; "));
+        return detail.isEmpty() ? head : head + ": " + detail;
     }
 
     /**
@@ -165,7 +206,9 @@ public final class FileProcessingFacade implements AutoCloseable {
                         it.extension(),
                         it.size(),
                         ok,
-                        ok ? null : String.valueOf(it.status()),
+                        ok ? null : (it.errors().isEmpty()
+                                ? String.valueOf(it.status())
+                                : String.join("; ", it.errors())),
                         enableStorage,
                         false,
                         it.sha256(),

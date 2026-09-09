@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Without this file, logback's default root level (DEBUG) floods the console on
+  every run. The extraction libraries are the source: PDFBox/FontBox log through
+  commons-logging, which since 1.3 routes into the Log4j2 API and from there into
+  SLF4J, landing here. Root WARN keeps third-party chatter out of ingest output;
+  com.aegis stays at INFO so our own diagnostics remain visible.
+-->
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <logger name="com.aegis" level="INFO"/>
+    <root level="WARN">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>
