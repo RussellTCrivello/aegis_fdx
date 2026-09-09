@@ -76,7 +76,7 @@ dbe9db55d4cf60909d2be03a2e11473437485879050aedce0bfe67a1cffbff63  app/src/main/j
 018eff5f06406b839f7abfe5e311fd6f487ebbc7f3d6a9b9d63dee71c8ed1ab8  app/src/main/java/com/aegis/fdx/facade/SortField.java
 8fa1ca6dd59b9fac297e8b370b112bba84984f59cb93660890ed461da2041e92  app/src/main/java/com/aegis/fdx/facade/SortOrder.java
 3e752d1c8e9eba86ff07b924e5412d26f8caed15c7d4c872cac26c4710de3cc3  app/src/main/java/com/aegis/fdx/facade/SourceDraft.java
-f860f1a2bd3c8eb1f05671413cec42bec254f7cb158b5239fd844b40d96ed0ce  app/src/main/java/com/aegis/fdx/facade/SourceFacade.java
+f38874cc773380784bddc6a44d55612ebbaa9b84518dbeee0ed888a79b770cad  app/src/main/java/com/aegis/fdx/facade/SourceFacade.java
 f727f23819a17646b37f1b76aa82000c405ee54a1f4733500cacae75ea77b023  app/src/main/java/com/aegis/fdx/facade/Terms.java
 f88692fc8fca93b603498eececaa627ebc1c62c4600446725e19d83a2a62582e  app/src/main/java/com/aegis/fdx/facade/Validate.java
 fe59eb40b97813561316a0ba0af1d8d6a6a5f975c41e9d3d28eb816cc7e91b72  app/src/main/java/com/aegis/fdx/facade/WordFacade.java
@@ -165,8 +165,8 @@ a2f1bb4fbd1f708f7a084369b39885270aaef3712ac8b473abf061438830293b  app/src/main/j
 796832656c2f7a24927dc8a2f2ea1ea3c709aafcf0012457a7fc5286a4b7ffa3  app/src/main/java/com/aegis/fdx/ui/screens/SettingsScreen.java
 5a32a438878dc07a2970b2d7d63d49b7b0d1aa9c712426e298b610237d71d0b0  app/src/main/java/com/aegis/fdx/ui/screens/SetupScreen.java
 ada591577d3079eeaa7ad32870771f5ff5342a0f32579d28db5d82033b897952  app/src/main/java/com/aegis/fdx/ui/screens/SourceDetailScreen.java
-c9a2dca1470f55769054afa2a71c949f5a5b6028251bfc5f93d8ffcd20e9c341  app/src/main/java/com/aegis/fdx/ui/screens/SourceForm.java
-9378419be19cfec114ea1c5cbc04655c30790bd2f9991e4643f6148ec3670521  app/src/main/java/com/aegis/fdx/ui/screens/SourcesScreen.java
+04391b4365a2e368d82d041f1ac0048b1d56316957c185a66ef3d249da1cf340  app/src/main/java/com/aegis/fdx/ui/screens/SourceForm.java
+969bd61b6a880dfaa03f0f441bdea58aade1945ed59f94e243e3841a5e9728a7  app/src/main/java/com/aegis/fdx/ui/screens/SourcesScreen.java
 90df4e55d6db1190173d3067ebb704722cbcb2fa89f8a3f339d25ea5f88135cd  app/src/main/java/com/aegis/fdx/ui/screens/TermDetailScreen.java
 f99c9e9d090e248756f1766f2f5f0ace3054ad4dec1a16b7aaeb9d05265c206f  app/src/main/java/com/aegis/fdx/ui/screens/TitlesScreen.java
 8ff1a02f2e1989d8817448d80425992d2906d52ebc2e157133ec9a19c1dcce0f  app/src/main/java/com/aegis/fdx/ui/screens/UploadScreen.java

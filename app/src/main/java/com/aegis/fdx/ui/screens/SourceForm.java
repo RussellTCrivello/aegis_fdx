@@ -9,9 +9,11 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
+import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox;
 
 import java.time.LocalDate;
 import java.util.function.Consumer;
@@ -48,6 +50,22 @@ final class SourceForm {
         TextField name = Fas.field("Source name");
         TextField job = Fas.field("Job / type");
         TextField importance = Fas.field("0.0 - 1.0");
+        Slider importanceSlider = new Slider(0, 1, 0.5);
+        importanceSlider.setShowTickMarks(true);
+        importanceSlider.setShowTickLabels(true);
+        importanceSlider.setMajorTickUnit(0.25);
+        importanceSlider.setBlockIncrement(0.05);
+        importanceSlider.setPrefWidth(220);
+        importanceSlider.valueProperty().addListener((o, a, b) ->
+                importance.setText(String.format("%.2f", b.doubleValue())));
+        importance.textProperty().addListener((o, a, b) -> {
+            try {
+                double v = Double.parseDouble(b.trim());
+                if (v >= 0 && v <= 1) {
+                    importanceSlider.setValue(v);
+                }
+            } catch (NumberFormatException ignored) { }
+        });
         TextField country = Fas.field("Country");
         TextField city = Fas.field("City");
         TextArea description = new TextArea();
@@ -66,6 +84,7 @@ final class SourceForm {
             name.setText(nz(existing.name()));
             job.setText(nz(existing.job()));
             importance.setText(String.format("%.2f", existing.importance()));
+            importanceSlider.setValue(existing.importance());
             country.setText(nz(existing.country()));
             city.setText(nz(existing.city()));
             description.setText(nz(existing.description()));
@@ -86,7 +105,7 @@ final class SourceForm {
         int r = 0;
         g.add(Fas.formField("Source Name *", name), 0, r);
         g.add(Fas.formField("Job/Type *", job), 1, r++);
-        g.add(Fas.formField("Importance *", importance), 0, r);
+        g.add(Fas.formField("Importance *", new VBox(4, importanceSlider, importance)), 0, r);
         g.add(Fas.formField("Country *", country), 1, r++);
         g.add(Fas.formField("City", city), 0, r);
         g.add(Fas.formField("Social Media Accounts", accounts), 1, r++);

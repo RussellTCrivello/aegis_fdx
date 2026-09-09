@@ -146,6 +146,15 @@ public final class SourceFacade {
         }
     }
 
+    /** Files attributed to each source name, in one query; drives the list's Files column. */
+    public Map<String, Integer> filesPerSource() {
+        try {
+            return db.countPathsBySource();
+        } catch (SQLException e) {
+            throw FacadeException.internal("failed to count files by source", e);
+        }
+    }
+
     /** Copies a source under a non-clashing name. */
     public int duplicateSource(int sourceId) {
         SourceDto src = getSource(sourceId);
