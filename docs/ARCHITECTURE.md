@@ -46,7 +46,7 @@ attribution) and Category Word ↔ Category are stored as edge tables with compo
 keys, derived by `RelationshipAnalyzer` from stored content (idempotent), read by
 `RelationshipFacade` with `COUNT(DISTINCT path_id)` over the whole case, and audited by
 `RelationshipIntegrity`, which walks every edge in both directions and reports any count
-that disagrees (`docs/RELATIONSHIP_INTEGRITY_REPORT.md`). Invariants — keyword ≥ 3 words,
+that disagrees (`docs/RELATIONSHIP_INTEGRITY_REPORT.md`). Invariants — keyword ≥ 2 words,
 category and category word exactly 1 word — are enforced in `Terms`, in the facades, in
 `CorpusDatabase` and in the UI. The Lucene index remains derived and rebuildable; `case.db`
 is the sole authority. The mapping from every reference control to its Java handler,

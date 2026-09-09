@@ -104,13 +104,13 @@ The gap is narrow but real, and it is exactly the class of defect static resolut
 | K06 | row usage badge | renderRows | COUNT(kp.path_id) → path_keyword | Keywords / Files column | KeywordsScreen#onShow → RelationshipFacade#keywordFileCounts | CorpusDatabase#selectKeywordsWithFileCounts | COUNT(DISTINCT path_id) over the whole case | RelationshipModelTest#categoryBidirectional | VERIFIED |
 | K07 | row Duplicate flag / Merge duplicates | mergeAllDuplicates | keywords.merge_all_duplicates → LOWER(text) groups | Keywords / Find Duplicates | KeywordsScreen#build → KeywordFacade#mergeDuplicates | CorpusDatabase#mergeKeyword | Groups listed; on confirm merged into the oldest, edges moved | RelationshipModelTest#mergeDuplicates | VERIFIED |
 | K08 | row view (href /keywords/id) | navigation | keywords.keyword_detail → keywords_paths COUNT | Keywords / eye button / double-click row | KeywordsScreen#build → RelationshipFacade#keyword | CorpusDatabase#selectFilesForKeyword | Keyword Detail opens | RelationshipModelTest#keywordBidirectional | VERIFIED |
-| K09 | row edit | editKeywordInModal, submitUpdateKeyword | keywords.update_keyword → UPDATE keywords | Keywords / pencil button | KeywordsScreen#build → KeywordFacade#updateKeyword | CorpusDatabase#updateKeyword | Phrase renamed; rejected under three words | RelationshipModelTest#storageInvariants | VERIFIED |
+| K09 | row edit | editKeywordInModal, submitUpdateKeyword | keywords.update_keyword → UPDATE keywords | Keywords / pencil button | KeywordsScreen#build → KeywordFacade#updateKeyword | CorpusDatabase#updateKeyword | Phrase renamed; rejected under two words | RelationshipModelTest#storageInvariants | VERIFIED |
 | K10 | row delete | deleteKeyword | keywords.delete_keyword_api → DELETE keywords | Keywords / trash button | KeywordsScreen#build → KeywordFacade#deleteKeyword | CorpusDatabase#deleteKeyword | Row disappears; edges cascade | FacadeParityTest | VERIFIED |
 | K11 | #selectAllCheckbox, Delete Selected | toggleSelectAll, bulkDelete | keywords.bulk_delete → DELETE IN | Keywords / multi-select + Delete Selected | KeywordsScreen#build → KeywordFacade#bulkDeleteKeywords | CorpusDatabase#deleteKeyword | Confirmation, then rows removed | FacadeParityTest | VERIFIED |
 | K12 | #bulkUpdateBtn | bulkUpdate | (none) → (none) | Keywords / (none) | (none) → (none) | (none) | Nothing happens in the reference | UiParityTest | REFERENCE-INERT |
 | K13 | #updateKeywordsBtn Update associations | updateKeywordAssociations | keywords.update_keyword_associations → contents -> extract_keywords_fast -> keywords_paths | Search / Update associations | SearchScreen#updateAssociations → RelationshipAnalyzer#analyzeAll | CorpusDatabase#clearDerivedRelations, linkPathToKeyword, linkPathToWord | Label reports files scanned and links written; counts refresh | RelationshipModelTest#duplicateRelationship | VERIFIED |
 | K14 | Export | exportKeywords | (none) → (none) | Keywords / Export CSV | KeywordsScreen#build → ExportFacade#exportTermsCsv | RelationshipFacade#keywords | CSV with id, text, normalized, word_count, file_count saved where chosen | FacadeParityTest | VERIFIED |
-| K15 | Add Keyword modal, Save | openAddKeywordModal, saveKeyword | keywords.keyword_check, keywords.keywords_add → validate_keyword_text, INSERT keywords | Keywords / Add Keyword dialog | KeywordsScreen#openForm → KeywordFacade#createKeyword | CorpusDatabase#insertKeyword | New row; fewer than three words refused with a message | RelationshipModelTest#invariants | VERIFIED |
+| K15 | Add Keyword modal, Save | openAddKeywordModal, saveKeyword | keywords.keyword_check, keywords.keywords_add → validate_keyword_text, INSERT keywords | Keywords / Add Keyword dialog | KeywordsScreen#openForm → KeywordFacade#createKeyword | CorpusDatabase#insertKeyword | New row; fewer than two words refused with a message | RelationshipModelTest#invariants | VERIFIED |
 | K16 | #keywordWordInput autocomplete | searchWordsForKeyword | words.api_words → words ILIKE | Keywords / phrase text field | KeywordsScreen#openForm → Terms#requireKeyword | (validation only) | Phrase typed directly and validated | RelationshipModelTest#invariants | ADAPTED |
 | K17 | #keywordCategoryInput autocomplete | searchCategoriesForKeyword | categories.api_categories_search → categorys JOIN words ILIKE | Keywords / category ComboBox | KeywordsScreen#openForm → CategoryFacade#listCategories | CorpusDatabase#selectAllCategories | Only existing categories offered | FacadeParityTest | VERIFIED |
 
@@ -330,7 +330,7 @@ The gap is narrow but real, and it is exactly the class of defect static resolut
 ```
 FILE (path, content, hash, metadata)
   │  path_keyword(path_id, keyword_id, hits)      ← reference keywords_paths
-  ├──── KEYWORD (phrase, ≥ 3 words) ──── category_id ──── CATEGORY (one word)
+  ├──── KEYWORD (phrase, ≥ 2 words) ──── category_id ──── CATEGORY (one word)
   │  path_word(path_id, word_id, hits)            ← reference words_paths
   ├──── CATEGORY WORD (one word) ──── word_category ────── CATEGORY
   │  path_category(path_id, category_id)          ← reviewer attribution
@@ -339,5 +339,5 @@ FILE (path, content, hash, metadata)
 
 * Edges are derived by `RelationshipAnalyzer` from stored content when material is registered and on demand ("Update associations"); re-running is idempotent (`RelationshipModelTest`).
 * Every count is `COUNT(DISTINCT path_id)` over the whole case, never over a page.
-* Invariants (keyword ≥ 3 words; category and category word exactly 1 word) are enforced in `Terms`, in the facades, in `CorpusDatabase` inserts/updates and in the UI, and tested at each layer (`RelationshipModelTest#storageInvariants`).
+* Invariants (keyword ≥ 2 words; category and category word exactly 1 word) are enforced in `Terms`, in the facades, in `CorpusDatabase` inserts/updates and in the UI, and tested at each layer (`RelationshipModelTest#storageInvariants`).
 * `RelationshipIntegrity` walks File → Keyword → Category → Category Word → Files in both directions and reports count disagreements and orphan edges ("Check relationships" on Search; `docs/RELATIONSHIP_INTEGRITY_REPORT.md`).

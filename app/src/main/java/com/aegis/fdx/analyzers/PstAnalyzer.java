@@ -32,6 +32,11 @@ public final class PstAnalyzer implements Analyzer {
     /** Hard cap so a corrupt tree cannot spin forever. */
     private static final int MAX_FOLDER_DEPTH = 64;
 
+    /** PidTagAttachMethod values ([MS-OXPROPS] 2.15): how an attachment's bytes are stored. */
+    private static final long ATTACH_BY_VALUE = 1;
+    private static final long ATTACH_EMBEDDED_MSG = 5;
+    private static final long ATTACH_OLE = 6;
+
     @Override public String id() { return "libpst"; }
 
     @Override
@@ -61,11 +66,17 @@ public final class PstAnalyzer implements Analyzer {
             }
             PSTFile pst = new PSTFile(tmp.toFile());
             try {
+                // The library prints one "Unknown message type" line per unhandled
+                // item with no way to mute it; filter the console and count instead.
+                PstConsoleFilter.installOnce();
+                PstConsoleFilter.resetThreadSuppressed();
                 item.addMetadata("PST-Encryption", String.valueOf(pst.getEncryptionType()));
                 Counter c = new Counter();
                 walk(pst.getRootFolder(), "", item, sink, c, 0);
                 item.addMetadata("Messages", String.valueOf(c.messages));
                 item.addMetadata("Folders", String.valueOf(c.folders));
+                item.addMetadata("PST-Unknown-Classes",
+                        String.valueOf(PstConsoleFilter.threadSuppressed()));
                 item.extractedText("Outlook store: " + c.messages
                         + " messages across " + c.folders + " folders.");
             } finally {
@@ -116,7 +127,7 @@ public final class PstAnalyzer implements Analyzer {
 
         String name = (subject == null || subject.isBlank())
                 ? "message_" + seq + ".msg"
-                : sanitize(subject) + ".msg";
+                : AttachmentNames.sanitize(subject) + ".msg";
 
         Item child = new Item(parent.id() + "-M" + seq, name);
         child.parentId(parent.id());
@@ -177,16 +188,7 @@ public final class PstAnalyzer implements Analyzer {
                 byte[] data = readAttachment(att);
                 if (data == null) continue;
 
-                String aName = null;
-                try {
-                    aName = att.getLongFilename();
-                } catch (Exception ignored) { }
-                if (aName == null || aName.isBlank()) {
-                    try {
-                        aName = att.getFilename();
-                    } catch (Exception ignored) { }
-                }
-                if (aName == null || aName.isBlank()) aName = "attachment_" + (i + 1);
+                String aName = attachmentName(att, i + 1);
 
                 Item grand = new Item(child.id() + "-A" + (i + 1), aName);
                 grand.parentId(child.id());
@@ -196,6 +198,10 @@ public final class PstAnalyzer implements Analyzer {
                 grand.containerPath(child.containerPath() + " → " + aName);
                 grand.size(data.length);
                 grand.attachedFrom(child.id());
+                String contentId = contentIdOf(att);
+                if (!contentId.isBlank()) grand.addMetadata("Content-Id", contentId);
+                String method = attachMethodOf(att);
+                if (method != null) grand.addMetadata("Attachment-Method", method);
                 sink.emit(grand, new ByteArrayInputStream(data));
             } catch (Exception e) {
                 child.errors().add("Attachment " + (i + 1) + " failed: " + e.getMessage());
@@ -236,9 +242,85 @@ public final class PstAnalyzer implements Analyzer {
         return name + " <" + addr + ">";
     }
 
-    private static String sanitize(String s) {
-        String t = s.replaceAll("[\\\\/:*?\"<>|\\r\\n]", "_").strip();
-        return t.length() > 80 ? t.substring(0, 80) : t;
+    /**
+     * Names an attachment for its real filename, trying each property that can
+     * carry one: long and short filenames, pathnames, an embedded message's
+     * subject, and finally a filename-shaped Content-ID. Whatever survives is
+     * sanitized; only a fully anonymous attachment keeps a generated name, with
+     * a MIME-derived extension when there is one.
+     */
+    private static String attachmentName(PSTAttachment att, int n) {
+        String name = firstPresent(
+                att::getLongFilename,
+                att::getFilename,
+                () -> AttachmentNames.basename(att.getLongPathname()),
+                () -> AttachmentNames.basename(att.getPathname()));
+        if (!name.isBlank()) return AttachmentNames.sanitize(name);
+        // Attached messages carry no filename; their subject is the real name.
+        // The bytes are flattened text (see readAttachment), so .eml keeps the
+        // element routing to the EML analyzer, as MSG flattening already does.
+        String subject = embeddedSubject(att);
+        if (!subject.isBlank()) {
+            return AttachmentNames.ensureExtension(AttachmentNames.sanitize(subject), ".eml");
+        }
+        // Inline images usually have only a Content-ID like image001.png@....
+        String fromCid = AttachmentNames.fromContentId(contentIdOf(att));
+        if (!fromCid.isBlank()) {
+            return AttachmentNames.ensureExtension(
+                    AttachmentNames.sanitize(fromCid), AttachmentNames.extensionFor(mimeTagOf(att)));
+        }
+        String ext = AttachmentNames.extensionFor(mimeTagOf(att));
+        return "attachment_" + n + (ext == null ? "" : ext);
+    }
+
+    /** A string property read that may throw when the property is absent. */
+    private interface StringProp {
+        String get() throws Exception;
+    }
+
+    private static String firstPresent(StringProp... props) {
+        for (StringProp p : props) {
+            try {
+                String v = p.get();
+                if (v != null && !v.isBlank()) return v;
+            } catch (Exception ignored) { }
+        }
+        return "";
+    }
+
+    private static String embeddedSubject(PSTAttachment att) {
+        try {
+            PSTMessage embedded = att.getEmbeddedPSTMessage();
+            if (embedded == null) return "";
+            String s = embedded.getSubject();
+            return s == null ? "" : s;
+        } catch (Exception ignored) { }
+        return "";
+    }
+
+    private static String contentIdOf(PSTAttachment att) {
+        try {
+            String c = att.getContentId();
+            return c == null ? "" : c.strip();
+        } catch (Exception ignored) { }
+        return "";
+    }
+
+    private static String mimeTagOf(PSTAttachment att) {
+        try {
+            return att.getMimeTag();
+        } catch (Exception ignored) { }
+        return null;
+    }
+
+    private static String attachMethodOf(PSTAttachment att) {
+        try {
+            long m = att.getAttachMethod();
+            if (m == ATTACH_BY_VALUE) return "by-value";
+            if (m == ATTACH_EMBEDDED_MSG) return "embedded-message";
+            if (m == ATTACH_OLE) return "ole";
+        } catch (Exception ignored) { }
+        return null;
     }
 
     private static final class Counter {

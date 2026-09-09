@@ -120,13 +120,14 @@ final class BatchRecoveryTest {
         Path file = dir.resolve("case.db");
         CaseDatabase db = new CaseDatabase(file);
         ingestBatched(db, 0, 100, 25);
-        // Abandon the connection without close(): WAL must still hold the commits.
-        db = null;
-        System.gc();
-
+        // Crash simulation: the writer stays open across the reopen, so recovery
+        // must come from WAL alone. It is closed afterwards, because on Windows
+        // an open SQLite connection locks case.db* and @TempDir cleanup fails.
         try (CaseDatabase reopened = new CaseDatabase(file)) {
             assertEquals(100, reopened.count());
             assertTrue(new DashboardStats(reopened).verify());
+        } finally {
+            db.close();
         }
     }
 

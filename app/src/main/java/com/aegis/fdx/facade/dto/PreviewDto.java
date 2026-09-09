@@ -9,7 +9,7 @@ public record PreviewDto(
         String filePath,
         String mediaType,
         long fileSize,
-        /* Text/document preview payload; null for binary preview types. */
+        /* Text/document payload, also populated for image previews; null for other binary types. */
         String content,
         /* Populated for image/pdf previews when a rendered byte payload exists. */
         byte[] data,

@@ -229,11 +229,11 @@ public final class CorpusDatabase {
         return word.trim();
     }
 
-    /** A keyword phrase has at least three words. */
+    /** A keyword phrase has at least two words. */
     private static String requireKeywordPhrase(String phrase) throws SQLException {
         int n = termWordCount(phrase);
-        if (n < 3) {
-            throw new SQLException("keyword must have at least three words; \"" + phrase
+        if (n < 2) {
+            throw new SQLException("keyword must have at least two words; \"" + phrase
                     + "\" has " + n);
         }
         return phrase.trim().replaceAll("\\s+", " ");

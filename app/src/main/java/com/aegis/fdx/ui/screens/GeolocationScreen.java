@@ -122,7 +122,7 @@ public final class GeolocationScreen implements Screen {
                 setGraphic(open);
             }
         });
-        table.getColumns().addAll(cCoord, cFiles, cNames, cSources, cAct);
+        table.getColumns().addAll(List.of(cCoord, cFiles, cNames, cSources, cAct));
         table.setRowFactory(t -> {
             javafx.scene.control.TableRow<GeoRow> row = new javafx.scene.control.TableRow<>();
             row.setOnMouseClicked(e -> {

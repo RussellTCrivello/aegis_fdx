@@ -203,7 +203,7 @@ Tests: `aspectFacade`, `editAspect`, `aspectStatistics`, `relationships`.
 | Edit | `updateKeyword` | `corpusFacades` | Complete |
 | Delete / bulk delete | `deleteKeyword`, `bulkDeleteKeywords` | `corpusFacades` | Complete |
 | Duplicate detection / merge | `findDuplicates`, `mergeDuplicates` | `RelationshipModelTest#mergeDuplicates` | Complete |
-| ≥ 3-word invariant (UI, facade, DAO) | `Terms#requireKeyword`, `CorpusDatabase#insertKeyword` | `RelationshipModelTest#storageInvariants`, `FailureRecoveryTest#invariantViolations` | Complete |
+| ≥ 2-word invariant (UI, facade, DAO) | `Terms#requireKeyword`, `CorpusDatabase#insertKeyword` | `RelationshipModelTest#storageInvariants`, `FailureRecoveryTest#invariantViolations` | Complete |
 | Duplicate phrase refused, not crashed | `createKeyword` → `false` | `FailureRecoveryTest#duplicateRelationship` | Complete |
 | Export CSV | `ExportFacade#exportTermsCsv` | `RelationshipModelTest#mergeDuplicates` | Complete |
 | Whole-case file counts and match type | `RelationshipFacade#keyword`, `#keywordFileCounts` | `RelationshipModelTest#keywordBidirectional` | Complete |

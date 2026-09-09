@@ -68,7 +68,9 @@ dependencies {
     // File → Java processing engine → database/index is the only ingest path.
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    // implementation, not runtimeOnly: JUnitRunner imports launcher classes, so
+    // :app:compileTestJava needs them on the compile classpath, not just at run.
+    testImplementation("org.junit.platform:junit-platform-launcher")
 }
 
 // The suite harnesses are main()-based and are bridged into JUnit by SuiteBridgeTest,

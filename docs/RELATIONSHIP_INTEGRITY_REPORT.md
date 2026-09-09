@@ -18,7 +18,7 @@ Tests: `RelationshipModelTest#integrityConsistent`, `#integrityDetectsDamage`,
 | Forward | every category word | word → files (`path_word`) → each file's `categoryWords()` | list count = detail count; every file lists the word back |
 | Reverse | every file | file → keywords → `filesForKeyword`; file → categories → `filesForCategory`; file → category words → `filesForCategoryWord` | each term's file set contains the file; no term id is dangling |
 | Storage | every edge table | `path_keyword`, `path_word`, `path_category`, `word_category` | no edge references a missing path/term (`selectOrphanEdges`) |
-| Invariants | every stored term | keyword ≥ 3 words; category = 1 word; category word = 1 word | `Terms.wordCount` on stored display text |
+| Invariants | every stored term | keyword ≥ 2 words; category = 1 word; category word = 1 word | `Terms.wordCount` on stored display text |
 
 Finding rules: `count-agreement`, `bidirectional`, `dangling-edge`, `orphan-edge`,
 `keyword-invariant`, `category-invariant`, `word-invariant`, `keyword-category`.
@@ -71,12 +71,12 @@ directive asked to be proven absent, and it is now covered by `integrityConsiste
 
 ## Invariants at every layer (`storageInvariants`)
 
-| Layer | Keyword ≥ 3 words | Category = 1 word | Category word = 1 word |
+| Layer | Keyword ≥ 2 words | Category = 1 word | Category word = 1 word |
 |---|---|---|---|
 | UI | `KeywordsScreen` add/edit dialog refuses and explains | `CategoriesScreen` | `CategoriesScreen` word entry |
 | Facade | `KeywordFacade#createKeyword/#updateKeyword` → `Terms#requireKeyword` | `CategoryFacade#createCategory/#updateCategory` → `Terms#requireCategory` | `CategoryFacade#linkWordToCategory`, `WordFacade` → `Terms#requireSingleWord` |
 | Database | `CorpusDatabase#insertKeyword/#updateKeyword` throw `SQLException` | `#insertCategory/#updateCategory` | `#insertWord/#updateWord` |
-| Test | `assertThrows` at facade and DAO level for 1- and 2-word phrases | `assertThrows` for "two words" | `assertThrows` for "two words" |
+| Test | `assertThrows` at facade and DAO level for 1-word and empty phrases | `assertThrows` for "two words" | `assertThrows` for "two words" |
 
 ## Duplicates (`mergeDuplicates`)
 

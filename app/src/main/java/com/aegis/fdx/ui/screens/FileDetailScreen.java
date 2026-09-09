@@ -1,6 +1,7 @@
 package com.aegis.fdx.ui.screens;
 
 import com.aegis.fdx.facade.AegisFacades;
+import com.aegis.fdx.facade.ContentFacade;
 import com.aegis.fdx.facade.FacadeException;
 import com.aegis.fdx.facade.FileState;
 import com.aegis.fdx.facade.dto.CategoryDto;
@@ -35,6 +36,8 @@ import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -42,6 +45,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
+import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -87,6 +91,7 @@ public final class FileDetailScreen implements Detail {
     private Button reprocessBtn;
 
     // Content tab
+    private VBox imageBox;
     private TextArea contentArea;
     private TextField docSearch;
     private CheckBox caseSensitive;
@@ -262,9 +267,14 @@ public final class FileDetailScreen implements Detail {
         HBox pgnRow = new HBox(8, contentPageLabel, contentPrev, contentNext, Fas.spacer(), viewFull);
         pgnRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
 
+        imageBox = new VBox(8);
+        imageBox.setVisible(false);
+        imageBox.setManaged(false);
+
         VBox leftViewer = new VBox(10,
                 Fas.row(8, docSearch, find, clearSearch, caseSensitive, wholeWord,
                         docMatchLabel, Fas.spacer(), copy, download),
+                imageBox,
                 contentArea,
                 pgnRow);
         HBox.setHgrow(leftViewer, Priority.ALWAYS);
@@ -441,7 +451,7 @@ public final class FileDetailScreen implements Detail {
         c3.setPrefWidth(90);
         c3.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 String.format("%.1f%%", c.getValue().share() * 100)));
-        table.getColumns().addAll(c1, c2, c3);
+        table.getColumns().addAll(List.of(c1, c2, c3));
         Label tableLabel = Fas.muted("Data Table (0)");
         tableLabel.setId("catTableLabel");
         VBox chartHolder = new VBox(8);
@@ -467,7 +477,7 @@ public final class FileDetailScreen implements Detail {
         c2.setPrefWidth(100);
         c2.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 String.valueOf(c.getValue().count())));
-        table.getColumns().addAll(c1, c2);
+        table.getColumns().addAll(List.of(c1, c2));
         return new VBox(10, Fas.muted("Top words by frequency in the stored text"), table);
     }
 
@@ -487,7 +497,7 @@ public final class FileDetailScreen implements Detail {
         c3.setPrefWidth(100);
         c3.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 String.valueOf(c.getValue().files())));
-        table.getColumns().addAll(c1, c2, c3);
+        table.getColumns().addAll(List.of(c1, c2, c3));
         table.setRowFactory(t -> {
             TableRow<KwRow> row = new TableRow<>();
             row.setOnMouseClicked(e -> {
@@ -543,6 +553,50 @@ public final class FileDetailScreen implements Detail {
         return sp;
     }
 
+    // ---- image section --------------------------------------------------
+
+    /** Shows the picture above the text for image files; hidden for the rest. */
+    private void updateImageBox() {
+        imageBox.getChildren().clear();
+        imageBox.setVisible(false);
+        imageBox.setManaged(false);
+        if (path == null || !ContentFacade.isImageFile(path.fileName())) {
+            return;
+        }
+        Image image = loadNativeImage();
+        if (image == null || image.isError()) {
+            imageBox.getChildren().add(
+                    Fas.muted("(Image preview is not available for this file.)"));
+        } else {
+            ImageView view = new ImageView(image);
+            view.setPreserveRatio(true);
+            view.setSmooth(true);
+            if (image.getWidth() > 900) {
+                view.setFitWidth(900);
+            }
+            if (image.getHeight() > 600) {
+                view.setFitHeight(600);
+            }
+            String dims = ((int) image.getWidth()) + " x " + ((int) image.getHeight());
+            imageBox.getChildren().add(Fas.cardWithHeader("Image", dims, view));
+        }
+        imageBox.setVisible(true);
+        imageBox.setManaged(true);
+    }
+
+    /** Decodes the registered native bytes, or null when unavailable. */
+    private Image loadNativeImage() {
+        try {
+            byte[] data = facades.contents().getNativeBytes(pathId);
+            if (data == null || data.length == 0) {
+                return null;
+            }
+            return new Image(new ByteArrayInputStream(data));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private static VBox grow(VBox v) { HBox.setHgrow(v, Priority.ALWAYS); return v; }
 
     // ---- load -----------------------------------------------------------
@@ -566,6 +620,7 @@ public final class FileDetailScreen implements Detail {
             if (fullText == null) {
                 fullText = "";
             }
+            updateImageBox();
 
             contentPage = 0;
             changeContentPage(0);

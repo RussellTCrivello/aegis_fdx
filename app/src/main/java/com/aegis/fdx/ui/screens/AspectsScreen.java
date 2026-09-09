@@ -282,7 +282,7 @@ public final class AspectsScreen implements Screen {
                 setGraphic(Fas.row(2, view, edit, dup, del));
             }
         });
-        t.getColumns().addAll(cSel, cId, cName, cImp, cDate, cAct);
+        t.getColumns().addAll(List.of(cSel, cId, cName, cImp, cDate, cAct));
         t.setRowFactory(tv -> {
             javafx.scene.control.TableRow<AspectDto> row = new javafx.scene.control.TableRow<>();
             row.setOnMouseClicked(e -> {

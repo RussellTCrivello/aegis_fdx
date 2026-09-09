@@ -7,6 +7,8 @@ import com.aegis.fdx.facade.dto.PathDto;
 import com.aegis.fdx.model.Item;
 import com.aegis.fdx.store.CorpusDatabase;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -199,6 +201,42 @@ public final class ContentFacade {
         } catch (SQLException e) {
             throw FacadeException.internal("failed to read content", e);
         }
+    }
+
+    /**
+     * Native bytes of the registered file, for display purposes (image views).
+     *
+     * @return the bytes, or null when the source cannot be read (moved file,
+     *         nested item whose registered path is its container, permissions);
+     *         callers fall back to the extracted text
+     * @throws FacadeException NOT_FOUND if no such path exists
+     */
+    public byte[] getNativeBytes(int pathId) {
+        PathDto p = getPath(pathId);
+        try {
+            if (p.filePath() == null) {
+                return null;
+            }
+            Path f = Path.of(p.filePath());
+            if (!Files.isReadable(f)) {
+                return null;
+            }
+            return Files.readAllBytes(f);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Whether a file name points at a displayable image (case-insensitive). */
+    public static boolean isImageFile(String fileName) {
+        if (fileName == null) {
+            return false;
+        }
+        int dot = fileName.lastIndexOf('.');
+        if (dot < 0 || dot == fileName.length() - 1) {
+            return false;
+        }
+        return PreviewFacade.isImageExtension(fileName.substring(dot + 1));
     }
 
     /** Content payloads for a path, in insertion order. */

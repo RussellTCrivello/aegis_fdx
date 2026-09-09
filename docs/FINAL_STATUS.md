@@ -26,7 +26,7 @@ Nothing is marked PASS because the code exists. Everything marked PASS ran; the 
 | Sources | **PASS** | `DestinationCoverageTest#editSource/#sourceStatistics`, `FacadeParityTest`; create/edit/duplicate/delete/statistics/relationships | `toggleSourceStatus` UNSUPPORTED (flag nothing reads) |
 | Aspects | **PASS** | `DestinationCoverageTest#aspectStatistics`, `RelationshipsScreen` (aspect relationships) | — |
 | Categories | **PASS** | exactly-one-word invariant at UI, facade, DAO, test (`RelationshipModelTest#storageInvariants`, `FailureRecoveryTest#invariantViolations`); find/merge duplicates; CSV export; reverse detail | display-format toggle UNSUPPORTED (C04) |
-| Keywords | **PASS** | ≥ 3 words invariant at four layers; one category each; whole-case `COUNT(DISTINCT path_id)`; detail with files + match type; merge duplicates; CSV export | `bulkUpdate` REFERENCE-INERT (K12) |
+| Keywords | **PASS** | ≥ 2 words invariant at four layers; one category each; whole-case `COUNT(DISTINCT path_id)`; detail with files + match type; merge duplicates; CSV export | `bulkUpdate` REFERENCE-INERT (K12) |
 | Category Words | **PASS** | one-word invariant; word ↔ category symmetric both ways (A-14 fix); files per word; detail | `bulkUpdate` REFERENCE-INERT (W09) |
 | Files | **PASS** | file detail evidence hub: path, name, ext, size, SHA-256, MD5, MIME, dates, source, aspect, status, metadata, content, keyword/category/word chips (`RelationshipModelTest#fileDetail`, F01–F10 rows) | delete UNSUPPORTED by design (evidence never deleted, F11); per-file PDF render not offered (F09) |
 | Content | **PASS** | full content view, copy, search-in-content (`FullContentScreen`, `ContentFacade#getContentAsText`) | — |

@@ -36,7 +36,7 @@ public final class KeywordFacade {
     /**
      * Adds a keyword to a category.
      *
-     * <p>A keyword is a phrase of three or more words and a category is a single word:
+     * <p>A keyword is a phrase of two or more words and a category is a single word:
      * both are checked here, at the boundary, so no path into the case can store a term
      * that contradicts the vocabulary. See {@link Terms}.
      */

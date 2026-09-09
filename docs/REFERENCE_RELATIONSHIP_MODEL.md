@@ -45,10 +45,9 @@ if len(words) == 1:   → insert word, link to category   (category word)
 elif len(words) >= 2: → insert keyword phrase           (keyword)
 ```
 
-**Deviation, deliberate and stated.** This project's rule is stricter: a keyword is a
-phrase of **three or more** words, so a two-word phrase is neither a category word nor a
-keyword and is refused with an explanation. See `Terms` in the Java sources — the rule is
-enforced at the facade, not documented and forgotten.
+**Agreement, deliberate and stated.** This project follows the reference rule: a keyword
+is a phrase of **two or more** words, and a single word is a category word. See `Terms`
+in the Java sources — the rule is enforced at the facade, not documented and forgotten.
 
 ## 3. The counts every row shows
 
@@ -118,7 +117,7 @@ data; the reference simply never renders them in that direction.
 
 ```
 FILE (path)
- ├── path_keyword(hits) ─────▶ KEYWORD (phrase, ≥3 words) ──▶ CATEGORY (1 word)
+ ├── path_keyword(hits) ─────▶ KEYWORD (phrase, ≥2 words) ──▶ CATEGORY (1 word)
  ├── path_word(hits) ────────▶ CATEGORY WORD (1 word) ──word_category──▶ CATEGORY
  ├── path_category ──────────▶ CATEGORY
  └── content / text store ───▶ Lucene index (derived)

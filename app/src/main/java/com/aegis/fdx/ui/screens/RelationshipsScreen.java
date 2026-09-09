@@ -23,6 +23,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
+import java.util.List;
+
 /**
  * The categories and keywords associated with one source or one aspect.
  *
@@ -105,7 +107,7 @@ public final class RelationshipsScreen implements Detail {
         c2.setPrefWidth(80);
         c2.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 String.valueOf(c.getValue().fileCount())));
-        catTable.getColumns().addAll(c1, c2);
+        catTable.getColumns().addAll(List.of(c1, c2));
         catTable.setRowFactory(t -> {
             javafx.scene.control.TableRow<CategoryUsage> row = new javafx.scene.control.TableRow<>();
             row.setOnMouseClicked(e -> {
@@ -135,7 +137,7 @@ public final class RelationshipsScreen implements Detail {
         k4.setPrefWidth(70);
         k4.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 String.valueOf(c.getValue().files())));
-        kwTable.getColumns().addAll(k1, k2, k3, k4);
+        kwTable.getColumns().addAll(List.of(k1, k2, k3, k4));
         kwTable.setRowFactory(t -> {
             javafx.scene.control.TableRow<KeywordUsage> row = new javafx.scene.control.TableRow<>();
             row.setOnMouseClicked(e -> {

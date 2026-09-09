@@ -246,7 +246,7 @@ public final class BatchAnalysisScreen implements Screen {
         i4.setPrefWidth(70);
         i4.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 c.getValue().millis() + " ms"));
-        itemTable.getColumns().addAll(i1, i2, i3, i4);
+        itemTable.getColumns().addAll(List.of(i1, i2, i3, i4));
         itemTable.setRowFactory(t -> {
             javafx.scene.control.TableRow<BatchRun.ItemOutcome> row =
                     new javafx.scene.control.TableRow<>();

@@ -80,7 +80,7 @@ public final class EmlAnalyzer implements Analyzer {
             int n = 0;
             for (Entity att : attachments) {
                 n++;
-                String name = att.getFilename() != null ? att.getFilename() : "attachment_" + n;
+                String name = pickName(att, n);
                 byte[] data = bodyBytes(att);
                 if (data == null) continue;
                 Item child = new Item(item.id() + "-A" + n, name);
@@ -95,6 +95,53 @@ public final class EmlAnalyzer implements Analyzer {
             }
         } finally {
             try { msg.dispose(); } catch (Exception ignored) { }
+        }
+    }
+
+    /**
+     * Names an attachment for its real filename, falling back to an attached
+     * message's subject, then a filename-shaped Content-ID, then a generated
+     * name with a MIME-derived extension when there is one.
+     */
+    private static String pickName(Entity att, int n) {
+        try {
+            String f = att.getFilename();
+            if (f != null && !f.isBlank()) return AttachmentNames.sanitize(f);
+        } catch (Exception ignored) { }
+        // Attached messages carry no filename; their subject is the real name.
+        if (att instanceof Message nested) {
+            try {
+                String s = nested.getSubject();
+                if (s != null && !s.isBlank()) {
+                    return AttachmentNames.ensureExtension(AttachmentNames.sanitize(s), ".eml");
+                }
+            } catch (Exception ignored) { }
+        }
+        // Inline content usually has only a Content-ID like image001.png@....
+        String fromCid = AttachmentNames.fromContentId(contentIdOf(att));
+        if (!fromCid.isBlank()) {
+            return AttachmentNames.ensureExtension(
+                    AttachmentNames.sanitize(fromCid), AttachmentNames.extensionFor(mimeOf(att)));
+        }
+        String ext = AttachmentNames.extensionFor(mimeOf(att));
+        return "attachment_" + n + (ext == null ? "" : ext);
+    }
+
+    private static String contentIdOf(Entity att) {
+        try {
+            if (att.getHeader() == null) return null;
+            var field = att.getHeader().getField("Content-ID");
+            return field == null ? null : field.getBody();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static String mimeOf(Entity att) {
+        try {
+            return att.getMimeType();
+        } catch (Exception ignored) {
+            return null;
         }
     }
 

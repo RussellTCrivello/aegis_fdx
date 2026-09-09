@@ -3,6 +3,7 @@ package com.aegis.fdx;
 import com.aegis.fdx.engine.CaseSettings;
 import com.aegis.fdx.engine.LiveCase;
 import com.aegis.fdx.facade.AegisFacades;
+import com.aegis.fdx.facade.ContentFacade;
 import com.aegis.fdx.facade.ExportFacade;
 import com.aegis.fdx.facade.FacadeException;
 import com.aegis.fdx.facade.FileProcessingFacade;
@@ -35,12 +36,15 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -447,6 +451,76 @@ class FacadeParityTest {
 
             // the facade layer holds no resources of its own: the case stays usable
             assertEquals(0, c.indexedCount());
+        }
+    }
+
+    // ================= image previews =================
+
+    /** A 1x1 transparent PNG, so the test needs no binary fixture. */
+    private static final String ONE_PIXEL_PNG_BASE64 =
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+    @Test
+    @DisplayName("Image previews carry the native bytes plus the stored extracted text")
+    void imagePreviewCarriesBytesAndText(@TempDir Path tmp) throws Exception {
+        byte[] png = Base64.getDecoder().decode(ONE_PIXEL_PNG_BASE64);
+        Path evidence = tmp.resolve("evidence");
+        Files.createDirectories(evidence);
+        Files.write(evidence.resolve("photo.png"), png);
+
+        try (LiveCase c = openCase(tmp)) {
+            AegisFacades f = AegisFacades.open(c);
+            List<ProcessingResultDto> results =
+                    f.processing("Acme", "left").processFolder(evidence.toString());
+            assertTrue(results.size() >= 1, "every discovered file yields a record");
+
+            String id = c.allItems().stream()
+                    .filter(it -> it.name() != null && it.name().endsWith("photo.png"))
+                    .map(it -> it.id())
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("ingested photo.png not found"));
+
+            PreviewDto p = f.preview().getPreview(id);
+            assertEquals(PreviewDto.PreviewType.IMAGE, p.previewType());
+            assertNotNull(p.data(), "image previews carry the native bytes");
+            assertEquals(png.length, p.data().length);
+            assertNotNull(p.content(), "image previews carry the stored text");
+            assertTrue(p.content().contains("photo.png"),
+                    "stored text starts from the file name, got: " + p.content());
+            assertFalse(p.truncated());
+        }
+    }
+
+    @Test
+    @DisplayName("ContentFacade serves native bytes and recognises image files")
+    void nativeBytesServeRegisteredFiles(@TempDir Path tmp) throws Exception {
+        byte[] png = Base64.getDecoder().decode(ONE_PIXEL_PNG_BASE64);
+        Path file = tmp.resolve("photo.png");
+        Files.write(file, png);
+
+        try (LiveCase c = openCase(tmp)) {
+            AegisFacades f = AegisFacades.open(c);
+            int srcId = f.sources().createSource("Acme", "NL", "custodian", 0.8);
+            int aspectId = f.aspects().createAspect("Plaintiff", 0.9);
+
+            int pathId = f.contents().createPath("photo.png", file.toString(), png.length,
+                    "png", "Unread", LocalDate.now(), LocalDate.now(),
+                    null, null, srcId, aspectId, null);
+            assertArrayEquals(png, f.contents().getNativeBytes(pathId),
+                    "registered bytes round-trip");
+
+            int missing = f.contents().createPath("gone.png",
+                    tmp.resolve("gone.png").toString(), 0, "png",
+                    "Unread", LocalDate.now(), LocalDate.now(),
+                    null, null, srcId, aspectId, null);
+            assertNull(f.contents().getNativeBytes(missing),
+                    "moved files yield null, not an exception");
+
+            assertTrue(ContentFacade.isImageFile("photo.PNG"));
+            assertTrue(ContentFacade.isImageFile("scan.tiff"));
+            assertFalse(ContentFacade.isImageFile("report.pdf"));
+            assertFalse(ContentFacade.isImageFile("noextension"));
+            assertFalse(ContentFacade.isImageFile(null));
         }
     }
 }

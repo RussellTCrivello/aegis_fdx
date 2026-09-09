@@ -142,12 +142,12 @@ class RelationshipModelTest {
     // ============================================================= invariants
 
     @Test
-    @DisplayName("Keyword must have at least three words; category exactly one")
+    @DisplayName("Keyword must have at least two words; category exactly one")
     void invariants(@TempDir Path tmp) throws Exception {
         try (LiveCase c = openCase(tmp)) {
             Seeded s = seed(c, tmp);
-            assertThrows(FacadeException.class,
-                    () -> s.f().keywords().createKeyword("two words", "finance"));
+            assertTrue(s.f().keywords().createKeyword("two words", "finance"),
+                    "a two-word keyword was refused");
             assertThrows(FacadeException.class,
                     () -> s.f().keywords().createKeyword("single", "finance"));
             assertThrows(FacadeException.class,
@@ -155,8 +155,9 @@ class RelationshipModelTest {
             assertThrows(FacadeException.class,
                     () -> s.f().categories().linkWordToCategory("two words", "finance"));
             assertEquals(Terms.Kind.KEYWORD, Terms.classify("payment due in 30 days"));
-            assertEquals(Terms.Kind.REJECTED, Terms.classify("payment due"));
+            assertEquals(Terms.Kind.KEYWORD, Terms.classify("payment due"));
             assertEquals(Terms.Kind.CATEGORY_WORD, Terms.classify("Payment"));
+            assertEquals(Terms.Kind.REJECTED, Terms.classify("   "));
             // normalisation is for matching; the display form survives
             TermSummary k = s.rel().keyword(s.keywordId());
             assertEquals("payment due in 30 days", k.text());
@@ -289,7 +290,7 @@ class RelationshipModelTest {
     // ================================================================= search
 
     @Test
-    @DisplayName("Search by a three-word keyword, a two-word fragment and a single word")
+    @DisplayName("Search by a three-word fragment, a two-word fragment and a single word")
     void searchByWordCount(@TempDir Path tmp) throws Exception {
         try (LiveCase c = openCase(tmp)) {
             Seeded s = seed(c, tmp);
@@ -298,7 +299,7 @@ class RelationshipModelTest {
             assertEquals(Set.of("invoice.txt", "ledger.txt"), fileNames(
                     s.rel().search("payment due in", EnumSet.of(RelationshipFacade.Scope.KEYWORD), 100)));
 
-            // two words: not a keyword and not a category word — content only
+            // two words: a partial keyword match plus content
             List<MatchRow> two = s.rel().search("payment due", 100);
             assertEquals(Set.of("invoice.txt", "ledger.txt"), fileNames(two));
             assertTrue(types(two).contains(MatchRow.MatchType.KEYWORD),
@@ -498,12 +499,14 @@ class RelationshipModelTest {
             assertThrows(java.sql.SQLException.class, () -> s.dao().insertWord("two words"));
             assertThrows(java.sql.SQLException.class, () -> s.dao().updateWord(s.wordId("payment"), "a b"));
             assertThrows(java.sql.SQLException.class,
-                    () -> s.dao().insertKeyword("only two", s.financeId()));
+                    () -> s.dao().insertKeyword("lonely", s.financeId()));
             assertThrows(java.sql.SQLException.class,
-                    () -> s.dao().updateKeyword(s.keywordId(), "too short"));
+                    () -> s.dao().updateKeyword(s.keywordId(), "lone"));
             // and the valid forms still work
             assertTrue(s.dao().insertWord("ledger") > 0);
+            assertTrue(s.dao().insertKeyword("only two", s.financeId()) > 0);
             assertTrue(s.dao().insertKeyword("three word phrase", s.financeId()) > 0);
+            assertTrue(s.dao().updateKeyword(s.keywordId(), "too short"));
         }
     }
 

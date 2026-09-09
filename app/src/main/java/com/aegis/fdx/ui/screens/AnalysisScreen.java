@@ -137,7 +137,7 @@ public final class AnalysisScreen implements Screen {
         cIds.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 String.join(", ", c.getValue().getValue())));
 
-        dupTable.getColumns().addAll(cHash, cCount, cIds);
+        dupTable.getColumns().addAll(List.of(cHash, cCount, cIds));
         dupLabel = Fas.muted("0 clusters");
 
         VBox content = new VBox(16,

@@ -36,7 +36,7 @@ public final class CategoryFacade {
      * Creates a category.
      *
      * <p>A category is exactly one word — it is a point in the relationship graph, and a
-     * phrase cannot be one. A phrase of three or more words is a keyword; see
+     * phrase cannot be one. A phrase of two or more words is a keyword; see
      * {@link Terms}.
      */
     public int createCategory(String categoryWord) {

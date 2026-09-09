@@ -145,7 +145,7 @@ public final class TitlesScreen implements Screen {
                 setGraphic(Fas.row(2, open, search));
             }
         });
-        table.getColumns().addAll(cTitle, cFiles, cTypes, cSources, cAct);
+        table.getColumns().addAll(List.of(cTitle, cFiles, cTypes, cSources, cAct));
         table.setRowFactory(t -> {
             javafx.scene.control.TableRow<TitleRow> row = new javafx.scene.control.TableRow<>();
             row.setOnMouseClicked(e -> {

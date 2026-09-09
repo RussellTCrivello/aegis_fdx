@@ -29,9 +29,25 @@ import org.junit.jupiter.api.Test;
  */
 class FacadeInventoryTest {
 
-    private static final Path TSV = Path.of("docs/facades.tsv");
-    private static final Path SCREENS = Path.of("app/src/main/java/com/aegis/fdx/ui/screens");
-    private static final Path HARNESS = Path.of("tools/FasShotHarness.java");
+    private static final Path TSV = resolve("docs/facades.tsv");
+    private static final Path SCREENS = resolve("app/src/main/java/com/aegis/fdx/ui/screens");
+    private static final Path HARNESS = resolve("tools/FasShotHarness.java");
+
+    /**
+     * The offline battery runs from the repo root while Gradle runs each
+     * module's tests from its own directory; accept both working directories.
+     */
+    private static Path resolve(String rootRelative) {
+        Path direct = Path.of(rootRelative);
+        if (Files.exists(direct)) {
+            return direct;
+        }
+        Path up = Path.of("..", rootRelative);
+        if (Files.exists(up)) {
+            return up;
+        }
+        return direct;
+    }
 
     /** Detail destinations are opened by id, not by navigation key. */
     private static final Map<String, String> DETAIL_METHODS = Map.of(

@@ -326,7 +326,7 @@ public final class KeywordsScreen implements Screen {
             }
         });
 
-        table.getColumns().addAll(cSel, cNum, cKw, cUse, cStatus, cCat, cAct);
+        table.getColumns().addAll(List.of(cSel, cNum, cKw, cUse, cStatus, cCat, cAct));
         table.setRowFactory(t -> {
             javafx.scene.control.TableRow<KeywordDto> row = new javafx.scene.control.TableRow<>();
             row.setOnMouseClicked(e -> {
@@ -637,7 +637,7 @@ public final class KeywordsScreen implements Screen {
         dlg.setTitle("Add Keyword");
         dlg.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
 
-        TextField phrase = Fas.field("Keyword phrase (three or more words)");
+        TextField phrase = Fas.field("Keyword phrase (two or more words)");
         ComboBox<String> category = new ComboBox<>();
         try {
             category.getItems().setAll(facades.categories().listCategories(500, 0)

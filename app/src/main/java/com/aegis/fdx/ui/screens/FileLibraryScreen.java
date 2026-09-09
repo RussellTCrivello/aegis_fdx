@@ -1,7 +1,7 @@
 package com.aegis.fdx.ui.screens;
 
 import com.aegis.fdx.facade.AegisFacades;
-import com.aegis.fdx.facade.ContentFacade;
+import com.aegis.fdx.facade.FileState;
 import com.aegis.fdx.facade.dto.AspectDto;
 import com.aegis.fdx.facade.dto.Page;
 import com.aegis.fdx.facade.dto.PathDto;
@@ -120,7 +120,7 @@ public final class FileLibraryScreen implements Screen {
         });
 
         statusFilter = new ComboBox<>(FXCollections.observableArrayList(
-                "Any status", ContentFacade.STATUS_READ, ContentFacade.STATUS_UNREAD));
+                "Any status", FileState.READ.label(), FileState.UNREAD.label()));
         statusFilter.setValue("Any status");
         statusFilter.setPrefWidth(120);
         statusFilter.setOnAction(e -> {
@@ -181,7 +181,7 @@ public final class FileLibraryScreen implements Screen {
                     setGraphic(null);
                     return;
                 }
-                boolean read = ContentFacade.STATUS_READ.equals(item.fileStatus());
+                boolean read = FileState.READ.label().equals(item.fileStatus());
                 setGraphic(Fas.badge(item.fileStatus(), read ? "success" : "muted"));
             }
         });
@@ -210,8 +210,8 @@ public final class FileLibraryScreen implements Screen {
                 Button toggle = Fas.ghost("", Icons.CHECK_CIRCLE);
                 toggle.setOnAction(e -> {
                     facades.contents().setPathStatus(item.id(),
-                            ContentFacade.STATUS_READ.equals(item.fileStatus())
-                                    ? ContentFacade.STATUS_UNREAD : ContentFacade.STATUS_READ);
+                            FileState.READ.label().equals(item.fileStatus())
+                                    ? FileState.UNREAD.label() : FileState.READ.label());
                     loadRows();
                 });
                 setGraphic(Fas.row(2, view, content, toggle));
@@ -341,8 +341,8 @@ public final class FileLibraryScreen implements Screen {
 
             // Summary stats
             int totalCase = facades.contents().getPaths(null, null, null, null, 10_000, 0).totalCount();
-            int readCount = facades.contents().getPaths(null, null, null, ContentFacade.STATUS_READ, 10_000, 0).totalCount();
-            int unreadCount = facades.contents().getPaths(null, null, null, ContentFacade.STATUS_UNREAD, 10_000, 0).totalCount();
+            int readCount = facades.contents().getPaths(null, null, null, FileState.READ.label(), 10_000, 0).totalCount();
+            int unreadCount = facades.contents().getPaths(null, null, null, FileState.UNREAD.label(), 10_000, 0).totalCount();
 
             Fas.setSummary(tileTotal, String.format("%,d", totalCase));
             Fas.setSummary(tileAnalyzed, String.format("%,d", readCount));
