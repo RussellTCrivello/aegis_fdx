@@ -22,7 +22,7 @@ trace against the running application.
 | ID | Ref group | Ref shots | Java screen | Variant / adaptation | Gate | Status |
 |---|---|---|---|---|---|---|
 | F01 | main | dashboard overview + setup.png | Dashboard | populated demo case | GUI-GATE | NOT RUN |
-| F02 | comprehensive | 7 tabs (files/categories/keywords/sources/sides/words/similar) | Comprehensive | ADAPTED: single combined-filter view; no per-tab views | GUI-GATE+JOURNEY | NOT RUN |
+| F02 | comprehensive | 7 tabs (files/categories/keywords/sources/sides/words/similar) | Comprehensive | 7 tabs (Files, Categories, Keywords, Sources, Sides, Words, Similar Files) with live filters, tables, and charts | GUI-GATE+JOURNEY | NOT RUN |
 | F03 | main | charts | Charts | chart rendering | GUI-GATE | NOT RUN |
 | F04 | main | files.png (14 files) | File Library | populated table + filters | GUI-GATE+JOURNEY | NOT RUN |
 | F05 | file-detail | 14 mains + 42 Content/Analysis/Metadata tabs | File Detail | Content+Analysis+Metadata; per-type states; empty vs failed | GUI-GATE+JOURNEY | NOT RUN |

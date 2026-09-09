@@ -380,12 +380,14 @@ public final class KeywordsScreen implements Screen {
                     cats.add(k.categoryWord());
                 }
             }
-            String keep = categoryBox.getValue();
+            String keep = categoryBox == null ? null : categoryBox.getValue();
             List<String> items = new ArrayList<>();
             items.add("All categories");
             items.addAll(cats);
-            categoryBox.getItems().setAll(items);
-            categoryBox.setValue(items.contains(keep) ? keep : "All categories");
+            if (categoryBox != null) {
+                categoryBox.getItems().setAll(items);
+                categoryBox.setValue(keep != null && items.contains(keep) ? keep : "All categories");
+            }
 
             int active = 0;
             for (KeywordDto k : all) {
@@ -424,18 +426,18 @@ public final class KeywordsScreen implements Screen {
                 continue;
             }
             int files = fileCounts.getOrDefault(k.id(), 0);
-            if ("Active".equals(status) && files == 0) {
+            if (status != null && "Active".equals(status) && files == 0) {
                 continue;
             }
-            if ("Inactive".equals(status) && files > 0) {
+            if (status != null && "Inactive".equals(status) && files > 0) {
                 continue;
             }
-            if (!"All categories".equals(cat) && !cat.equals(k.categoryWord())) {
+            if (cat != null && !"All categories".equals(cat) && !cat.equalsIgnoreCase(k.categoryWord())) {
                 continue;
             }
             filtered.add(k);
         }
-        String sort = sortBox == null ? "Keyword" : sortBox.getValue();
+        String sort = sortBox == null || sortBox.getValue() == null ? "Keyword" : sortBox.getValue();
         boolean desc = orderBox != null && "Desc".equals(orderBox.getValue());
         switch (sort) {
             case "Usage" -> filtered.sort((a, b) -> Integer.compare(

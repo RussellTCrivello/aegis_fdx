@@ -399,7 +399,8 @@ public final class SearchScreen implements Screen {
         }
         // strip the quotes a term detail adds for the index query
         String text = q.trim().replaceAll("^\"|\"$", "");
-        RelationshipFacade.Scope scope = switch (scopeBox.getValue()) {
+        String scVal = scopeBox == null || scopeBox.getValue() == null ? "Everywhere" : scopeBox.getValue();
+        RelationshipFacade.Scope scope = switch (scVal) {
             case "Keyword" -> RelationshipFacade.Scope.KEYWORD;
             case "Category" -> RelationshipFacade.Scope.CATEGORY;
             case "Category word" -> RelationshipFacade.Scope.CATEGORY_WORD;
@@ -417,7 +418,7 @@ public final class SearchScreen implements Screen {
                 files.add(r.pathId());
             }
             matchLabel.setText(files.size() + " file(s), " + found.size() + " match(es) for \u201c"
-                    + text + "\u201d in " + scopeBox.getValue().toLowerCase());
+                    + text + "\u201d in " + scVal.toLowerCase());
         } catch (FacadeException e) {
             matchRows.clear();
             matchLabel.setText(e.getMessage());

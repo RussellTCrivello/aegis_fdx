@@ -543,4 +543,42 @@ class RelationshipModelTest {
             assertTrue(s.f().relationshipIntegrity().check().consistent());
         }
     }
+
+    // ============================================================ retrospective indexing
+
+    @Test
+    @DisplayName("Creating or updating terms after ingestion immediately indexes existing file content")
+    void retrospectiveIndexingOnTermCreation(@TempDir Path tmp) throws Exception {
+        try (LiveCase c = openCase(tmp)) {
+            Seeded s = seed(c, tmp);
+
+            // Adding a keyword after files have already been ingested
+            // "memo.txt" contains: "Memo about the Acme consulting agreement and payment terms."
+            assertTrue(s.f().keywords().createKeyword("consulting agreement and", "legal"));
+            int newKwId = s.f().keywords().listKeywords().results().stream()
+                    .filter(k -> k.keyword().equals("consulting agreement and")).findFirst().orElseThrow().id();
+
+            // The keyword must immediately relate to memo.txt without manual analyzeAll
+            TermSummary kwSummary = s.rel().keyword(newKwId);
+            assertEquals(1, kwSummary.fileCount());
+            assertEquals(Set.of("memo.txt"), names(kwSummary.files()));
+
+            // Adding a category word after ingestion
+            // "ledger.txt" contains: "Ledger of consulting fees. PAYMENT DUE IN 30 DAYS."
+            assertTrue(s.f().categories().linkWordToCategory("fees", "finance"));
+            int feesWordId = s.wordId("fees");
+            TermSummary wordSummary = s.rel().categoryWord(feesWordId);
+            assertEquals(1, wordSummary.fileCount());
+            assertEquals(Set.of("ledger.txt"), names(wordSummary.files()));
+
+            // Updating the keyword phrase
+            // "ledger.txt" contains: "Ledger of consulting fees. PAYMENT DUE IN 30 DAYS."
+            assertTrue(s.f().keywords().updateKeyword(newKwId, "of consulting fees"));
+            TermSummary updatedKw = s.rel().keyword(newKwId);
+            assertEquals(1, updatedKw.fileCount());
+            assertEquals(Set.of("ledger.txt"), names(updatedKw.files()));
+
+            assertTrue(s.f().relationshipIntegrity().check().consistent());
+        }
+    }
 }

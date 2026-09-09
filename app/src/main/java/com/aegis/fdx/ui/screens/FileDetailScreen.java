@@ -11,6 +11,7 @@ import com.aegis.fdx.ui.Detail;
 import com.aegis.fdx.ai.agent.AgentService;
 import com.aegis.fdx.ai.tools.AgentContext;
 import com.aegis.fdx.ui.AnalyzeAction;
+import com.aegis.fdx.ui.Background;
 import com.aegis.fdx.ui.Fas;
 import com.aegis.fdx.ui.Icons;
 import com.aegis.fdx.ui.Router;
@@ -30,6 +31,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -52,8 +54,8 @@ import java.util.regex.Pattern;
  * One registered file in full: content, analysis and metadata.
  *
  * <p>Three tabs separate the three tasks an analyst performs on a file. Content
- * is for reading (in-document search, copy, download, export). Analysis shows
- * what the case knows about the file — classification distribution and word
+ * is for reading (in-document search, copy, download, export, reprocess). Analysis
+ * shows what the case knows about the file — classification distribution and word
  * frequency computed from the stored extracted text, plus the Categories /
  * Words / Keywords breakdown. Metadata preserves the full record: hashes,
  * dates, attribution, word count and engine status.
@@ -61,6 +63,7 @@ import java.util.regex.Pattern;
 public final class FileDetailScreen implements Detail {
 
     private static final Pattern WORD = Pattern.compile("[\\p{L}\\p{N}]+");
+    private static final Pattern SENTENCE = Pattern.compile("[^.!?]+[.!?]+(\\s+|$)");
 
     private final AegisFacades facades;
     private final CorpusDatabase dao;
@@ -73,12 +76,15 @@ public final class FileDetailScreen implements Detail {
 
     private Label heading;
     private Label statusBadgeHolder;
-    private GridPane meta;
+    private GridPane metaDoc;
+    private GridPane metaDetails;
+    private GridPane metaSecurity;
     private FlowPane categoryChips;
     private FlowPane keywordChips;
     private FlowPane wordChips;
     private Button readToggle;
     private Label engineStatus;
+    private Button reprocessBtn;
 
     // Content tab
     private TextArea contentArea;
@@ -86,6 +92,15 @@ public final class FileDetailScreen implements Detail {
     private CheckBox caseSensitive;
     private CheckBox wholeWord;
     private Label docMatchLabel;
+    private GridPane fileInfoGrid;
+    private GridPane quickStatsGrid;
+
+    // Pagination for content
+    private int contentPage = 0;
+    private static final int PAGE_SIZE = 5000;
+    private Label contentPageLabel;
+    private Button contentPrev;
+    private Button contentNext;
 
     // Analysis tab
     private VBox classificationBox;
@@ -129,9 +144,19 @@ public final class FileDetailScreen implements Detail {
         heading.getStyleClass().add("section-title");
         statusBadgeHolder = new Label();
         engineStatus = Fas.muted("");
-        meta = new GridPane();
-        meta.setHgap(28);
-        meta.setVgap(9);
+
+        metaDoc = new GridPane();
+        metaDoc.setHgap(20);
+        metaDoc.setVgap(8);
+
+        metaDetails = new GridPane();
+        metaDetails.setHgap(20);
+        metaDetails.setVgap(8);
+
+        metaSecurity = new GridPane();
+        metaSecurity.setHgap(20);
+        metaSecurity.setVgap(8);
+
         categoryChips = new FlowPane(6, 6);
         keywordChips = new FlowPane(6, 6);
         wordChips = new FlowPane(6, 6);
@@ -144,6 +169,9 @@ public final class FileDetailScreen implements Detail {
 
         readToggle = Fas.primary("Mark Read", Icons.CHECK_CIRCLE);
         readToggle.setOnAction(e -> toggleRead());
+
+        reprocessBtn = Fas.outline("Reprocess File", Icons.REFRESH);
+        reprocessBtn.setOnAction(e -> reprocessFile());
 
         Button analyze = AnalyzeAction.secondaryButton(agent, "Analyze File",
                 "Summarise this file and explain what it relates to on this case.",
@@ -163,7 +191,7 @@ public final class FileDetailScreen implements Detail {
             }
         });
 
-        Button openAspect = Fas.ghost("Open Aspect", Icons.DIAGRAM3);
+        Button openAspect = Fas.ghost("Open Side", Icons.DIAGRAM3);
         openAspect.setOnAction(e -> {
             if (path != null && path.aspectId() != null) {
                 router.openAspect(path.aspectId());
@@ -179,7 +207,7 @@ public final class FileDetailScreen implements Detail {
         VBox.setVgrow(tabs, Priority.ALWAYS);
 
         VBox content = new VBox(14,
-                Fas.pageHeader("File Detail", null, analyze, back, fullTextBtn, classify, readToggle),
+                Fas.pageHeader("File Detail", null, analyze, back, fullTextBtn, reprocessBtn, classify, readToggle),
                 new HBox(10, heading, statusBadgeHolder, Fas.spacer(),
                         openSource, openAspect),
                 engineStatus, tabs);
@@ -198,14 +226,21 @@ public final class FileDetailScreen implements Detail {
         VBox.setVgrow(contentArea, Priority.ALWAYS);
 
         docSearch = Fas.field("Search in document...");
-        docSearch.setPrefWidth(240);
+        docSearch.setPrefWidth(220);
         docSearch.setOnAction(e -> findInDocument());
-        caseSensitive = new CheckBox("Case Sensitive");
-        wholeWord = new CheckBox("Whole Word");
+        caseSensitive = new CheckBox("Case-sensitive");
+        wholeWord = new CheckBox("Whole word");
         docMatchLabel = Fas.muted("");
 
         Button find = Fas.outline("Find", Icons.SEARCH);
         find.setOnAction(e -> findInDocument());
+        Button clearSearch = Fas.ghost("Clear", Icons.CLOSE);
+        clearSearch.setOnAction(e -> {
+            docSearch.clear();
+            docMatchLabel.setText("");
+            contentArea.deselect();
+        });
+
         Button copy = Fas.outline("Copy", Icons.CLIPBOARD);
         copy.setOnAction(e -> {
             Fas.copyText(fullText);
@@ -214,17 +249,59 @@ public final class FileDetailScreen implements Detail {
         Button download = Fas.outline("Download", Icons.DOWNLOAD);
         download.setOnAction(e -> Fas.saveBytes(contentArea, "Download Content",
                 safeName() + ".txt", fullText.getBytes(StandardCharsets.UTF_8)));
-        Button export = Fas.outline("Export", Icons.DOWNLOAD);
-        export.setOnAction(e -> Fas.saveBytes(contentArea, "Export Content",
-                safeName() + ".txt", fullText.getBytes(StandardCharsets.UTF_8)));
 
-        VBox box = new VBox(10,
-                Fas.row(10, docSearch, find, caseSensitive, wholeWord,
-                        docMatchLabel, Fas.spacer(), copy, download, export),
-                contentArea);
-        box.setPadding(new Insets(14));
-        VBox.setVgrow(box, Priority.ALWAYS);
-        return box;
+        Button viewFull = Fas.outline("View Full Content", Icons.FILE_TEXT);
+        viewFull.setOnAction(e -> router.openContent(pathId));
+
+        contentPageLabel = Fas.muted("Page 1 of 1");
+        contentPrev = Fas.outline("Previous", null);
+        contentPrev.setOnAction(e -> changeContentPage(-1));
+        contentNext = Fas.outline("Next", null);
+        contentNext.setOnAction(e -> changeContentPage(1));
+
+        HBox pgnRow = new HBox(8, contentPageLabel, contentPrev, contentNext, Fas.spacer(), viewFull);
+        pgnRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+        VBox leftViewer = new VBox(10,
+                Fas.row(8, docSearch, find, clearSearch, caseSensitive, wholeWord,
+                        docMatchLabel, Fas.spacer(), copy, download),
+                contentArea,
+                pgnRow);
+        HBox.setHgrow(leftViewer, Priority.ALWAYS);
+
+        fileInfoGrid = new GridPane();
+        fileInfoGrid.setHgap(14);
+        fileInfoGrid.setVgap(6);
+
+        quickStatsGrid = new GridPane();
+        quickStatsGrid.setHgap(14);
+        quickStatsGrid.setVgap(6);
+
+        VBox infoCard = Fas.cardWithHeader("File Information", null, fileInfoGrid);
+        VBox statsCard = Fas.cardWithHeader("Quick Stats", null, quickStatsGrid);
+        VBox rightSide = new VBox(12, infoCard, statsCard);
+        rightSide.setPrefWidth(300);
+
+        HBox split = new HBox(14, leftViewer, rightSide);
+        split.setPadding(new Insets(14));
+        VBox.setVgrow(split, Priority.ALWAYS);
+        return split;
+    }
+
+    private void changeContentPage(int delta) {
+        if (fullText == null || fullText.isEmpty()) {
+            contentArea.setText("");
+            contentPageLabel.setText("Page 1 of 1");
+            return;
+        }
+        int totalPages = Math.max(1, (int) Math.ceil(fullText.length() / (double) PAGE_SIZE));
+        contentPage = Math.max(0, Math.min(contentPage + delta, totalPages - 1));
+        int start = contentPage * PAGE_SIZE;
+        int end = Math.min(start + PAGE_SIZE, fullText.length());
+        contentArea.setText(fullText.substring(start, end));
+        contentPageLabel.setText("Page " + (contentPage + 1) + " of " + totalPages);
+        contentPrev.setDisable(contentPage == 0);
+        contentNext.setDisable(contentPage >= totalPages - 1);
     }
 
     private void findInDocument() {
@@ -250,7 +327,13 @@ public final class FileDetailScreen implements Detail {
         }
         docMatchLabel.setText(count + (count == 1 ? " match" : " matches"));
         if (first >= 0) {
-            contentArea.selectRange(first, first + needle.length());
+            int targetPage = first / PAGE_SIZE;
+            if (targetPage != contentPage) {
+                contentPage = targetPage;
+                changeContentPage(0);
+            }
+            int offsetInPage = first % PAGE_SIZE;
+            contentArea.selectRange(offsetInPage, offsetInPage + needle.length());
             contentArea.requestFocus();
         }
     }
@@ -267,6 +350,34 @@ public final class FileDetailScreen implements Detail {
             return "content";
         }
         return path.fileName().replaceAll("[^A-Za-z0-9._\\-]+", "_");
+    }
+
+    private void reprocessFile() {
+        if (path == null) return;
+        reprocessBtn.setDisable(true);
+        engineStatus.setText("Reprocessing file...");
+        Background.job().run(
+                () -> {
+                    if (path.elementId() != null) {
+                        return facades.processing().retryFile(path.elementId());
+                    }
+                    return null;
+                },
+                res -> {
+                    reprocessBtn.setDisable(false);
+                    if (res != null && res.success()) {
+                        engineStatus.setText("Reprocessing completed successfully.");
+                    } else if (res != null) {
+                        engineStatus.setText("Reprocessing result: " + res.error());
+                    } else {
+                        engineStatus.setText("No engine element found for direct retry.");
+                    }
+                    onShow();
+                },
+                t -> {
+                    reprocessBtn.setDisable(false);
+                    engineStatus.setText("Reprocess error: " + t.getMessage());
+                });
     }
 
     // ---- Analysis tab ---------------------------------------------------
@@ -289,7 +400,7 @@ public final class FileDetailScreen implements Detail {
 
         subCatBtn = Fas.subTab("Categories", true);
         subWordBtn = Fas.subTab("Words", false);
-        subKwBtn = Fas.subTab("Keywords", false);
+        subKwBtn = Fas.subTab("Top Keywords", false);
         subCatBtn.setOnAction(e -> showSub(0));
         subWordBtn.setOnAction(e -> showSub(1));
         subKwBtn.setOnAction(e -> showSub(2));
@@ -378,7 +489,7 @@ public final class FileDetailScreen implements Detail {
                 String.valueOf(c.getValue().files())));
         table.getColumns().addAll(c1, c2, c3);
         table.setRowFactory(t -> {
-            javafx.scene.control.TableRow<KwRow> row = new javafx.scene.control.TableRow<>();
+            TableRow<KwRow> row = new TableRow<>();
             row.setOnMouseClicked(e -> {
                 if (e.getClickCount() == 2 && !row.isEmpty()) {
                     router.openKeyword(row.getItem().id());
@@ -411,21 +522,28 @@ public final class FileDetailScreen implements Detail {
     // ---- Metadata tab ---------------------------------------------------
 
     private Node buildMetadataTab() {
-        VBox left = Fas.cardWithHeader("File Record", null, meta);
-        VBox right = Fas.cardWithHeader("Relationships",
+        VBox docCard = Fas.cardWithHeader("Document Metadata", "Origin, dates and taxonomy", metaDoc);
+        VBox techCard = Fas.cardWithHeader("File Details", "Engine attributes and filesystem properties", metaDetails);
+        VBox secCard = Fas.cardWithHeader("Security & Hash", "Cryptographic hashes and evidence identity", metaSecurity);
+
+        VBox relCard = Fas.cardWithHeader("Relationships",
                 "Keywords, categories and category words this file is related to; click to open",
                 new VBox(12,
                         Fas.fieldLabel("KEYWORDS"), keywordChips,
                         Fas.fieldLabel("CATEGORIES"), categoryChips,
                         Fas.fieldLabel("CATEGORY WORDS"), wordChips));
-        HBox.setHgrow(left, Priority.ALWAYS);
-        HBox.setHgrow(right, Priority.ALWAYS);
-        VBox box = new VBox(14, new HBox(14, left, right));
+
+        HBox left = new HBox(14, grow(docCard), grow(techCard));
+        HBox right = new HBox(14, grow(secCard), grow(relCard));
+
+        VBox box = new VBox(14, left, right);
         box.setPadding(new Insets(14));
         ScrollPane sp = new ScrollPane(box);
         sp.setFitToWidth(true);
         return sp;
     }
+
+    private static VBox grow(VBox v) { HBox.setHgrow(v, Priority.ALWAYS); return v; }
 
     // ---- load -----------------------------------------------------------
 
@@ -448,8 +566,9 @@ public final class FileDetailScreen implements Detail {
             if (fullText == null) {
                 fullText = "";
             }
-            contentArea.setText(fullText.isBlank()
-                    ? "" : fullText);
+
+            contentPage = 0;
+            changeContentPage(0);
             docMatchLabel.setText("");
 
             com.aegis.fdx.model.Item item = null;
@@ -458,44 +577,60 @@ public final class FileDetailScreen implements Detail {
                 try {
                     item = facades.liveCase().byId(path.elementId());
                 } catch (Exception ignored) {
-                    // engine detail is supplementary; the registry record still stands
                 }
             }
 
-            // Metadata grid
-            meta.getChildren().clear();
-            int r = 0;
             int words = fullText.isBlank() ? 0 : countWords(fullText);
-            int chunks = 0;
-            try {
-                chunks = facades.contents().getContents(pathId).size();
-            } catch (RuntimeException ignored) {
-                chunks = fullText.isBlank() ? 0 : 1;
-            }
-            r = row(r, "File name", path.fileName());
-            r = row(r, "File type", path.fileType());
-            r = row(r, "File size", DashboardScreen.humanBytes(path.fileSize())
-                    + "  (" + String.format("%,d", path.fileSize()) + " bytes)");
-            r = row(r, "Status", path.fileStatus());
-            r = row(r, "File date", String.valueOf(path.fileDate()));
-            r = row(r, "Date created", String.valueOf(path.dateCreation()));
-            r = row(r, "Source", path.sourceName());
-            r = row(r, "Side", path.aspectName());
-            r = row(r, "Word count", String.format("%,d", words));
-            r = row(r, "Content chunks", String.valueOf(chunks));
-            r = row(r, "File path", path.filePath());
-            r = row(r, "Relations", path.hashValue() != null ? path.hashValue()
-                    : item != null ? item.sha256() : null);
-            r = row(r, "Full Path", path.filePath());
-            r = row(r, "SHA-256", path.hashValue() != null ? path.hashValue()
-                    : item != null ? item.sha256() : null);
-            r = row(r, "MD5", item == null ? null : item.md5());
-            r = row(r, "MIME Type", item == null ? null : item.mediaType());
-            r = row(r, "Processing Status", item == null ? null : String.valueOf(item.status()));
-            r = row(r, "OCR", item == null ? null
-                    : item.ocrApplied() ? "Applied" : item.needsOcr() ? "Candidate, not applied" : "Not needed");
-            r = row(r, "Element ID", path.elementId());
-            row(r, "Coordinates", path.coordinates());
+            int sentences = fullText.isBlank() ? 0 : countSentences(fullText);
+            int paragraphs = fullText.isBlank() ? 0 : countParagraphs(fullText);
+            int chars = fullText.length();
+
+            // Populate Quick Stats in Content Tab
+            quickStatsGrid.getChildren().clear();
+            addGridRow(quickStatsGrid, 0, "Word Count", String.format("%,d", words));
+            addGridRow(quickStatsGrid, 1, "Sentence Count", String.format("%,d", sentences));
+            addGridRow(quickStatsGrid, 2, "Paragraph Count", String.format("%,d", paragraphs));
+            addGridRow(quickStatsGrid, 3, "Character Count", String.format("%,d", chars));
+
+            // Populate File Information in Content Tab
+            fileInfoGrid.getChildren().clear();
+            addGridRow(fileInfoGrid, 0, "Type", path.fileType());
+            addGridRow(fileInfoGrid, 1, "Size", DashboardScreen.humanBytes(path.fileSize()));
+            addGridRow(fileInfoGrid, 2, "Status", path.fileStatus());
+            addGridRow(fileInfoGrid, 3, "Source", path.sourceName());
+            addGridRow(fileInfoGrid, 4, "Side", path.aspectName());
+            addGridRow(fileInfoGrid, 5, "Date", String.valueOf(path.fileDate()));
+
+            // Populate Metadata Grids
+            metaDoc.getChildren().clear();
+            int r1 = 0;
+            r1 = addGridRow(metaDoc, r1, "File Name", path.fileName());
+            r1 = addGridRow(metaDoc, r1, "File Type", path.fileType());
+            r1 = addGridRow(metaDoc, r1, "Source", path.sourceName());
+            r1 = addGridRow(metaDoc, r1, "Side", path.aspectName());
+            r1 = addGridRow(metaDoc, r1, "File Date", String.valueOf(path.fileDate()));
+            r1 = addGridRow(metaDoc, r1, "Date Created", String.valueOf(path.dateCreation()));
+            r1 = addGridRow(metaDoc, r1, "Notes", path.coordinates() != null ? path.coordinates() : "—");
+            addGridRow(metaDoc, r1, "Status", path.fileStatus());
+
+            metaDetails.getChildren().clear();
+            int r2 = 0;
+            r2 = addGridRow(metaDetails, r2, "ID", String.valueOf(path.id()));
+            r2 = addGridRow(metaDetails, r2, "Path", path.filePath());
+            r2 = addGridRow(metaDetails, r2, "Size", DashboardScreen.humanBytes(path.fileSize()) + " (" + String.format("%,d", path.fileSize()) + " bytes)");
+            r2 = addGridRow(metaDetails, r2, "Element ID", path.elementId() != null ? path.elementId() : "—");
+            r2 = addGridRow(metaDetails, r2, "MIME Type", item == null ? "—" : item.mediaType());
+            r2 = addGridRow(metaDetails, r2, "OCR Status", item == null ? "—" : item.ocrApplied() ? "Applied" : item.needsOcr() ? "Candidate" : "Not needed");
+            addGridRow(metaDetails, r2, "Processing Status", item == null ? String.valueOf(path.fileStatus()) : String.valueOf(item.status()));
+
+            metaSecurity.getChildren().clear();
+            int r3 = 0;
+            String sha = path.hashValue() != null ? path.hashValue() : item != null ? item.sha256() : null;
+            String md5 = item != null ? item.md5() : null;
+            r3 = addGridRow(metaSecurity, r3, "SHA-256", sha != null ? sha : "—");
+            r3 = addGridRow(metaSecurity, r3, "MD5", md5 != null ? md5 : "—");
+            addGridRow(metaSecurity, r3, "Hash ID", path.hashValue() != null ? path.hashValue() : "—");
+
             if (item != null && item.errors() != null && !item.errors().isEmpty()) {
                 engineStatus.setText("Processing errors: " + String.join("; ", item.errors()));
             }
@@ -577,7 +712,6 @@ public final class FileDetailScreen implements Detail {
 
     private void renderClassification(com.aegis.fdx.facade.dto.FileRelationships rel) {
         classificationBox.getChildren().clear();
-        // Group this file's keyword hits by their owning category.
         Map<String, Integer> byCat = new LinkedHashMap<>();
         Map<String, Integer> catIds = new LinkedHashMap<>();
         try {
@@ -590,11 +724,9 @@ public final class FileDetailScreen implements Detail {
                     byCat.merge(cat, Math.max(1, hits), Integer::sum);
                     catIds.putIfAbsent(cat, kw.categoryId());
                 } catch (RuntimeException ignored) {
-                    // keyword vanished mid-read; the file record still stands
                 }
             }
         } catch (Exception ignored) {
-            // fall through to the category fallback below
         }
         if (byCat.isEmpty()) {
             for (var c : rel.categories()) {
@@ -614,7 +746,6 @@ public final class FileDetailScreen implements Detail {
             }));
         }
 
-        // Categories sub-view: pie + data table
         catRows.clear();
         int total = byCat.values().stream().mapToInt(Integer::intValue).sum();
         List<Map.Entry<String, Integer>> entries = new ArrayList<>(byCat.entrySet());
@@ -674,13 +805,33 @@ public final class FileDetailScreen implements Detail {
         return n;
     }
 
-    private int row(int r, String label, String value) {
-        meta.add(Fas.fieldLabel(label), 0, r);
+    private static int countSentences(String text) {
+        if (text == null || text.isBlank()) return 0;
+        Matcher m = SENTENCE.matcher(text);
+        int n = 0;
+        while (m.find()) {
+            n++;
+        }
+        return n;
+    }
+
+    private static int countParagraphs(String text) {
+        if (text == null || text.isBlank()) return 0;
+        String[] parts = text.split("(\\r?\\n){2,}");
+        int count = 0;
+        for (String p : parts) {
+            if (!p.isBlank()) count++;
+        }
+        return Math.max(1, count);
+    }
+
+    private int addGridRow(GridPane g, int r, String label, String value) {
+        g.add(Fas.fieldLabel(label), 0, r);
         Label v = new Label(value == null || value.isBlank() ? "\u2014" : value);
         v.setWrapText(true);
         v.setMaxWidth(380);
         v.setStyle("-fx-font-size: 12px; -fx-text-fill: " + Fas.TEXT_DARK + ";");
-        meta.add(v, 1, r);
+        g.add(v, 1, r);
         return r + 1;
     }
 
@@ -733,15 +884,7 @@ public final class FileDetailScreen implements Detail {
         a.showAndWait();
     }
 
-    /** One word with its frequency in the stored text. */
-    public record WordFreq(String word, int count) {
-    }
-
-    /** One category with hits and share for the pie and data table. */
-    public record CatRow(String name, int hits, double share) {
-    }
-
-    /** One keyword with per-file hits and case-wide file count. */
-    public record KwRow(int id, String phrase, int hits, int files) {
-    }
+    public record WordFreq(String word, int count) {}
+    public record CatRow(String name, int hits, double share) {}
+    public record KwRow(int id, String phrase, int hits, int files) {}
 }

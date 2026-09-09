@@ -63,6 +63,7 @@ public final class Icons {
     /** bi-cloud-upload — Upload Files */
     public static final String CLOUD_UPLOAD =
             "M4.4 12a2.9 2.9 0 0 1-.3-5.8 4 4 0 0 1 7.7-.6A2.7 2.7 0 0 1 12 12M8 7v6.5M5.8 9.2 8 7l2.2 2.2";
+    public static final String UPLOAD = CLOUD_UPLOAD;
 
     /** bi-folder2-open — File Library */
     public static final String FOLDER_OPEN =
@@ -83,6 +84,7 @@ public final class Icons {
     /** bi-check-circle — Processed stat */
     public static final String CHECK_CIRCLE =
             "M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zm-2.4 6.2 1.8 1.8 3.4-3.6";
+    public static final String CHECK = CHECK_CIRCLE;
 
     /** bi-folder — File Types stat */
     public static final String FOLDER =

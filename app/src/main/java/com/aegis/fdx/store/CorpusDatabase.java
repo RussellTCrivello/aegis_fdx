@@ -399,7 +399,26 @@ public final class CorpusDatabase {
                 "DELETE FROM word_category WHERE category_id=? AND word_id=?")) {
             ps.setInt(1, categoryId);
             ps.setInt(2, wordId);
-            return ps.executeUpdate() > 0;
+            boolean removed = ps.executeUpdate() > 0;
+            if (removed) {
+                try (PreparedStatement checkPs = conn.prepareStatement("""
+                        SELECT 1 FROM word_category WHERE word_id = ?
+                        UNION ALL
+                        SELECT 1 FROM category WHERE word_id = ?""")) {
+                    checkPs.setInt(1, wordId);
+                    checkPs.setInt(2, wordId);
+                    try (ResultSet rs = checkPs.executeQuery()) {
+                        if (!rs.next()) {
+                            try (PreparedStatement delPs = conn.prepareStatement(
+                                    "DELETE FROM path_word WHERE word_id = ?")) {
+                                delPs.setInt(1, wordId);
+                                delPs.executeUpdate();
+                            }
+                        }
+                    }
+                }
+            }
+            return removed;
         }
     }
 
@@ -1587,6 +1606,32 @@ public final class CorpusDatabase {
         try (PreparedStatement ps = conn.prepareStatement("DELETE FROM path_keyword WHERE path_id=?")) {
             ps.setInt(1, pathId);
             ps.executeUpdate();
+        }
+    }
+
+    /** Removes the derived edges for one keyword across all files. */
+    public void clearKeywordEdges(int keywordId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM path_keyword WHERE keyword_id=?")) {
+            ps.setInt(1, keywordId);
+            ps.executeUpdate();
+        }
+    }
+
+    /** Removes the derived edges for one category word across all files. */
+    public void clearWordEdges(int wordId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM path_word WHERE word_id=?")) {
+            ps.setInt(1, wordId);
+            ps.executeUpdate();
+        }
+    }
+
+    /** All non-empty extracted text grouped by path id. */
+    public List<Row> selectAllContentData() throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT path_id, GROUP_CONCAT(content_data, char(10)) AS content_data " +
+                "FROM content WHERE content_data IS NOT NULL AND content_data != '' " +
+                "GROUP BY path_id ORDER BY path_id")) {
+            return all(ps);
         }
     }
 

@@ -20,9 +20,15 @@ import java.util.Map;
 public final class CategoryFacade {
 
     private final CorpusDatabase db;
+    private final RelationshipAnalyzer analyzer;
 
     public CategoryFacade(CorpusDatabase db) {
+        this(db, null);
+    }
+
+    public CategoryFacade(CorpusDatabase db, RelationshipAnalyzer analyzer) {
         this.db = db;
+        this.analyzer = analyzer;
     }
 
     /** Creates a category named by the given word, creating the word if needed. */
@@ -37,7 +43,11 @@ public final class CategoryFacade {
         String w = Terms.requireCategory(categoryWord, "categoryWord");
         try {
             int wordId = db.insertWord(w);
-            return db.insertCategory(wordId);
+            int catId = db.insertCategory(wordId);
+            if (analyzer != null && wordId > 0) {
+                analyzer.analyzeWord(wordId);
+            }
+            return catId;
         } catch (SQLException e) {
             String m = e.getMessage();
             if (m != null && m.contains("UNIQUE")) {
@@ -111,7 +121,11 @@ public final class CategoryFacade {
             if (cat == null) {
                 throw FacadeException.notFound("category", cw);
             }
-            return db.linkWordToCategory(wordId, cat.i("id"));
+            boolean linked = db.linkWordToCategory(wordId, cat.i("id"));
+            if (analyzer != null && wordId > 0) {
+                analyzer.analyzeWord(wordId);
+            }
+            return linked;
         } catch (SQLException e) {
             throw FacadeException.internal("failed to link word to category", e);
         }

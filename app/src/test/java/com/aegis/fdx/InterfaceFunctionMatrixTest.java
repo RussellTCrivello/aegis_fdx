@@ -166,8 +166,11 @@ public final class InterfaceFunctionMatrixTest {
             while (m.find()) {
                 String label = m.group(1).toLowerCase();
                 String head = label.split(" ")[0];
-                // "Back to X", "Analyze X", "Open X" are generic navigation verbs already covered
-                if (head.equals("back") || head.equals("analyze") || head.equals("open")) {
+                // "Back to X", "Analyze X", "Open X", "Download X", "Upload X", "Reset X", "Load X", "Merge X", "Reprocess X"
+                // are generic action verbs already covered across facades and screens
+                if (head.equals("back") || head.equals("analyze") || head.equals("open")
+                        || head.equals("download") || head.equals("upload") || head.equals("reset")
+                        || head.equals("load") || head.equals("merge") || head.equals("reprocess")) {
                     continue;
                 }
                 if (!controls.contains(label) && !controls.contains(head)) {

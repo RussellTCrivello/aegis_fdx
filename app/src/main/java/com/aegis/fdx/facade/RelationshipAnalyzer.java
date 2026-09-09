@@ -79,6 +79,85 @@ public final class RelationshipAnalyzer {
         return analyze(List.of(Validate.positiveId(pathId, "pathId")), null);
     }
 
+    /**
+     * Retrospectively indexes a single keyword across all existing file content in the case.
+     * Clears previous edges for this keyword and links any files containing the phrase.
+     */
+    public int analyzeKeyword(int keywordId) {
+        Validate.positiveId(keywordId, "keywordId");
+        try {
+            CorpusDatabase.Row k = db.selectKeywordById(keywordId);
+            if (k == null) {
+                return 0;
+            }
+            List<String> phrase = Terms.words(k.str("keyword"));
+            db.clearKeywordEdges(keywordId);
+            if (phrase.isEmpty()) {
+                return 0;
+            }
+            List<CorpusDatabase.Row> contentsList = db.selectAllContentData();
+            int links = 0;
+            for (CorpusDatabase.Row row : contentsList) {
+                String text = row.str("content_data");
+                if (text == null || text.isBlank()) {
+                    continue;
+                }
+                int pathId = row.i("path_id");
+                List<String> tokens = Terms.words(text);
+                int hits = countPhrase(tokens, phrase);
+                if (hits > 0) {
+                    db.linkPathToKeyword(pathId, keywordId, hits);
+                    links++;
+                }
+            }
+            return links;
+        } catch (SQLException e) {
+            throw FacadeException.internal("failed to analyze keyword " + keywordId, e);
+        }
+    }
+
+    /**
+     * Retrospectively indexes a single vocabulary word across all existing file content in the case.
+     * Clears previous edges for this word and links any files containing the word.
+     */
+    public int analyzeWord(int wordId) {
+        Validate.positiveId(wordId, "wordId");
+        try {
+            CorpusDatabase.Row w = db.selectWordById(wordId);
+            if (w == null) {
+                return 0;
+            }
+            String norm = Terms.normalize(w.str("word"));
+            db.clearWordEdges(wordId);
+            if (norm.isEmpty() || norm.contains(" ")) {
+                return 0;
+            }
+            List<CorpusDatabase.Row> contentsList = db.selectAllContentData();
+            int links = 0;
+            for (CorpusDatabase.Row row : contentsList) {
+                String text = row.str("content_data");
+                if (text == null || text.isBlank()) {
+                    continue;
+                }
+                int pathId = row.i("path_id");
+                List<String> tokens = Terms.words(text);
+                int hits = 0;
+                for (String t : tokens) {
+                    if (t.equals(norm)) {
+                        hits++;
+                    }
+                }
+                if (hits > 0) {
+                    db.linkPathToWord(pathId, wordId, hits);
+                    links++;
+                }
+            }
+            return links;
+        } catch (SQLException e) {
+            throw FacadeException.internal("failed to analyze word " + wordId, e);
+        }
+    }
+
     /** Re-derives the edges for a set of files. */
     public Result analyze(List<Integer> pathIds, Consumer<Progress> onProgress) {
         if (pathIds == null) {
