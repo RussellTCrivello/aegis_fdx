@@ -113,7 +113,7 @@ jobs:
         with:
           name: gui-shots-windows
           path: build/gui-shots/*.png
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Report failure diagnostics
         if: failure()

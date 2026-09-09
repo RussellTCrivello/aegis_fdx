@@ -273,15 +273,15 @@ Rendered from the running application       32 figures
 | 3 | Comprehensive Dashboard | `ComprehensiveDashboardScreen` | `combinedFilters` |
 | 4 | Batch Analysis | folded into `ProcessingMonitorScreen` | `ProcessingMonitorScreen` polling |
 | 5 | Path Analysis | `PathAnalysisScreen` | `directoryTree` |
-| 8 | Source detail | `SourceDetailScreen` | `sourceStatistics`, `26-source-detail.png` |
+| 8 | Source detail | `SourceDetailScreen` | `sourceStatistics`, `30-source-detail.png` |
 | 9 | Source relationships | `RelationshipsScreen(forSource)` | `relationships` |
 | 12 | Aspect detail | `AspectDetailScreen` | `aspectStatistics` |
 | 13 | Aspect relationships | `RelationshipsScreen(forAspect)` | `relationships` |
 | 16 | Word detail | `TermDetailScreen(WORD)` | `wordDetail` |
 | 21 | Keyword detail | `TermDetailScreen(KEYWORD)` | `keywordDetail` |
-| 24 | File detail | `FileDetailScreen` | `28-file-detail.png` |
-| 25 | Full content | `FullContentScreen` | `29-full-content.png` |
-| 27 | Archives | `ArchivesScreen` | `archiveTree`, `16-archives.png` |
+| 24 | File detail | `FileDetailScreen` | `32-file-detail.png` |
+| 25 | Full content | `FullContentScreen` | `33-full-content.png` |
+| 27 | Archives | `ArchivesScreen` | `archiveTree`, `20-archives.png` |
 | 30 | Advanced search | `AdvancedSearchScreen` | builder composes real criteria |
 | 36 | Setup | `SetupScreen` | case status + integrity verification |
 | 37 | Error dashboard | `ErrorDashboardScreen` | `errorReport`, `errorReportClean` |

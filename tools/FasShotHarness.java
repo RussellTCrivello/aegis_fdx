@@ -229,6 +229,8 @@ public class FasShotHarness {
                         .getDeclaredMethod("openKeyword", int.class);
                 java.lang.reflect.Method openWord = com.aegis.fdx.ui.FasApp.class
                         .getDeclaredMethod("openWord", int.class);
+                java.lang.reflect.Method openCategoryDetail = com.aegis.fdx.ui.FasApp.class
+                        .getDeclaredMethod("openCategoryDetail", int.class);
                 java.lang.reflect.Method nav = com.aegis.fdx.ui.FasApp.class
                         .getDeclaredMethod("navigate", String.class);
                 nav.setAccessible(true);
@@ -252,6 +254,13 @@ public class FasShotHarness {
                 nav.invoke(app, "Source Relationships");
                 n++;
                 pauseThen(scene, String.format("%02d-source-relationships", n));
+                openCategoryDetail.setAccessible(true);
+                openCategoryDetail.invoke(app, 1);
+                n++;
+                pauseThen(scene, String.format("%02d-category-detail", n));
+                nav.invoke(app, "Aspect Relationships");
+                n++;
+                pauseThen(scene, String.format("%02d-aspect-relationships", n));
             } catch (Exception e) {
                 fail("DETAIL FAIL: " + e);
             }
@@ -322,8 +331,9 @@ public class FasShotHarness {
             }
             throw t;
         }
+        // 9 detail destinations: 7 open*(id) shots plus the two relationship graphs.
         System.out.println("GUI GATE: " + failures + " failures over "
-                + (SCREENS.size() + 7) + " destinations");
+                + (SCREENS.size() + 9) + " destinations");
         if (failures > 0) {
             System.exit(1);
         }

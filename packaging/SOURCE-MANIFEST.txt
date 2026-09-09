@@ -1,6 +1,6 @@
 # AEGIS-FDX source manifest - regenerate with: packaging/make-manifest.sh (or .ps1)
 # Verifies a checkout is complete and self-consistent before building.
-# Generated: 2026-09-09T04:16:32Z
+# Generated: 2026-09-09T04:36:16Z
 16ca465504404df14dea70cbc0c7d490a6b80fb7bd378e4a3b66667ba1d1d91c  app/build.gradle.kts
 a50ba435da72eba0899409746b3dbf616778e46aa3a2c12643c4f41f31595201  app/src/main/java/com/aegis/fdx/Launcher.java
 fefdeb103ac764f5adb0efe044f22f88ba61fa53b651d64fec919a6beb0770ca  app/src/main/java/com/aegis/fdx/ai/agent/AgentActivity.java
@@ -181,6 +181,7 @@ f81fcacfc95c714a3ccb2a87b6ac3155fd071edf6fdff1228200871cf138e530  app/src/test/j
 07fbd177448f447cee3373ccc944f8f45f535767dd7fa038bc3871805c033eea  app/src/test/java/com/aegis/fdx/DestinationCoverageTest.java
 1e651d71e32312e531cc0b20329ffb38613aabc7602975eb12b1aede3747f672  app/src/test/java/com/aegis/fdx/DragDropIngestTest.java
 9bd7146bd2178571bbf5e927cf5341f5b73f1df71ecdfd90d169e9b2d150b557  app/src/test/java/com/aegis/fdx/EndToEndScenarioTest.java
+afd66a1c5609c3567268503dde3bd0bce5e8e84454239aa29bcd1cc730fd47e4  app/src/test/java/com/aegis/fdx/FacadeInventoryTest.java
 7d474dd33c0cd9494781814b1521edc54e54e98beba760cd961f42fa7c9c89ba  app/src/test/java/com/aegis/fdx/FacadeParityTest.java
 90f7523babd1b5781535789042d793558cac637116d8af26a39a51a2f087532e  app/src/test/java/com/aegis/fdx/FailureRecoveryTest.java
 b84a23197a71ab6286a0a7db2c97ffc6eb368ceb0afc38bbae4a76699590c5fd  app/src/test/java/com/aegis/fdx/FakeLocalRuntime.java
@@ -212,6 +213,6 @@ e9d0741b78ebe54a11942709e6008d00b7fc0bd00e645a05b1e0621530e35817  packaging/make
 48cc44e87074285041816238836e06f9ef0a5d134a3c41430c679df8a178ad1d  packaging/verify-install.sh
 cb9d83e858c082389a42ea8112bd5800d4ca9a1034814eea8247580da7a3afa4  packaging/verify-sources.ps1
 b4f0bbdde5fd04e8f7516b9473fc21738a92d431c70b1ceb63bf664e197aac65  packaging/verify-sources.sh
-253a0b7d2f7c0808fab6eb7bf21ff743e8d18f9a75ce467268559322c0116bca  run-tests.ps1
-dabf6735ff384864415cb578e6a10097ac3e1cb47e4aa037f68d63b1e41dc332  run-tests.sh
+5b1fb39f1b28f4017bba08cc6fe7978651d9c79a3ede4ef82fb412cd036187ab  run-tests.ps1
+4194e59cfdd2478490dd396fe1ce37cb1a8aef84239b23b0d4e5900a96a2359f  run-tests.sh
 c9e2473d3c501323d179fa767af22e5930c4df5b19a850a2fff8dfd8d392a11a  settings.gradle.kts

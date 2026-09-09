@@ -208,7 +208,8 @@ Invoke-JUnit 'JUnit suites (facade, agent, batch, model, scenario, resolver)' @(
     'com.aegis.fdx.HostMetricsTest',
     'com.aegis.fdx.FailureRecoveryTest',
     'com.aegis.fdx.AegisCharsetProviderTest',
-    'com.aegis.fdx.SearchResultResolverTest'
+    'com.aegis.fdx.SearchResultResolverTest',
+    'com.aegis.fdx.FacadeInventoryTest'
 ) @('-Xmx900m', '-cp', $runCp)
 
 Invoke-Suite 'architecture invariants' 'com.aegis.fdx.ArchitectureInvariantsTest' @((Join-Path $work 'arch'))

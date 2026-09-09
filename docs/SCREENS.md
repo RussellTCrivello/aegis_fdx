@@ -26,27 +26,32 @@ ingest pipeline over a sample corpus containing a nested ZIP.
 | `12-keywords.png` | Keywords |
 | `13-words.png` | Words |
 | `14-categories.png` | Categories |
-| `15-upload-files.png` | Upload Files |
-| `16-file-library.png` | File Library |
-| `17-archives.png` | Archives (container nesting) |
-| `18-import-export.png` | Import / Export |
-| `19-assistant.png` | Assistant |
-| `20-saved-searches.png` | Saved Searches |
-| `21-notifications.png` | Notifications |
-| `22-processing.png` | Processing Monitor |
-| `23-errors.png` | Error Dashboard |
-| `24-performance.png` | Performance |
-| `25-setup.png` | Setup |
-| `26-settings.png` | Settings |
-| `27-source-detail.png` | Source Detail |
-| `28-aspect-detail.png` | Aspect Detail |
-| `29-file-detail.png` | File Detail |
-| `30-full-content.png` | Full Content |
-| `31-keyword-detail.png` | Keyword Detail |
-| `32-word-detail.png` | Word Detail |
-| `33-source-relationships.png` | Source Relationships |
+| `15-titles.png` | Titles |
+| `16-relations.png` | Relations |
+| `17-geolocation.png` | Geolocation |
+| `18-upload-files.png` | Upload Files |
+| `19-file-library.png` | File Library |
+| `20-archives.png` | Archives (container nesting) |
+| `21-import-export.png` | Import / Export |
+| `22-assistant.png` | Assistant |
+| `23-saved-searches.png` | Saved Searches |
+| `24-notifications.png` | Notifications |
+| `25-processing.png` | Processing Monitor |
+| `26-errors.png` | Error Dashboard |
+| `27-performance.png` | Performance |
+| `28-setup.png` | Setup |
+| `29-settings.png` | Settings |
+| `30-source-detail.png` | Source Detail |
+| `31-aspect-detail.png` | Aspect Detail |
+| `32-file-detail.png` | File Detail |
+| `33-full-content.png` | Full Content |
+| `34-keyword-detail.png` | Keyword Detail |
+| `35-word-detail.png` | Word Detail |
+| `36-source-relationships.png` | Source Relationships |
+| `37-category-detail.png` | Category Detail |
+| `38-aspect-relationships.png` | Aspect Relationships |
 
-33 figures, one per audited reference destination.
+38 figures, one per audited reference destination.
 
 Walkthrough: **[UI_GUIDE.md](UI_GUIDE.md)** ·
 audit: **[REFERENCE_AUDIT.md](REFERENCE_AUDIT.md)** ·
